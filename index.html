@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exile Idle — an incremental ARPG</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ================= TOP BAR ================= -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-mark">⚔</span>
+      <span class="brand-name">EXILE<em>IDLE</em></span>
+    </div>
+
+    <div id="charBar">
+      <div class="char-id">
+        <span id="charName">Exile</span>
+        <span class="char-level">Level <b id="charLevel">1</b></span>
+      </div>
+      <div class="xp-track" title="Experience">
+        <div class="xp-fill" id="xpFill"></div>
+        <span class="xp-text" id="xpText">0 / 0</span>
+      </div>
+    </div>
+
+    <div id="quickStats">
+      <div class="qs" title="Damage per second"><label>DPS</label><b id="qsDps">0</b></div>
+      <div class="qs" title="Maximum Life"><label>LIFE</label><b id="qsLife" class="c-life">0</b></div>
+      <div class="qs" title="Maximum Energy Shield"><label>ES</label><b id="qsEs" class="c-es">0</b></div>
+      <div class="qs" title="Highest map tier completed"><label>TIER</label><b id="qsTier">0</b></div>
+    </div>
+
+    <div id="topActions">
+      <button class="btn" id="btnSave" title="Save now (auto-saves every 30s)">Save</button>
+      <button class="btn" id="btnSaves">Saves</button>
+      <button class="btn" id="btnSettings">Settings</button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN LAYOUT ================= -->
+  <main id="layout">
+
+    <!-- ---------- LEFT: CHARACTER & PASSIVES ---------- -->
+    <section class="panel" id="leftPanel">
+      <nav class="tabs" data-group="left">
+        <button class="tab active" data-tab="character">Character</button>
+        <button class="tab" data-tab="passives">Passives <span class="badge" id="passiveBadge">0</span></button>
+      </nav>
+
+      <div class="tab-body active" id="tab-character">
+        <div id="statSheet"></div>
+      </div>
+
+      <div class="tab-body" id="tab-passives">
+        <div id="passiveHeader"></div>
+        <div id="treeWrap">
+          <svg id="tree" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="tree-hint">Drag to pan · Scroll to zoom</div>
+          <div class="tree-controls">
+            <button class="btn tiny" id="btnTreeZoomIn">+</button>
+            <button class="btn tiny" id="btnTreeZoomOut">−</button>
+            <button class="btn tiny" id="btnTreeReset">Reset</button>
+          </div>
+        </div>
+        <div id="passiveInfo" class="passive-info">Hover a node for details. Click to allocate.</div>
+      </div>
+    </section>
+
+    <!-- ---------- CENTER: COMBAT / ATLAS / BOSSES ---------- -->
+    <section class="panel" id="centerPanel">
+      <nav class="tabs" data-group="center">
+        <button class="tab active" data-tab="combat">Combat</button>
+        <button class="tab" data-tab="atlas">Atlas <span class="badge" id="mapBadge">0</span></button>
+        <button class="tab" data-tab="bosses">Pinnacle</button>
+      </nav>
+
+      <div class="tab-body active" id="tab-combat">
+        <div id="mapHeader"></div>
+        <div id="combatArena"></div>
+        <div class="log-head">
+          <span>Combat Log</span>
+          <div class="log-filters" id="logFilters"></div>
+        </div>
+        <div id="combatLog" class="log"></div>
+      </div>
+
+      <div class="tab-body" id="tab-atlas">
+        <div id="atlasSummary"></div>
+        <div class="section-head">
+          <span>Map Stash</span>
+          <div class="head-actions">
+            <button class="btn tiny" id="btnSortMaps">Sort</button>
+            <button class="btn tiny" id="btnCraftMap">Craft T1 Map (1 Alch)</button>
+          </div>
+        </div>
+        <div id="mapList" class="map-list"></div>
+      </div>
+
+      <div class="tab-body" id="tab-bosses">
+        <div id="bossList"></div>
+      </div>
+    </section>
+
+    <!-- ---------- RIGHT: EQUIPMENT / INVENTORY / CURRENCY ---------- -->
+    <section class="panel" id="rightPanel">
+      <nav class="tabs" data-group="right">
+        <button class="tab active" data-tab="gear">Equipment</button>
+        <button class="tab" data-tab="currency">Stash</button>
+      </nav>
+
+      <div class="tab-body active" id="tab-gear">
+        <div id="equipDoll" class="doll"></div>
+        <div class="section-head">
+          <span>Inventory <b id="invCount">0/60</b></span>
+          <div class="head-actions">
+            <button class="btn tiny" id="btnSortInv">Sort</button>
+            <button class="btn tiny danger" id="btnSalvageNormal">Salvage Normal</button>
+            <button class="btn tiny danger" id="btnSalvageMagic">+Magic</button>
+          </div>
+        </div>
+        <div id="invGrid" class="inv-grid"></div>
+      </div>
+
+      <div class="tab-body" id="tab-currency">
+        <div id="craftBanner" class="craft-banner hidden"></div>
+        <div class="section-head"><span>Currency Stash</span></div>
+        <div id="currencyGrid" class="currency-grid"></div>
+        <div class="section-head"><span>Crafting Bench</span></div>
+        <div id="craftPanel" class="craft-panel"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= STATUS BAR ================= -->
+  <footer id="statusbar">
+    <span id="statusLeft">Ready.</span>
+    <span id="statusRight"></span>
+  </footer>
+</div>
+
+<!-- ================= FLOATING TOOLTIP ================= -->
+<div id="tooltip" class="tooltip hidden"></div>
+
+<!-- ================= MODALS ================= -->
+<div class="modal-backdrop hidden" id="modalBackdrop">
+
+  <div class="modal hidden" id="modalSaves">
+    <header><h2>Save Manager</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body">
+      <div id="slotList" class="slot-list"></div>
+      <div class="section-head"><span>Export / Import</span></div>
+      <p class="hint">Export produces a base64 string you can paste anywhere. Import accepts
+        that string or raw JSON, and overwrites your current character.</p>
+      <textarea id="saveText" class="save-text" spellcheck="false"
+                placeholder="Paste a save string here to import…"></textarea>
+      <div class="row">
+        <button class="btn" id="btnExport">Export to Box</button>
+        <button class="btn" id="btnCopy">Copy</button>
+        <button class="btn" id="btnImport">Import from Box</button>
+        <button class="btn" id="btnDownload">Download .json</button>
+        <label class="btn file-btn">Upload .json<input type="file" id="fileInput" accept=".json,application/json" hidden></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="modalSettings">
+    <header><h2>Settings</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body" id="settingsBody"></div>
+  </div>
+
+  <div class="modal hidden" id="modalNew">
+    <header><h2>New Character</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body">
+      <p class="hint">Name your exile. You will start with a Tier 1 map and a handful of orbs.</p>
+      <input type="text" id="newName" class="text-input" maxlength="18" placeholder="Exile">
+      <div class="row"><button class="btn primary" id="btnCreateChar">Begin</button></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="modalConfirm">
+    <header><h2 id="confirmTitle">Are you sure?</h2></header>
+    <div class="modal-body">
+      <p id="confirmText"></p>
+      <div class="row">
+        <button class="btn danger" id="btnConfirmYes">Confirm</button>
+        <button class="btn" id="btnConfirmNo">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="src/game.js"></script>
+<noscript><p style="padding:2rem;color:#c8aa6e">Exile Idle requires JavaScript.</p></noscript>
+
+<script>
+// ES modules cannot load over file:// — browsers block them as cross-origin.
+// If the game hasn't booted shortly after load, say why instead of showing a
+// blank shell.
+setTimeout(function () {
+  if (window.EXILE) return;
+  var msg = document.createElement('div');
+  msg.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
+    'justify-content:center;background:#08080a;color:#c9c5bd;font:14px/1.7 Segoe UI,sans-serif;padding:2rem;text-align:center';
+  msg.innerHTML = '<div><h1 style="color:#c8aa6e;letter-spacing:3px;margin-bottom:12px">EXILE IDLE</h1>' +
+    '<p>This game uses native ES modules, which browsers refuse to load from the' +
+    ' <code>file://</code> protocol.</p><p style="margin-top:10px">Serve the folder over HTTP instead:</p>' +
+    '<pre style="margin-top:10px;color:#c8aa6e">node serve.js</pre>' +
+    '<p style="margin-top:10px;color:#8a857c">then open the printed localhost URL.</p></div>';
+  document.body.appendChild(msg);
+}, 2500);
+</script>
+</body>
+</html>
