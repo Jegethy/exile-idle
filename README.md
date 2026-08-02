@@ -59,16 +59,17 @@ for the element being explained, and the cut-out stays genuinely interactive —
 when it asks you to send your first expedition, you press the real button and it
 runs a real expedition.
 
-Steps advance on your input, never on a timer. Most wait for **Continue**; two
-wait for you to click the thing being pointed at. The expedition step waits on
-the game as well — but the run finishing only *unlocks* Continue, it never
-presses it, so the text is still there when you look up. The button says what
-it is waiting for while it waits, and the spotlight moves to the guild log once
-the party is home.
+Steps advance on your input, never on a timer, and **nothing on screen changes
+between one press and the next** — each step has exactly one presentation, so
+reading is never racing the game. Most steps wait for **Continue**; two wait
+for you to click the thing being pointed at; one waits on the party coming
+home, and even then the run finishing only *unlocks* Continue rather than
+pressing it.
 
-That demonstration run is accelerated 5× and says so, taking a few seconds
-rather than a minute. Skipping the tutorial drops the acceleration immediately.
-Progress is saved, so closing the tab mid-tutorial picks up where you left off.
+The demonstration expedition is accelerated (and says so) to about ten seconds
+— long enough to actually watch, short enough not to be endured. Skipping the
+tutorial drops the acceleration immediately. Progress is saved, so closing the
+tab mid-tutorial picks up where you left off.
 
 **Skip Tutorial** is always available. It warns that finishing is advised and
 that it cannot be restarted, and only then takes the choice.

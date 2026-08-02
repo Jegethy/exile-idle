@@ -100,30 +100,35 @@ export const STEPS = [
   },
   {
     id: 'watching',
-    tab: 'expeditions', target: '#activeRuns',
+    tab: 'expeditions', target: '#centerPanel',
     title: 'The Expedition',
     body: 'Combat resolves on its own. Your party is on the left, the current enemies on the '
       + 'right, and the guild log below narrates it.'
       + '<br><br>A hero who falls sits out the rest of the run — they are never lost permanently.'
-      + '<br><br><i>This first run is running at five times normal speed so you are not kept '
-      + 'waiting. Later expeditions take their own time.</i>',
-    advance: 'wait',
-    waitLabel: 'Waiting for the party…',
-    readyTarget: '#guildLog',
-    waitFor: () => G.state.expeditions.length === 0
-      && (G.state.stats.runs + G.state.stats.runsFailed) > 0,
-    readyBody: () => (G.state.stats.runs > 0
-      ? '<b>They made it back.</b> Take your time — the tutorial waits for you.'
-      : '<b>They were driven out.</b> A failed run keeps whatever was already looted but '
-        + 'earns no completion chest. Nobody is lost permanently.'),
+      + '<br><br><i>This first run is accelerated so you are not kept waiting. Later expeditions '
+      + 'take their own time.</i>',
+    // Deliberately not a wait step. Reading about the live view should not be
+    // racing the run: Continue is available immediately and nothing on screen
+    // changes until you press it.
+    advance: 'next',
   },
   {
     id: 'rewards',
     tab: 'expeditions', target: '#guildLog',
     title: 'The Returns',
     body: 'Gold, equipment, crafting materials and experience, split by whatever the dungeon '
-      + 'specialises in. Clearing the final wave pays a bonus chest on top.',
-    advance: 'next',
+      + 'specialises in. Clearing the final wave pays a bonus chest on top.'
+      + '<br><br>The guild log keeps the full account of every run.',
+    // The wait lives here rather than on the previous step, so the party
+    // coming home is the only thing this step is ever waiting for.
+    advance: 'wait',
+    waitLabel: 'Waiting for the party…',
+    waitFor: () => G.state.expeditions.length === 0
+      && (G.state.stats.runs + G.state.stats.runsFailed) > 0,
+    readyBody: () => (G.state.stats.runs > 0
+      ? '<b>They made it back.</b> Their haul is in the log above.'
+      : '<b>They were driven out.</b> A failed run keeps whatever was already looted but '
+        + 'earns no completion chest. Nobody is lost permanently.'),
   },
   {
     id: 'vault',
@@ -367,12 +372,8 @@ function detachClick() {
 }
 
 function resolveTarget(step) {
-  if (!step) return null;
-  // A wait step can point somewhere else once its condition resolves — the
-  // expedition panel empties out on completion, so the spotlight follows the
-  // outcome into the log instead of framing an empty box.
-  const sel = (waitReady && step.readyTarget) ? step.readyTarget : step.target;
-  return sel ? qs(sel) : null;
+  if (!step?.target) return null;
+  return qs(step.target);
 }
 
 // ---------------------------------------------------------------------------

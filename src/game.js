@@ -15,11 +15,12 @@ const AUTOSAVE_INTERVAL = 30;    // seconds
 const UI_INTERVAL = 0.1;
 const MAX_STEP = 0.25;           // clamp so tab-switching doesn't fast-forward
 const REDEPLOY_DELAY = 1.5;
-// The tutorial's demonstration expedition runs accelerated. Watching a real
-// one crawl by for a minute is the worst possible first impression, and the
-// step exists to show how a run reads, not to be endured. Skipping the
-// tutorial drops this immediately, since isTutorialActive() goes false.
-const TUTORIAL_SPEED = 5;
+// The tutorial's demonstration expedition runs accelerated. A full-length run
+// is far too long to sit through, but 5x was too fast to actually watch — the
+// fight was over before the step describing it had been read. 3x lands around
+// ten seconds, long enough to see the bars move. Skipping the tutorial drops
+// this immediately, since isTutorialActive() goes false.
+const TUTORIAL_SPEED = 3;
 
 let last = 0;
 let autosaveTimer = 0;
