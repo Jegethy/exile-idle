@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Exile Idle — an incremental ARPG</title>
+<title>Idle Guild</title>
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 </head>
 <body>
 
@@ -14,26 +14,27 @@
   <!-- ================= TOP BAR ================= -->
   <header id="topbar">
     <div class="brand">
-      <span class="brand-mark">⚔</span>
-      <span class="brand-name">EXILE<em>IDLE</em></span>
+      <span class="brand-mark">🛡</span>
+      <span class="brand-name">IDLE<em>GUILD</em></span>
     </div>
 
-    <div id="charBar">
-      <div class="char-id">
-        <span id="charName">Exile</span>
-        <span class="char-level">Level <b id="charLevel">1</b></span>
+    <div id="guildBar">
+      <div class="guild-id">
+        <span id="guildName">The Wayfarers</span>
+        <span class="guild-level">Guild Level <b id="guildLevel">1</b></span>
       </div>
-      <div class="xp-track" title="Experience">
+      <div class="xp-track" title="Guild experience">
         <div class="xp-fill" id="xpFill"></div>
         <span class="xp-text" id="xpText">0 / 0</span>
       </div>
     </div>
 
     <div id="quickStats">
-      <div class="qs" title="Damage per second"><label>DPS</label><b id="qsDps">0</b></div>
-      <div class="qs" title="Maximum Life"><label>LIFE</label><b id="qsLife" class="c-life">0</b></div>
-      <div class="qs" title="Maximum Energy Shield"><label>ES</label><b id="qsEs" class="c-es">0</b></div>
-      <div class="qs" title="Highest map tier completed"><label>TIER</label><b id="qsTier">0</b></div>
+      <div class="qs" title="Gold"><label>GOLD</label><b id="qsGold" class="c-gold">0</b></div>
+      <div class="qs" title="Raid Seals"><label>SEALS</label><b id="qsSeals" class="c-seal">0</b></div>
+      <div class="qs" title="Heroes in the guild"><label>HEROES</label><b id="qsHeroes">0</b></div>
+      <div class="qs" title="Expeditions running / charters owned"><label>PARTIES</label><b id="qsParties">0/1</b></div>
+      <div class="qs" title="Highest tier cleared"><label>TIER</label><b id="qsTier">0</b></div>
     </div>
 
     <div id="topActions">
@@ -46,144 +47,120 @@
   <!-- ================= MAIN LAYOUT ================= -->
   <main id="layout">
 
-    <!-- ---------- LEFT: CHARACTER & PASSIVES ---------- -->
+    <!-- ---------- LEFT: ROSTER & PARTIES ---------- -->
     <section class="panel" id="leftPanel">
       <nav class="tabs" data-group="left">
-        <button class="tab active" data-tab="character">Character</button>
-        <button class="tab" data-tab="passives">Passives <span class="badge" id="passiveBadge">0</span></button>
+        <button class="tab active" data-tab="roster">Roster</button>
+        <button class="tab" data-tab="parties">Parties</button>
       </nav>
 
-      <div class="tab-body active" id="tab-character">
-        <div id="statSheet"></div>
+      <div class="tab-body active" id="tab-roster">
+        <div id="rosterHeader"></div>
+        <div id="rosterList" class="roster-list"></div>
       </div>
 
-      <div class="tab-body" id="tab-passives">
-        <div class="tree-teaser">
-          <h3>Passive Skill Tree</h3>
-          <p class="hint">206 nodes across six class arms. The tree opens full screen.</p>
-          <button class="btn primary" id="btnOpenTree">Open Passive Tree</button>
-        </div>
+      <div class="tab-body" id="tab-parties">
+        <div id="partyHeader"></div>
+        <div id="partyList" class="party-list"></div>
       </div>
     </section>
 
-    <!-- ---------- CENTER: COMBAT / ATLAS / BOSSES ---------- -->
+    <!-- ---------- CENTRE: EXPEDITIONS ---------- -->
     <section class="panel" id="centerPanel">
       <nav class="tabs" data-group="center">
-        <button class="tab active" data-tab="combat">Combat</button>
-        <button class="tab" data-tab="atlas">Atlas <span class="badge" id="mapBadge">0</span></button>
-        <button class="tab" data-tab="bosses">Pinnacle</button>
-        <button class="tab" data-tab="hideout">Hideout</button>
+        <button class="tab active" data-tab="expeditions">Expeditions</button>
+        <button class="tab" data-tab="raids">Raids</button>
+        <button class="tab" data-tab="hall">Guild Hall</button>
       </nav>
 
-      <div class="tab-body active" id="tab-combat">
-        <div id="mapHeader"></div>
-        <div id="combatArena"></div>
+      <div class="tab-body active" id="tab-expeditions">
+        <div id="activeRuns"></div>
+        <div class="section-head"><span>Dispatch a Party</span></div>
+        <div id="dispatchPanel"></div>
         <div class="log-head">
-          <span>Combat Log</span>
+          <span>Guild Log</span>
           <div class="log-filters" id="logFilters"></div>
         </div>
-        <div id="combatLog" class="log"></div>
+        <div id="guildLog" class="log"></div>
       </div>
 
-      <div class="tab-body" id="tab-atlas">
-        <div id="atlasSummary"></div>
-        <div class="section-head">
-          <span>Map Stash</span>
-          <div class="head-actions">
-            <button class="btn tiny" id="btnSortMaps">Sort</button>
-            <button class="btn tiny" id="btnCraftMap">Craft T1 Map (1 Alch)</button>
-          </div>
-        </div>
-        <div id="mapList" class="map-list"></div>
+      <div class="tab-body" id="tab-raids">
+        <div id="raidList"></div>
       </div>
 
-      <div class="tab-body" id="tab-bosses">
-        <div id="bossList"></div>
-      </div>
-
-      <div class="tab-body" id="tab-hideout">
-        <div id="hideoutSummary"></div>
-        <div class="section-head"><span>Permanent Upgrades</span></div>
+      <div class="tab-body" id="tab-hall">
+        <div id="hallSummary"></div>
+        <div class="section-head"><span>Guild Hall Upgrades</span></div>
         <div id="upgradeList" class="upgrade-list"></div>
-        <div class="section-head">
-          <span>Unique Collection <b id="collectionCount"></b></span>
-        </div>
+        <div class="section-head"><span>Unique Collection <b id="collectionCount"></b></span></div>
         <div id="collectionList" class="collection-list"></div>
       </div>
     </section>
 
-    <!-- ---------- RIGHT: EQUIPMENT / INVENTORY / CURRENCY ---------- -->
+    <!-- ---------- RIGHT: VAULT & CRAFTING ---------- -->
     <section class="panel" id="rightPanel">
       <nav class="tabs" data-group="right">
-        <button class="tab active" data-tab="gear">Equipment</button>
-        <button class="tab" data-tab="currency">Stash</button>
+        <button class="tab active" data-tab="vault">Vault</button>
+        <button class="tab" data-tab="orbs">Crafting</button>
       </nav>
 
-      <div class="tab-body active" id="tab-gear">
-        <div id="equipDoll" class="doll"></div>
+      <div class="tab-body active" id="tab-vault">
+        <div id="equipTarget"></div>
         <div class="section-head">
-          <span>Inventory <b id="invCount">0/60</b></span>
-          <div class="head-actions">
-            <button class="btn tiny" id="btnSortInv">Sort</button>
-          </div>
+          <span>Vault <b id="vaultCount">0/80</b></span>
+          <div class="head-actions"><button class="btn tiny" id="btnSortVault">Sort</button></div>
         </div>
         <div class="salvage-bar">
           <span class="salvage-label">Salvage:</span>
           <button class="btn tiny danger" id="btnSalvageNormal">Normal</button>
           <button class="btn tiny danger" id="btnSalvageMagic">+ Magic</button>
           <button class="btn tiny danger" id="btnSalvageRare">+ Rare</button>
-          <span class="hint salvage-hint">Locked 🔒 and Unique items are never bulk-salvaged.</span>
+          <span class="hint salvage-hint">Locked 🔒, worn and Unique items are never bulk-salvaged.</span>
         </div>
-        <div id="invGrid" class="inv-grid"></div>
+        <div id="vaultGrid" class="inv-grid"></div>
       </div>
 
-      <div class="tab-body" id="tab-currency">
+      <div class="tab-body" id="tab-orbs">
         <div id="craftBanner" class="craft-banner hidden"></div>
-        <div class="section-head"><span>Currency Stash</span></div>
-        <div id="currencyGrid" class="currency-grid"></div>
-        <div class="section-head"><span>Crafting Bench</span></div>
+        <div class="section-head"><span>Crafting Orbs</span></div>
+        <div id="orbGrid" class="currency-grid"></div>
+        <div class="section-head"><span>Reference</span></div>
         <div id="craftPanel" class="craft-panel"></div>
       </div>
     </section>
 
   </main>
 
-  <!-- ================= STATUS BAR ================= -->
   <footer id="statusbar">
     <span id="statusLeft">Ready.</span>
     <span id="statusRight"></span>
   </footer>
 </div>
 
-<!-- ================= FULL-SCREEN PASSIVE TREE ================= -->
-<div id="treeScreen" class="tree-screen hidden">
-  <header class="tree-topbar">
-    <button class="btn" id="btnCloseTree">← Back to Game</button>
-    <div id="passiveHeader" class="tree-points"></div>
-    <div class="tree-controls">
-      <button class="btn tiny" id="btnTreeZoomOut">−</button>
-      <button class="btn tiny" id="btnTreeZoomIn">+</button>
-      <button class="btn tiny" id="btnTreeReset">Reset View</button>
-    </div>
-  </header>
-
-  <div class="tree-main">
-    <div id="treeWrap">
-      <svg id="tree" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div class="tree-hint">Drag to pan · Scroll to zoom · Esc to close</div>
-    </div>
-    <aside class="tree-side">
-      <div id="passiveInfo" class="passive-info">Hover a node for details. Click to allocate.</div>
-      <div id="ascendancyPanel" class="asc-panel"></div>
-    </aside>
-  </div>
-</div>
-
-<!-- ================= FLOATING TOOLTIP ================= -->
 <div id="tooltip" class="tooltip hidden"></div>
 
 <!-- ================= MODALS ================= -->
 <div class="modal-backdrop hidden" id="modalBackdrop">
+
+  <div class="modal hidden" id="modalNew">
+    <header><h2>Found a Guild</h2><button class="btn tiny modal-close" id="newCloseBtn">✕</button></header>
+    <div class="modal-body">
+      <p class="hint">Name your guild. You will start with three heroes, a party and a
+        little gold — enough to run the Deepmines and start building from there.</p>
+      <input type="text" id="newName" class="text-input" maxlength="24" placeholder="The Wayfarers">
+      <div class="row"><button class="btn primary" id="btnCreateGuild">Open for Business</button></div>
+    </div>
+  </div>
+
+  <div class="modal wide hidden" id="modalHero">
+    <header><h2 id="heroModalTitle">Hero</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body" id="heroModalBody"></div>
+  </div>
+
+  <div class="modal hidden" id="modalItem">
+    <header><h2 id="itemMenuTitle">Item</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body" id="itemMenuBody"></div>
+  </div>
 
   <div class="modal hidden" id="modalSaves">
     <header><h2>Save Manager</h2><button class="btn tiny modal-close">✕</button></header>
@@ -191,7 +168,7 @@
       <div id="slotList" class="slot-list"></div>
       <div class="section-head"><span>Export / Import</span></div>
       <p class="hint">Export produces a base64 string you can paste anywhere. Import accepts
-        that string or raw JSON, and overwrites your current character.</p>
+        that string or raw JSON, and replaces your current guild.</p>
       <textarea id="saveText" class="save-text" spellcheck="false"
                 placeholder="Paste a save string here to import…"></textarea>
       <div class="row">
@@ -209,32 +186,6 @@
     <div class="modal-body" id="settingsBody"></div>
   </div>
 
-  <div class="modal wide hidden" id="modalNew">
-    <header><h2>New Character</h2><button class="btn tiny modal-close" id="newCloseBtn">✕</button></header>
-    <div class="modal-body">
-      <p class="hint">Choose a class. It sets your starting attributes, where you begin on the
-        passive tree, and which ascendancies you may specialise into at level 20.</p>
-      <div id="classPicker" class="class-picker"></div>
-      <div id="classDetail" class="class-detail"></div>
-      <div class="section-head"><span>Name</span></div>
-      <input type="text" id="newName" class="text-input" maxlength="18" placeholder="Exile">
-      <div class="row"><button class="btn primary" id="btnCreateChar">Begin</button></div>
-    </div>
-  </div>
-
-  <div class="modal hidden" id="modalAscendancy">
-    <header><h2>Choose an Ascendancy</h2><button class="btn tiny modal-close">✕</button></header>
-    <div class="modal-body">
-      <p class="hint">This choice is permanent. Ascendancy points are granted at levels 20, 40, 60 and 80.</p>
-      <div id="ascPicker" class="asc-picker"></div>
-    </div>
-  </div>
-
-  <div class="modal hidden" id="modalItem">
-    <header><h2 id="itemMenuTitle">Item</h2><button class="btn tiny modal-close">✕</button></header>
-    <div class="modal-body" id="itemMenuBody"></div>
-  </div>
-
   <div class="modal hidden" id="modalConfirm">
     <header><h2 id="confirmTitle">Are you sure?</h2></header>
     <div class="modal-body">
@@ -249,18 +200,16 @@
 </div>
 
 <script type="module" src="src/game.js"></script>
-<noscript><p style="padding:2rem;color:#c8aa6e">Exile Idle requires JavaScript.</p></noscript>
+<noscript><p style="padding:2rem;color:#c8aa6e">Idle Guild requires JavaScript.</p></noscript>
 
 <script>
 // ES modules cannot load over file:// — browsers block them as cross-origin.
-// If the game hasn't booted shortly after load, say why instead of showing a
-// blank shell.
 setTimeout(function () {
-  if (window.EXILE) return;
+  if (window.IDLE_GUILD) return;
   var msg = document.createElement('div');
   msg.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
     'justify-content:center;background:#08080a;color:#c9c5bd;font:14px/1.7 Segoe UI,sans-serif;padding:2rem;text-align:center';
-  msg.innerHTML = '<div><h1 style="color:#c8aa6e;letter-spacing:3px;margin-bottom:12px">EXILE IDLE</h1>' +
+  msg.innerHTML = '<div><h1 style="color:#c8aa6e;letter-spacing:3px;margin-bottom:12px">IDLE GUILD</h1>' +
     '<p>This game uses native ES modules, which browsers refuse to load from the' +
     ' <code>file://</code> protocol.</p><p style="margin-top:10px">Serve the folder over HTTP instead:</p>' +
     '<pre style="margin-top:10px;color:#c8aa6e">node serve.js</pre>' +
