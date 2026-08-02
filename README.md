@@ -3,8 +3,8 @@
 A browser-based incremental/idle ARPG built on the itemisation and endgame loops of
 Path of Exile. Vanilla HTML, CSS and ES modules — **zero dependencies**.
 
-Roll rare gear with real prefix/suffix tiers, slam Exalted Orbs into it, allocate a
-97-node passive tree, and push an infinite Atlas of tiered maps whose modifiers make
+Roll rare gear with real prefix/suffix tiers, slam Exalted Orbs into it, allocate
+a 206-node passive tree, and push an infinite Atlas of tiered maps whose modifiers make
 them simultaneously more dangerous and more rewarding.
 
 ## Running
@@ -148,7 +148,7 @@ src/
   ui.js             all rendering and interaction
   rng.js            seeded PRNG (saves reproduce their loot stream)
   util.js           formatting and DOM helpers
-  data/             bases, affixes, uniques, currency, monsters, map mods, classes
+  data/             bases, affixes, uniques, currency, monsters, map mods, classes, upgrades
 ```
 
 ## Inventory and salvage
