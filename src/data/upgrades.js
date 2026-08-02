@@ -1,121 +1,123 @@
-// data/upgrades.js — permanent, account-wide upgrades bought with currency.
+// data/upgrades.js — Guild Hall upgrades, the permanent gold sink.
 //
-// This is the game's long-term currency sink and the reason to farm content you
-// have already outgrown: a Tier 4 map you clear in 20 seconds can out-earn a
-// Tier 12 map you limp through in four minutes. Every upgrade is permanent and
-// survives everything except deleting the save.
-//
-// Costs are paid in a specific orb type per upgrade, so the whole currency
-// table stays useful rather than everything collapsing into Chaos Orbs.
+// Gold is the guild's primary currency and this is where most of it goes.
+// Party Slots are deliberately the most expensive line: each one lets another
+// expedition run concurrently, which is the single biggest change to how the
+// game plays.
 
-/**
- * `effect(rank)` returns the accumulated bonus at that rank (not per-rank), so
- * the UI can show the current and next value without re-deriving anything.
- */
 export const UPGRADES = [
   {
-    id: 'cartographer', name: "Cartographer's Eye", currency: 'chisel',
-    baseCost: 2, growth: 1.28, max: 20,
-    desc: 'Maps you complete drop more maps.',
-    unit: '% increased Map drops',
-    effect: (r) => ({ mapDrops: r * 8 }),
+    id: 'partySlots', name: 'Expedition Charters', cost: 'gold',
+    baseCost: 2500, growth: 6.5, max: 3,
+    desc: 'Permits another party to be in the field at the same time.',
+    unit: ' extra concurrent expedition',
+    effect: (r) => ({ partySlots: r }),
   },
   {
-    id: 'treasure', name: 'Treasure Sense', currency: 'alchemy',
-    baseCost: 3, growth: 1.30, max: 20,
-    desc: 'Everything that drops is more likely to be good.',
+    id: 'quarters', name: 'Guild Quarters', cost: 'gold',
+    baseCost: 300, growth: 1.55, max: 15,
+    desc: 'Better beds. Heroes recover stamina faster between expeditions.',
+    unit: '% faster Stamina recovery',
+    effect: (r) => ({ stamina: r * 12 }),
+  },
+  {
+    id: 'vault', name: 'Vault Expansion', cost: 'gold',
+    baseCost: 220, growth: 1.48, max: 12,
+    desc: 'Store more equipment before drops start being salvaged.',
+    unit: ' extra vault slots',
+    effect: (r) => ({ vaultSlots: r * 10 }),
+  },
+  {
+    id: 'appraiser', name: 'Guild Appraiser', cost: 'gold',
+    baseCost: 400, growth: 1.42, max: 20,
+    desc: 'Expeditions return more gold.',
+    unit: '% increased Gold found',
+    effect: (r) => ({ gold: r * 10 }),
+  },
+  {
+    id: 'quartermaster', name: 'Quartermaster', cost: 'gold',
+    baseCost: 500, growth: 1.44, max: 20,
+    desc: 'Better equipment comes back from the field.',
     unit: '% increased Item Rarity',
-    effect: (r) => ({ rarity: r * 8 }),
+    effect: (r) => ({ rarity: r * 9 }),
   },
   {
-    id: 'plunder', name: 'Plunderer', currency: 'alteration',
-    baseCost: 8, growth: 1.26, max: 20,
-    desc: 'More items drop from every monster.',
+    id: 'scavengers', name: 'Scavenger Crews', cost: 'gold',
+    baseCost: 450, growth: 1.43, max: 20,
+    desc: 'More equipment comes back from the field.',
     unit: '% increased Item Quantity',
-    effect: (r) => ({ quantity: r * 6 }),
+    effect: (r) => ({ quantity: r * 8 }),
   },
   {
-    id: 'scavenger', name: 'Scavenger', currency: 'chaos',
-    baseCost: 2, growth: 1.32, max: 20,
-    desc: 'Monsters are more likely to drop currency.',
-    unit: '% increased Currency drops',
-    effect: (r) => ({ currency: r * 7 }),
+    id: 'archive', name: 'Arcane Archive', cost: 'gold',
+    baseCost: 600, growth: 1.46, max: 20,
+    desc: 'Expeditions recover more crafting orbs.',
+    unit: '% increased Orb drops',
+    effect: (r) => ({ orbs: r * 10 }),
   },
   {
-    id: 'collector', name: "Collector's Instinct", currency: 'regal',
-    baseCost: 4, growth: 1.34, max: 15,
-    desc: 'Improves your chance of finding Unique items.',
-    unit: '% increased Unique chance',
-    effect: (r) => ({ unique: r * 10 }),
-  },
-  {
-    id: 'veteran', name: "Veteran's Insight", currency: 'transmute',
-    baseCost: 10, growth: 1.27, max: 20,
-    desc: 'You learn more from every kill.',
+    id: 'trainers', name: 'Training Yard', cost: 'gold',
+    baseCost: 550, growth: 1.45, max: 20,
+    desc: 'Heroes learn faster from every expedition.',
     unit: '% increased Experience',
-    effect: (r) => ({ xp: r * 6 }),
+    effect: (r) => ({ xp: r * 9 }),
   },
   {
-    id: 'swift', name: 'Swift Passage', currency: 'augment',
-    baseCost: 8, growth: 1.29, max: 10,
-    desc: 'You move between packs faster, raising clear speed.',
-    unit: '% faster travel between packs',
-    effect: (r) => ({ travel: r * 6 }),
+    id: 'reputation', name: 'Guild Reputation', cost: 'gold',
+    baseCost: 1800, growth: 1.85, max: 10,
+    desc: 'Word spreads. Recruits are more likely to be exceptional.',
+    unit: '% better recruit quality',
+    effect: (r) => ({ recruitQuality: r * 18 }),
   },
   {
-    id: 'pack', name: 'Bulging Pack', currency: 'scour',
-    baseCost: 3, growth: 1.40, max: 10,
-    desc: 'Carry more items before drops start being salvaged.',
-    unit: ' extra inventory slots',
-    effect: (r) => ({ invSlots: r * 6 }),
+    id: 'infirmary', name: 'Infirmary', cost: 'gold',
+    baseCost: 700, growth: 1.50, max: 15,
+    desc: 'Healers trained here mend wounds faster in the field.',
+    unit: '% increased Healing',
+    effect: (r) => ({ healing: r * 10 }),
   },
   {
-    id: 'case', name: "Cartographer's Case", currency: 'blessed',
-    baseCost: 3, growth: 1.40, max: 10,
-    desc: 'Store more maps before your stash overflows.',
-    unit: ' extra map stash slots',
-    effect: (r) => ({ mapSlots: r * 8 }),
+    id: 'armoury', name: 'Guild Armoury', cost: 'gold',
+    baseCost: 900, growth: 1.52, max: 20,
+    desc: 'Standard-issue kit toughens every hero in the guild.',
+    unit: '% increased Life and Armour for all heroes',
+    effect: (r) => ({ incLife: r * 3, incArmour: r * 4 }),
   },
   {
-    id: 'hardened', name: 'Hardened', currency: 'vaal',
-    baseCost: 2, growth: 1.36, max: 20,
-    desc: 'Permanently tougher, on every character in this save.',
-    unit: '% increased Life and Energy Shield',
-    effect: (r) => ({ incLife: r * 2, incES: r * 2 }),
-  },
-  {
-    id: 'sharpened', name: 'Sharpened', currency: 'exalt',
-    baseCost: 1, growth: 1.42, max: 20,
-    desc: 'Permanently deadlier, on every character in this save.',
-    unit: '% increased Damage',
+    id: 'wargames', name: 'War Games', cost: 'gold',
+    baseCost: 1200, growth: 1.55, max: 20,
+    desc: 'Constant drilling sharpens every hero in the guild.',
+    unit: '% increased Damage for all heroes',
     effect: (r) => ({ incDamage: r * 3 }),
   },
   {
-    id: 'fortune', name: 'Fortune Favours', currency: 'divine',
-    baseCost: 1, growth: 1.45, max: 10,
-    desc: 'Pinnacle Fragments drop more often from Tier 5+ maps.',
-    unit: '% increased Fragment drops',
-    effect: (r) => ({ fragments: r * 15 }),
+    id: 'sealsmith', name: 'Sealsmith', cost: 'orbs',
+    orb: 'chaos', baseCost: 4, growth: 1.55, max: 10,
+    desc: 'Raid Seals are recovered more often from deep expeditions.',
+    unit: '% increased Raid Seal drops',
+    effect: (r) => ({ seals: r * 18 }),
   },
 ];
 
 export const UPGRADE_BY_ID = Object.fromEntries(UPGRADES.map((u) => [u.id, u]));
 
-/** Cost of taking `id` from its current rank to the next one. */
+/** Cost of taking `id` from its current rank to the next. */
 export function upgradeCost(id, rank) {
   const u = UPGRADE_BY_ID[id];
   if (!u || rank >= u.max) return null;
-  return { currency: u.currency, amount: Math.ceil(u.baseCost * Math.pow(u.growth, rank)) };
+  const amount = Math.ceil(u.baseCost * Math.pow(u.growth, rank));
+  return u.cost === 'orbs' ? { kind: 'orb', orb: u.orb, amount } : { kind: 'gold', amount };
 }
 
 /** Accumulated effects of every purchased upgrade. */
-export function upgradeEffects(ranks = {}) {
+export function guildEffects(ranks = {}) {
   const out = {
-    mapDrops: 0, rarity: 0, quantity: 0, currency: 0, unique: 0, xp: 0,
-    travel: 0, invSlots: 0, mapSlots: 0, incLife: 0, incES: 0, incDamage: 0, fragments: 0,
+    partySlots: 0, stamina: 0, vaultSlots: 0, gold: 0, rarity: 0, quantity: 0,
+    orbs: 0, xp: 0, recruitQuality: 0, healing: 0, incLife: 0, incArmour: 0,
+    incDamage: 0, seals: 0,
   };
   for (const u of UPGRADES) {
-    const r = ranks[u.id] ?? 0;
+    const r = ranks?.[u.id] ?? 0;
     if (!r) continue;
     for (const [k, v] of Object.entries(u.effect(r))) out[k] = (out[k] ?? 0) + v;
   }

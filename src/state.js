@@ -1,83 +1,63 @@
-// state.js — the single mutable game state plus a tiny event bus.
+// state.js — the single mutable guild state plus a tiny event bus.
 
 import { rng } from './rng.js';
-import { EQUIP_SLOTS } from './data/bases.js';
 import { CURRENCIES } from './data/currency.js';
-import { upgradeEffects } from './data/upgrades.js';
-import { createItem } from './items.js';
+import { guildEffects } from './data/upgrades.js';
 
-export const SAVE_VERSION = 2;
-export const BASE_INVENTORY_CAPACITY = 60;
-export const BASE_MAP_CAPACITY = 40;
+export const SAVE_VERSION = 10;          // 10+ = Idle Guild; below that is Exile Idle
+export const BASE_VAULT_CAPACITY = 80;
+export const BASE_PARTY_SLOTS = 1;
+export const MAX_PARTY_SIZE = 5;
 
-/** Inventory size, including any Bulging Pack upgrade ranks. */
-export function inventoryCapacity(state = G.state) {
-  return BASE_INVENTORY_CAPACITY + (upgradeEffects(state?.upgrades).invSlots ?? 0);
-}
-
-/** Map stash size, including any Cartographer's Case upgrade ranks. */
-export function mapCapacity(state = G.state) {
-  return BASE_MAP_CAPACITY + (upgradeEffects(state?.upgrades).mapSlots ?? 0);
-}
-
-/** Live game singleton. Modules read `G.state` and `G.derived`. */
+/** Live game singleton. Modules read `G.state`. */
 export const G = {
   state: null,
-  derived: null,
   slot: 0,
   paused: false,
+  /** heroUid -> derived stat sheet, rebuilt whenever gear or level changes. */
+  sheets: {},
 };
 
+/** Gear vault size, including Guild Hall upgrades. */
+export function vaultCapacity(state = G.state) {
+  return BASE_VAULT_CAPACITY + (guildEffects(state?.upgrades).vaultSlots ?? 0);
+}
+
+/** How many expeditions may run at once. */
+export function partySlots(state = G.state) {
+  return BASE_PARTY_SLOTS + (guildEffects(state?.upgrades).partySlots ?? 0);
+}
+
 // ---------------------------------------------------------------------------
-// Experience curve — exponential, uncapped.
+// Progression curves
 // ---------------------------------------------------------------------------
 
-/** XP required to advance from `level` to `level + 1`. */
+/** XP a hero needs to advance from `level` to `level + 1`. */
 export function xpToNext(level) {
-  return Math.floor(55 * Math.pow(level, 1.85) * Math.pow(1.036, level)) + 40;
+  return Math.floor(70 * Math.pow(level, 1.92) * Math.pow(1.045, level)) + 40;
 }
 
-/** XP a single monster is worth at a given map tier and monster rarity. */
-export function monsterXp(tier, rarityMult, playerLevel) {
-  const base = 26 * Math.pow(tier, 1.8) + tier * 14;
-  // Soft penalty when heavily out-levelling the content, so tiers matter.
-  const effLevel = tierToLevel(tier);
-  const gap = Math.max(0, playerLevel - effLevel - 10);
-  const penalty = 1 / (1 + gap * 0.06);
-  return Math.max(1, base * rarityMult * penalty);
+/** XP required to raise the guild from `level` to `level + 1`. */
+export function guildXpToNext(level) {
+  return Math.floor(900 * Math.pow(level, 1.80) * Math.pow(1.075, level)) + 400;
 }
 
-/**
- * Monsters in a tier-N map behave like this character level.
- * There is no campaign in Exile Idle — the Atlas *is* the whole game, so
- * Tier 1 is level-1 content and Tier 16 is roughly the level cap of a
- * "finished" character. Uber tiers continue past that forever.
- */
-export function tierToLevel(tier) {
-  return tier <= 16 ? Math.round(2 + (tier - 1) * 4.5) : 70 + Math.round((tier - 16) * 2.5);
-}
-
-/** Item level of drops from a tier-N map. */
-export function tierToIlvl(tier) {
-  return tier <= 16 ? Math.round(1 + (tier - 1) * 5.5) : 84 + Math.round((tier - 16) * 2.5);
+/** Cost in gold of the next recruit. Rises so roster growth stays a decision. */
+export function recruitCost(rosterSize) {
+  return Math.floor(120 * Math.pow(1.17, Math.max(0, rosterSize - 3)));
 }
 
 // ---------------------------------------------------------------------------
 // State construction
 // ---------------------------------------------------------------------------
 
-export function createState(name = 'Exile', classId = 'scion') {
-  const stash = {};
-  for (const c of CURRENCIES) stash[c.id] = 0;
-  // Starting kit so the first map is survivable.
-  stash.transmute = 6;
-  stash.alteration = 4;
-  stash.augment = 3;
-  stash.alchemy = 2;
-  stash.chisel = 2;
-
-  const equipment = {};
-  for (const s of EQUIP_SLOTS) equipment[s] = null;
+export function createState(name = 'The Wayfarers') {
+  const orbs = {};
+  for (const c of CURRENCIES) orbs[c.id] = 0;
+  orbs.transmute = 5;
+  orbs.alteration = 3;
+  orbs.augment = 2;
+  orbs.alchemy = 1;
 
   return {
     version: SAVE_VERSION,
@@ -85,45 +65,37 @@ export function createState(name = 'Exile', classId = 'scion') {
     createdAt: Date.now(),
     playtime: 0,
 
-    player: { level: 1, xp: 0, class: classId, ascendancy: null },
-    passives: { allocated: {}, ascendancy: {}, mastery: 0, bonusPoints: 0 },
+    guild: { level: 1, xp: 0, gold: 250, seals: 0 },
 
-    equipment,
-    inventory: [],
-    maps: [],
-    stash,
+    heroes: [],              // roster; see heroes.js
+    parties: [],             // { id, name, members: [heroUid] }
+    expeditions: [],         // active runs; see expedition.js
+    vault: [],               // unequipped gear
+    orbs,                    // crafting currency
 
-    atlas: {
-      highestTier: 1,       // highest tier ever completed
-      unlocked: 1,          // highest tier the player may craft/run
-      safeTier: 1,          // adaptive ceiling used by auto-run (see combat.js)
-      completed: {},        // tier -> completions
-      bonus: {},            // tier -> true once cleared on a Rare map
-      bossKills: {},        // bossId -> kills
+    upgrades: {},            // Guild Hall ranks
+    collection: {},          // uniqueId -> count
+
+    progress: {
+      highestTier: 0,        // highest tier cleared
+      cleared: {},           // `${dungeonId}:${tier}` -> completions
+      firstClears: {},       // dungeonId -> highest tier first-cleared
+      raidKills: {},         // raidId -> kills
+      bonusMult: 0,          // permanent reward % from raid first kills
     },
 
-    // Permanent, account-wide purchases. See data/upgrades.js.
-    upgrades: {},
-    // uniqueId -> number found, for the collection log.
-    collection: {},
-
-    combat: null,           // active run, see maps.js/combat.js
-
     stats: {
-      kills: 0, deaths: 0, mapsRun: 0, mapsFailed: 0,
-      itemsFound: 0, currencyFound: 0, uniquesFound: 0, bossKills: 0,
-      bestTier: 0, totalXp: 0,
+      runs: 0, runsFailed: 0, kills: 0, heroDeaths: 0,
+      gearFound: 0, uniquesFound: 0, goldEarned: 0, recruited: 0, raidKills: 0,
     },
 
     settings: {
-      // Off by default: choosing which map to run is the main decision the
-      // player makes, so it shouldn't be taken away from them up front.
-      autoRun: false,
+      autoRedeploy: false,   // re-run the same expedition when one finishes
       autoSalvageNormal: true,
       autoSalvageMagic: false,
       autoSalvageRare: false,
       logLimit: 200,
-      combatSpeed: 1,
+      speed: 1,
     },
 
     log: [],
@@ -131,48 +103,42 @@ export function createState(name = 'Exile', classId = 'scion') {
   };
 }
 
-/**
- * A fresh character, kitted out well enough to survive Tier 1.
- * (The starter map is granted by game.js, which owns the maps module.)
- */
-export function newCharacter(name = 'Exile', classId = 'scion') {
-  const s = createState(name, classId);
-  // Starter kit matches the class's attribute leaning so it isn't dead weight.
-  const kit = {
-    marauder: ['axe1h', 'body_ar'], duelist: ['sword1h', 'body_arev'],
-    ranger: ['bow', 'body_ev'], shadow: ['dagger', 'body_ev'],
-    witch: ['wand', 'body_es'], templar: ['mace1h', 'body_ares'],
-    scion: ['sword1h', 'body_arev'],
-  }[classId] ?? ['sword1h', 'body_ar'];
+// ---------------------------------------------------------------------------
+// Gold and seals
+// ---------------------------------------------------------------------------
 
-  s.equipment.weapon = createItem({ baseId: kit[0], ilvl: 1, rarity: 'normal' });
-  s.equipment.body = createItem({ baseId: kit[1], ilvl: 1, rarity: 'normal' });
-  return s;
+export function addGold(n) {
+  G.state.guild.gold += n;
+  G.state.stats.goldEarned += n;
+  emit('guild');
 }
 
-// ---------------------------------------------------------------------------
-// XP / levelling
-// ---------------------------------------------------------------------------
+export function spendGold(n) {
+  if (G.state.guild.gold < n) return false;
+  G.state.guild.gold -= n;
+  emit('guild');
+  return true;
+}
 
-/** Grants XP and processes any number of level-ups. Returns levels gained. */
-export function grantXp(state, amount) {
-  state.player.xp += amount;
-  state.stats.totalXp += amount;
+/** Grants guild XP and processes level-ups. Returns levels gained. */
+export function grantGuildXp(amount) {
+  const g = G.state.guild;
+  g.xp += amount;
   let gained = 0;
-  while (state.player.xp >= xpToNext(state.player.level)) {
-    state.player.xp -= xpToNext(state.player.level);
-    state.player.level++;
+  while (g.xp >= guildXpToNext(g.level) && gained < 100) {
+    g.xp -= guildXpToNext(g.level);
+    g.level++;
     gained++;
-    if (gained > 500) break;   // safety valve against pathological XP grants
   }
+  if (gained) emit('guild');
   return gained;
 }
 
 // ---------------------------------------------------------------------------
-// Combat log
+// Log
 // ---------------------------------------------------------------------------
 
-const LOG_CLASSES = new Set(['sys', 'hit', 'crit', 'kill', 'loot', 'unique', 'danger', 'boss', 'xp']);
+const LOG_CLASSES = new Set(['sys', 'hit', 'crit', 'kill', 'loot', 'unique', 'danger', 'boss', 'xp', 'gold']);
 
 export function log(msg, cls = 'sys') {
   const s = G.state;
@@ -185,7 +151,7 @@ export function log(msg, cls = 'sys') {
 }
 
 // ---------------------------------------------------------------------------
-// Minimal event bus — the UI subscribes, systems emit.
+// Event bus
 // ---------------------------------------------------------------------------
 
 const listeners = new Map();

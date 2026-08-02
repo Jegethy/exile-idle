@@ -1,50 +1,42 @@
-// ui.js — all rendering and DOM interaction.
+// ui.js — all rendering and DOM interaction for Idle Guild.
 //
 // Structural changes are event-driven (see state.on); fast-moving numbers
-// (health bars, timers) are refreshed from the main loop via tick().
+// (health bars, timers, stamina) refresh from the main loop via tick().
 
 import {
-  G, on, emit, log, xpToNext, tierToLevel, tierToIlvl,
-  inventoryCapacity, mapCapacity, newCharacter,
+  G, on, log, guildXpToNext, recruitCost, vaultCapacity, partySlots, createState,
 } from './state.js';
 import { fmt, fmtInt, fmtTime, signed, clamp, qs, qsa, el, escapeHtml } from './util.js';
-import { computeStats, ehp } from './stats.js';
+import { heroStats, ehp } from './stats.js';
 import { RARITY, itemBaseStats, itemMods, itemDescriptor } from './items.js';
-import { BASE_BY_ID, EQUIP_SLOTS, SLOTS } from './data/bases.js';
+import { EQUIP_SLOTS, SLOTS } from './data/bases.js';
 import { UNIQUE_BY_ID, UNIQUES } from './data/uniques.js';
 import { CURRENCIES, CURRENCY_BY_ID } from './data/currency.js';
+import { CLASS_BY_ID, RARITY_BY_ID } from './data/heroclasses.js';
 import {
-  CLASSES, CLASS_BY_ID, ASCENDANCIES, ascendanciesFor,
-  ASCENDANCY_UNLOCK_LEVEL, startNodeFor,
-} from './data/classes.js';
+  DUNGEONS, DUNGEON_BY_ID, RAIDS, staminaCost, expectedDuration, tierToLevel,
+} from './data/dungeons.js';
+import { UPGRADES, upgradeCost, guildEffects } from './data/upgrades.js';
 import {
-  addItem, equipItem, unequipItem, salvageItem, salvageAll, countSalvageable,
-  sortInventory, sortMaps, spendCurrency, hasCurrency, toggleLock, findItem, buyUpgrade,
+  salvageItem, salvageAll, countSalvageable, sortVault, toggleLock,
+  findItem, wearerOf, buyUpgrade, hasOrb,
 } from './inventory.js';
-import { applyCurrency, canApply } from './currency.js';
+import { applyOrb, canApply } from './currency.js';
 import {
-  createMap, mapModLines, mapModifiers, mapDanger, monsterCount, grantStarterMap, atlasBonuses,
-} from './maps.js';
-import { startMap, startBossFight, abandonMap, mapProgress, clearSpeed, refreshDerived } from './combat.js';
-import { BOSSES } from './data/monsters.js';
-import { describeStats } from './data/statlabels.js';
-import { UPGRADES, UPGRADE_BY_ID, upgradeCost, upgradeEffects } from './data/upgrades.js';
-import {
-  TREE, TREE_RADIUS, START_IDS, nodeText, canAllocate, canRefund,
-  pointSummary, ascendancySummary, treeIsFull, startFor,
-} from './passives.js';
+  recruit, dismiss, heroById, heroInfo, isDeployed, partyById, partyMembers,
+  createParty, deleteParty, assignToParty, removeFromParty, canDispatch,
+  equipOnHero, unequipFromHero, BASE_STAMINA, MAX_MEMBERS,
+} from './heroes.js';
+import { dispatch, dispatchRaid, recall, runProgress } from './expedition.js';
 import * as Save from './save.js';
 
 /** Transient UI state — never persisted. */
 const ui = {
-  craftCurrency: null,
-
-  // scale 1 == "whole tree fits the panel", since the viewBox already frames it.
-  tree: { x: 0, y: 0, scale: 1, dragging: false, lx: 0, ly: 0, built: false },
+  craftOrb: null,
+  equipTarget: null,     // heroUid the vault is currently gearing
+  dispatchTier: 1,
   logFilter: 'all',
   confirmCb: null,
-  newClass: 'marauder',
-  menuUid: null,
 };
 
 const R = (r) => RARITY[r]?.cls ?? 'r-normal';
@@ -57,66 +49,58 @@ export function initUI() {
   wireTabs();
   wireTopBar();
   wireModals();
-  wireGearActions();
-  wireAtlasActions();
-  wireTree();
+  wireVaultActions();
   wireLogFilters();
-  buildCurrencyGrid();
+  buildOrbGrid();
 
-  // Structural re-renders, driven by the event bus.
-  on('inventory', () => { renderInventory(); });
-  on('equipment', () => { renderDoll(); renderInventory(); });
-  on('stash', () => { renderCurrency(); renderCraftPanel(); });
-  on('maps', () => { renderMaps(); renderAtlas(); });
-  on('stats', () => { renderStatSheet(); renderQuickStats(); renderPassiveHeader(); });
-  on('combat', () => { renderMapHeader(); renderArena(); renderMaps(); });
+  on('roster', () => { renderRoster(); renderParties(); renderDispatch(); renderEquipTarget(); });
+  on('vault', () => { renderVault(); renderEquipTarget(); });
+  on('orbs', () => { renderOrbs(); renderCraftPanel(); });
+  on('guild', () => { renderGuildBar(); renderQuickStats(); renderHall(); renderDispatch(); renderRaids(); });
+  on('upgrades', () => { renderHall(); renderQuickStats(); renderDispatch(); });
+  on('sheets', () => { renderRoster(); renderParties(); });
+  on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
   on('log', () => { renderLog(); });
-  on('passives', () => { renderTree(); renderPassiveHeader(); renderStatSheet(); });
   on('saves', () => { renderSlots(); });
-  on('upgrades', () => { renderUpgrades(); });
-  on('loaded', () => { ui.craftCurrency = null; closeTree(); renderAll(); });
+  on('loaded', () => { ui.craftOrb = null; ui.equipTarget = null; renderAll(); });
 
   renderAll();
 }
 
 export function renderAll() {
-  renderCharBar();
+  renderGuildBar();
   renderQuickStats();
-  renderStatSheet();
-  renderPassiveHeader();
-  renderTree();
-  renderMapHeader();
-  renderArena();
-  renderLog();
-  renderAtlas();
-  renderMaps();
-  renderBosses();
-  renderDoll();
-  renderInventory();
-  renderCurrency();
-  renderCraftPanel();
-  renderUpgrades();
+  renderRoster();
+  renderParties();
+  renderRuns();
+  renderDispatch();
+  renderRaids();
+  renderHall();
   renderCollection();
+  renderEquipTarget();
+  renderVault();
+  renderOrbs();
+  renderCraftPanel();
+  renderLog();
   renderSettings();
 }
 
-/** Called every animation frame for smoothly-moving numbers. */
+/** Called ~10x a second for smoothly-moving numbers. */
 export function tick() {
-  renderCharBar();
-  updateArenaBars();
+  updateRunBars();
+  updateStaminaBars();
   renderStatus();
 }
 
 // ===========================================================================
-// Tabs & chrome
+// Chrome
 // ===========================================================================
 
 function wireTabs() {
   for (const nav of qsa('.tabs')) {
     nav.addEventListener('click', (e) => {
       const btn = e.target.closest('.tab');
-      if (!btn) return;
-      selectTab(nav, btn.dataset.tab);
+      if (btn) selectTab(nav, btn.dataset.tab);
     });
   }
 }
@@ -125,38 +109,9 @@ function selectTab(nav, tabId) {
   const panel = nav.parentElement;
   qsa('.tab', nav).forEach((b) => b.classList.toggle('active', b.dataset.tab === tabId));
   qsa('.tab-body', panel).forEach((b) => b.classList.toggle('active', b.id === `tab-${tabId}`));
-  // The tree needs the whole screen to be usable, so its tab is just a door.
-  if (tabId === 'passives') openTree();
-  if (tabId === 'hideout') { renderUpgrades(); renderCollection(); }
+  if (tabId === 'hall') { renderHall(); renderCollection(); }
 }
 
-// ===========================================================================
-// Full-screen passive tree
-// ===========================================================================
-
-export function openTree() {
-  qs('#treeScreen').classList.remove('hidden');
-  document.body.classList.add('tree-open');
-  renderPassiveHeader();
-  // The SVG needs a laid-out container before it can size itself.
-  requestAnimationFrame(() => { renderTree(); applyTreeTransform(); });
-}
-
-export function closeTree() {
-  qs('#treeScreen').classList.add('hidden');
-  document.body.classList.remove('tree-open');
-  // Leave the left panel on a real tab rather than the tree's door.
-  const btn = qs('.tab[data-tab="character"]');
-  if (btn) {
-    qsa('.tab', btn.parentElement).forEach((b) => b.classList.toggle('active', b.dataset.tab === 'character'));
-    qsa('.tab-body', btn.parentElement.parentElement)
-      .forEach((b) => b.classList.toggle('active', b.id === 'tab-character'));
-  }
-}
-
-function treeIsOpen() { return !qs('#treeScreen').classList.contains('hidden'); }
-
-/** Programmatic tab switch by tab id. */
 function gotoTab(tabId) {
   const btn = qs(`.tab[data-tab="${tabId}"]`);
   if (btn) selectTab(btn.parentElement, tabId);
@@ -171,799 +126,566 @@ function wireTopBar() {
 function renderStatus() {
   const s = G.state;
   if (!s) return;
-  const c = s.combat;
-  const left = c
-    ? `${c.map.name} · T${c.tier} · ${c.index}/${c.total} slain · ${clearSpeed(c).toFixed(1)}/min`
-    : 'Idle in the hideout.';
-  qs('#statusLeft').textContent = left;
+  const runs = s.expeditions.length;
+  qs('#statusLeft').textContent = runs
+    ? `${runs} expedition${runs === 1 ? '' : 's'} in the field`
+    : 'All parties are at the guild hall.';
   qs('#statusRight').textContent =
     `Slot ${G.slot + 1} · ${fmtTime(s.playtime)} played · ${fmtInt(s.stats.kills)} kills`;
 }
 
 export function setStatus(msg) { qs('#statusLeft').textContent = msg; }
 
-// ===========================================================================
-// Character bar & quick stats
-// ===========================================================================
-
-function renderCharBar() {
+function renderGuildBar() {
   const s = G.state;
   if (!s) return;
-  const need = xpToNext(s.player.level);
-  const pct = clamp((s.player.xp / need) * 100, 0, 100);
-  qs('#charName').textContent = s.name;
-  qs('#charLevel').textContent = s.player.level;
+  const need = guildXpToNext(s.guild.level);
+  const pct = clamp((s.guild.xp / need) * 100, 0, 100);
+  qs('#guildName').textContent = s.name;
+  qs('#guildLevel').textContent = s.guild.level;
   qs('#xpFill').style.width = `${pct}%`;
-  qs('#xpText').textContent = `${fmt(s.player.xp)} / ${fmt(need)}  (${pct.toFixed(1)}%)`;
+  qs('#xpText').textContent = `${fmt(s.guild.xp)} / ${fmt(need)}`;
 }
 
 function renderQuickStats() {
-  const d = G.derived;
-  if (!d) return;
-  qs('#qsDps').textContent = fmt(d.dps);
-  qs('#qsLife').textContent = fmt(d.life);
-  qs('#qsEs').textContent = fmt(d.es);
-  qs('#qsTier').textContent = G.state.atlas.highestTier;
-}
-
-// ===========================================================================
-// Character sheet
-// ===========================================================================
-
-function statRow(label, value, extra = '') {
-  return `<div class="stat-row"><label>${label}</label><b>${value}${extra ? `<small>${extra}</small>` : ''}</b></div>`;
-}
-
-function renderStatSheet() {
-  const d = G.derived;
-  const s = G.state;
-  if (!d || !s) return;
-
-  const dmgLines = [];
-  for (const [key, label, cls] of [
-    ['phys', 'Physical', 'phys'], ['fire', 'Fire', 'fire'], ['cold', 'Cold', 'cold'],
-    ['light', 'Lightning', 'light'], ['chaos', 'Chaos', 'chaos'],
-  ]) {
-    const [lo, hi] = d.dmg[key];
-    if (hi <= 0) continue;
-    dmgLines.push(statRow(
-      `<span style="color:var(--${cls})">${label}</span>`,
-      `${fmt(lo)} – ${fmt(hi)}`,
-    ));
-  }
-
-  const resHtml = ['fire', 'cold', 'light', 'chaos'].map((k) => {
-    const r = d.res[k];
-    const capped = r.raw >= r.cap;
-    const neg = r.value < 0;
-    return `<div class="res ${k} ${capped ? 'capped' : ''} ${neg ? 'neg' : ''}">
-      <label>${k === 'light' ? 'LIGHT' : k.toUpperCase()}</label>
-      <b>${r.value}%</b>
-      <small>${r.raw > r.cap ? `+${r.raw - r.cap} over` : `max ${r.cap}%`}</small>
-    </div>`;
-  }).join('');
-
-  const keystones = Object.keys(d.flags).length
-    ? `<div class="stat-group"><h3>Keystones</h3><div class="keystone-list">${
-      Object.keys(d.flags).map((f) => `<span class="keystone-chip">${keystoneLabel(f)}</span>`).join('')
-    }</div></div>` : '';
-
-  qs('#statSheet').innerHTML = `
-    <div class="attr-grid">
-      <div class="attr str"><label>STR</label><b>${d.attrs.str}</b></div>
-      <div class="attr dex"><label>DEX</label><b>${d.attrs.dex}</b></div>
-      <div class="attr int"><label>INT</label><b>${d.attrs.int}</b></div>
-    </div>
-
-    <div class="stat-group">
-      <h3>Offence</h3>
-      ${statRow('Damage per Second', `<span style="color:var(--gold)">${fmt(d.dps)}</span>`)}
-      ${statRow('Hit Damage', `${fmt(d.hitMin)} – ${fmt(d.hitMax)}`)}
-      ${statRow('Attacks per Second', d.aps.toFixed(2))}
-      ${statRow('Critical Chance', `${d.critChance.toFixed(1)}%`)}
-      ${statRow('Critical Multiplier', `${d.critMulti.toFixed(0)}%`)}
-      ${statRow('Accuracy', isFinite(d.accuracy) ? fmt(d.accuracy) : 'Always Hits')}
-      ${dmgLines.join('')}
-    </div>
-
-    <div class="stat-group">
-      <h3>Defence</h3>
-      ${statRow('Life', `<span class="c-life">${fmt(d.life)}</span>`, `+${fmt(d.regen)}/s`)}
-      ${statRow('Energy Shield', `<span class="c-es">${fmt(d.es)}</span>`, d.canRecharge ? `${fmt(d.esRechargeRate)}/s` : 'no recharge')}
-      ${statRow('Armour', fmt(d.armour))}
-      ${statRow('Evasion', fmt(d.evasion))}
-      ${d.block > 0 ? statRow('Block Chance', `${d.block.toFixed(0)}%`) : ''}
-      ${statRow('EHP vs Physical', fmt(ehp(d, 'phys')))}
-      ${statRow('EHP vs Fire', fmt(ehp(d, 'fire')))}
-      ${d.leech > 0 ? statRow('Life Leech', `${d.leech.toFixed(2)}%`) : ''}
-    </div>
-
-    <div class="stat-group">
-      <h3>Resistances</h3>
-      <div class="res-grid">${resHtml}</div>
-    </div>
-
-    <div class="stat-group">
-      <h3>Utility</h3>
-      ${statRow('Movement Speed', `${signed(d.moveSpeed)}%`)}
-      ${statRow('Item Rarity', `${signed(d.rarity)}%`)}
-      ${statRow('Mana', fmt(d.mana))}
-      ${d.reflect > 0 ? statRow('Damage Reflected', `${d.reflect.toFixed(0)}%`) : ''}
-    </div>
-
-    ${keystones}
-
-    <div class="stat-group">
-      <h3>Records</h3>
-      ${statRow('Monsters Slain', fmtInt(s.stats.kills))}
-      ${statRow('Maps Completed', fmtInt(s.stats.mapsRun))}
-      ${statRow('Deaths', fmtInt(s.stats.deaths))}
-      ${statRow('Items Found', fmtInt(s.stats.itemsFound))}
-      ${statRow('Uniques Found', fmtInt(s.stats.uniquesFound))}
-      ${statRow('Pinnacle Kills', fmtInt(s.stats.bossKills))}
-      ${statRow('Highest Tier', s.atlas.highestTier)}
-    </div>`;
-}
-
-function keystoneLabel(flag) {
-  return ({
-    resoluteTechnique: 'Resolute Technique', eleOverload: 'Elemental Overload',
-    ci: 'Chaos Inoculation', vaalPact: 'Vaal Pact', acrobatics: 'Acrobatics',
-    cannotEvade: 'Unwavering Stance',
-  })[flag] ?? flag;
-}
-
-// ===========================================================================
-// Passive tree
-// ===========================================================================
-
-function renderPassiveHeader() {
   const s = G.state;
   if (!s) return;
-  const p = pointSummary(s);
-  const asc = ascendancySummary(s);
-  const full = treeIsFull(s);
-  const cls = CLASS_BY_ID[s.player.class] ?? CLASS_BY_ID.scion;
-  qs('#passiveBadge').textContent = p.available + asc.available;
-
-  qs('#passiveHeader').innerHTML = `
-    <span class="points-pill ${p.available ? '' : 'none'}">${p.available} point${p.available === 1 ? '' : 's'} unspent</span>
-    <span class="hint">${escapeHtml(cls.name)} · ${p.spent} allocated${full ? ` · ${s.passives.mastery} mastery` : ''}</span>
-    <button class="btn tiny" id="btnRefundAll">Refund All</button>`;
-
-  qs('#btnRefundAll').onclick = () => confirmAction(
-    'Refund all passives?',
-    'Every allocated node and mastery point will be returned. This cannot be undone.',
-    () => {
-      s.passives.allocated = {};
-      s.passives.mastery = 0;
-      emit('passives'); refreshDerived();
-      log('All passive points refunded.', 'sys');
-    },
-  );
-  renderAscendancy();
-}
-
-/** The ascendancy strip beneath the tree: choose one, then allocate its nodes. */
-function renderAscendancy() {
-  const s = G.state;
-  const host = qs('#ascendancyPanel');
-  if (!host) return;
-  const locked = s.player.level < ASCENDANCY_UNLOCK_LEVEL;
-
-  if (locked) {
-    host.innerHTML = `<div class="asc-locked">Ascendancy unlocks at level ${ASCENDANCY_UNLOCK_LEVEL}
-      <span class="hint">(you are level ${s.player.level})</span></div>`;
-    return;
-  }
-
-  if (!s.player.ascendancy) {
-    host.innerHTML = `<div class="asc-locked">
-      <b style="color:var(--gold)">Ascendancy available</b>
-      <button class="btn tiny primary" id="btnPickAsc">Choose</button></div>`;
-    qs('#btnPickAsc').onclick = openAscendancyPicker;
-    return;
-  }
-
-  const asc = ASCENDANCIES[s.player.ascendancy];
-  const pts = ascendancySummary(s);
-  host.innerHTML = `
-    <div class="asc-head">
-      <span class="asc-name">${escapeHtml(asc.name)}</span>
-      <span class="points-pill ${pts.available ? '' : 'none'}">${pts.available} asc. point${pts.available === 1 ? '' : 's'}</span>
-    </div>
-    <div class="asc-nodes">${asc.nodes.map((n, i) => {
-    const on = !!s.passives.ascendancy[i];
-    const lines = [...(n.desc ? [n.desc] : []), ...describeAscStats(n.stats)];
-    return `<div class="asc-node ${on ? 'on' : ''}" data-asc="${i}"
-                 title="${escapeHtml(lines.join(' · '))}">
-      <div class="asc-node-name">${escapeHtml(n.name)}</div>
-      <div class="asc-node-mods">${lines.map((l) => escapeHtml(l)).join('<br>')}</div>
-    </div>`;
-  }).join('')}</div>`;
-
-  host.onclick = (e) => {
-    const node = e.target.closest('[data-asc]');
-    if (!node) return;
-    const i = Number(node.dataset.asc);
-    const alloc = s.passives.ascendancy;
-    if (alloc[i]) { delete alloc[i]; }
-    else {
-      if (ascendancySummary(s).available <= 0) { setStatus('No ascendancy points available.'); return; }
-      alloc[i] = true;
-    }
-    emit('passives'); refreshDerived();
-  };
-}
-
-function describeAscStats(stats) {
-  return describeStats(stats ?? {});
-}
-
-function openAscendancyPicker() {
-  const s = G.state;
-  const options = ascendanciesFor(s.player.class);
-  qs('#ascPicker').innerHTML = options.map((a) => `
-    <div class="asc-card" data-pick="${a.id}">
-      <div class="asc-card-name">${escapeHtml(a.name)}</div>
-      <div class="asc-card-blurb">${escapeHtml(a.blurb)}</div>
-      <ul class="asc-card-list">${a.nodes.map((n) =>
-    `<li><b>${escapeHtml(n.name)}</b> — ${escapeHtml(
-      [...(n.desc ? [n.desc] : []), ...describeAscStats(n.stats)].join(', '))}</li>`).join('')}</ul>
-    </div>`).join('');
-
-  qs('#ascPicker').onclick = (e) => {
-    const card = e.target.closest('[data-pick]');
-    if (!card) return;
-    const id = card.dataset.pick;
-    confirmAction(`Ascend as ${ASCENDANCIES[id].name}?`,
-      'This choice is permanent for this character.', () => {
-        s.player.ascendancy = id;
-        emit('passives'); refreshDerived();
-        log(`You ascend as ${ASCENDANCIES[id].name}.`, 'boss');
-      });
-  };
-  openModal('modalAscendancy');
-}
-
-function wireTree() {
-  const wrap = qs('#treeWrap');
-  const svg = qs('#tree');
-
-  wrap.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.tn') || e.target.closest('.btn')) return;
-    ui.tree.dragging = true;
-    ui.tree.lx = e.clientX; ui.tree.ly = e.clientY;
-    wrap.classList.add('dragging');
-  });
-  window.addEventListener('mousemove', (e) => {
-    if (!ui.tree.dragging) return;
-    ui.tree.x += e.clientX - ui.tree.lx;
-    ui.tree.y += e.clientY - ui.tree.ly;
-    ui.tree.lx = e.clientX; ui.tree.ly = e.clientY;
-    applyTreeTransform();
-  });
-  window.addEventListener('mouseup', () => {
-    ui.tree.dragging = false;
-    wrap.classList.remove('dragging');
-  });
-  wrap.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    zoomTree(e.deltaY < 0 ? 1.15 : 1 / 1.15);
-  }, { passive: false });
-
-  qs('#btnTreeZoomIn').onclick = () => zoomTree(1.2);
-  qs('#btnTreeZoomOut').onclick = () => zoomTree(1 / 1.2);
-  qs('#btnTreeReset').onclick = () => {
-    ui.tree.x = 0; ui.tree.y = 0; ui.tree.scale = 1;
-    applyTreeTransform();
-  };
-  qs('#btnCloseTree').onclick = closeTree;
-  qs('#btnOpenTree').onclick = openTree;
-
-  svg.addEventListener('click', (e) => {
-    const g = e.target.closest('.tn');
-    if (g) onNodeClick(g.dataset.id);
-  });
-  svg.addEventListener('mouseover', (e) => {
-    const g = e.target.closest('.tn');
-    if (g) showNodeInfo(g.dataset.id);
-  });
-}
-
-function zoomTree(factor) {
-  ui.tree.scale = clamp(ui.tree.scale * factor, 0.22, 2.2);
-  applyTreeTransform();
-}
-
-/** Zoom past this and notable names appear; below it only landmarks are named. */
-const LABEL_DETAIL_ZOOM = 1.35;
-
-function applyTreeTransform() {
-  const g = qs('#treeG');
-  if (!g) return;
-  const { x, y, scale } = ui.tree;
-  g.setAttribute('transform', `translate(${x} ${y}) scale(${scale})`);
-  // 30 notables sitting shoulder to shoulder makes their labels collide at
-  // fit-zoom, so only keystones and class starts are named until you zoom in.
-  qs('#tree').classList.toggle('detail', scale >= LABEL_DETAIL_ZOOM);
-}
-
-function renderTree() {
-  const svg = qs('#tree');
-  const s = G.state;
-  if (!svg || !s) return;
-
-  const size = TREE_RADIUS * 2;
-  svg.setAttribute('viewBox', `${-TREE_RADIUS} ${-TREE_RADIUS} ${size} ${size}`);
-
-  if (!ui.tree.built) {
-    const parts = ['<g id="treeG">'];
-
-    // Links first so nodes draw on top.
-    const drawn = new Set();
-    for (const node of Object.values(TREE)) {
-      for (const other of node.links) {
-        const key = [node.id, other].sort().join('|');
-        if (drawn.has(key)) continue;
-        drawn.add(key);
-        const o = TREE[other];
-        parts.push(`<line class="tl" data-link="${key}" x1="${node.x.toFixed(1)}" y1="${node.y.toFixed(1)}" x2="${o.x.toFixed(1)}" y2="${o.y.toFixed(1)}"/>`);
-      }
-    }
-
-    for (const node of Object.values(TREE)) {
-      const dy = node.kind === 'start' ? 58 : node.labelAbove ? -44 : 52;
-      const label = node.kind === 'minor' ? '' :
-        `<text class="tn-l" x="${node.x.toFixed(1)}" y="${(node.y + dy).toFixed(1)}">${escapeHtml(node.name)}</text>`;
-      parts.push(
-        `<g class="tn ${node.kind}" data-id="${node.id}">` +
-        `<circle class="tn-c" cx="${node.x.toFixed(1)}" cy="${node.y.toFixed(1)}"/>` +
-        label + '</g>',
-      );
-    }
-    parts.push('</g>');
-    svg.innerHTML = parts.join('');
-    ui.tree.built = true;
-    applyTreeTransform();
-  }
-
-  // Refresh allocation classes. Only your own class's start counts as taken —
-  // the other six render as dimmed, unreachable origins.
-  const alloc = s.passives.allocated;
-  const startId = startFor(s);
-  for (const g of qsa('.tn', svg)) {
-    const id = g.dataset.id;
-    const isStart = START_IDS.has(id);
-    const isOn = id === startId || (!isStart && !!alloc[id]);
-    g.classList.toggle('on', isOn);
-    g.classList.toggle('mine', id === startId);
-    g.classList.toggle('foreign', isStart && id !== startId);
-    g.classList.toggle('avail', !isOn && !isStart && canAllocate(alloc, id, startId));
-  }
-  for (const line of qsa('.tl', svg)) {
-    const [a, b] = line.dataset.link.split('|');
-    const live = (x) => x === startId || (!START_IDS.has(x) && alloc[x]);
-    line.classList.toggle('on', live(a) && live(b));
-  }
-}
-
-function showNodeInfo(id) {
-  const node = TREE[id];
-  if (!node) return;
-  const s = G.state;
-  const startId = startFor(s);
-
-  if (START_IDS.has(id)) {
-    const cls = CLASS_BY_ID[node.classId];
-    qs('#passiveInfo').innerHTML =
-      `<h4>${escapeHtml(cls.name)} <span class="hint">· class start</span></h4>
-       <div class="mod">${escapeHtml(cls.blurb)}</div>
-       <div class="hint" style="margin-top:4px">${id === startId
-        ? 'This is where your tree begins.'
-        : 'Another class starts here. You cannot allocate from it.'}</div>`;
-    return;
-  }
-
-  const allocated = !!s.passives.allocated[id];
-  const lines = nodeText(node).map((t) =>
-    `<div class="${node.kind === 'keystone' ? 'ks' : 'mod'}">${escapeHtml(t)}</div>`).join('');
-  const action = allocated
-    ? (canRefund(s.passives.allocated, id, startId) ? 'Click to refund' : 'Cannot refund — other nodes depend on it')
-    : (canAllocate(s.passives.allocated, id, startId)
-      ? (pointSummary(s).available > 0 ? 'Click to allocate' : 'No points available')
-      : 'Not connected to your tree');
-  qs('#passiveInfo').innerHTML =
-    `<h4>${escapeHtml(node.name)} <span class="hint">· ${node.kind}</span></h4>${lines}
-     <div class="hint" style="margin-top:4px">${action}</div>`;
-}
-
-function onNodeClick(id) {
-  const s = G.state;
-  if (START_IDS.has(id)) return;
-  const alloc = s.passives.allocated;
-  const startId = startFor(s);
-
-  if (alloc[id]) {
-    if (!canRefund(alloc, id, startId)) { setStatus('That node cannot be refunded without orphaning others.'); return; }
-    delete alloc[id];
-  } else {
-    if (!canAllocate(alloc, id, startId)) { setStatus('That node is not connected to your tree.'); return; }
-    if (pointSummary(s).available <= 0) { setStatus('No passive points available.'); return; }
-    alloc[id] = true;
-  }
-  emit('passives');
-  refreshDerived();
-  showNodeInfo(id);
+  qs('#qsGold').textContent = fmt(s.guild.gold);
+  qs('#qsSeals').textContent = s.guild.seals ?? 0;
+  qs('#qsHeroes').textContent = s.heroes.length;
+  qs('#qsParties').textContent = `${s.expeditions.length}/${partySlots()}`;
+  qs('#qsTier').textContent = s.progress.highestTier;
 }
 
 // ===========================================================================
-// Combat panel
+// Roster
 // ===========================================================================
 
-function renderMapHeader() {
+function renderRosterHeader() {
   const s = G.state;
-  const c = s.combat;
-  const host = qs('#mapHeader');
-
-  if (!c) {
-    const best = s.maps.length
-      ? s.maps.slice().sort((a, b) => b.tier - a.tier)[0]
-      : null;
-    host.innerHTML = `
-      <div class="map-banner">
-        <div class="idle-state">
-          <h3>Hideout</h3>
-          <p>Select a map from the Atlas to begin.</p>
-          ${best ? `<div class="row" style="justify-content:center">
-            <button class="btn primary" id="btnQuickRun">Run ${escapeHtml(best.name)} (T${best.tier})</button>
-          </div>` : `<p class="hint" style="margin-top:8px">No maps left — craft one in the Atlas tab.</p>`}
-        </div>
-      </div>`;
-    if (best) qs('#btnQuickRun').onclick = () => { startMap(best.uid); gotoTab('combat'); };
-    return;
-  }
-
-  const pct = mapProgress(c) * 100;
-  const mods = c.map.mods ? mapModLines(c.map) : [];
-  host.innerHTML = `
-    <div class="map-banner running">
-      <div class="map-banner-top">
-        <span class="map-title" style="color:var(--${R(c.map.rarity)})">
-          ${escapeHtml(c.map.name)}</span>
-        <span class="map-meta">Tier ${c.tier} · mlvl ${c.level} · ilvl ${c.ilvl}</span>
-      </div>
-      <div class="map-mods">
-        ${mods.map((m) => `<span class="mm ${m.type === 'suffix' ? 'bad' : ''}">${escapeHtml(m.text)}</span>`).join('')}
-      </div>
-      <div class="progress-track">
-        <div class="progress-fill" id="mapProgressFill" style="width:${pct}%"></div>
-        <span class="progress-text" id="mapProgressText"></span>
-      </div>
-      <div class="row">
-        <button class="btn tiny danger" id="btnAbandon">Abandon Run</button>
-        <span class="hint" id="runStats"></span>
-      </div>
+  const cost = recruitCost(s.heroes.length);
+  const afford = s.guild.gold >= cost;
+  qs('#rosterHeader').innerHTML = `
+    <div class="panel-head">
+      <span class="hint">${s.heroes.length} hero${s.heroes.length === 1 ? '' : 'es'}</span>
+      <button class="btn tiny ${afford ? 'primary' : ''}" id="btnRecruit" ${afford ? '' : 'disabled'}>
+        Recruit — ${fmtInt(cost)}g
+      </button>
     </div>`;
-  qs('#btnAbandon').onclick = () => abandonMap();
+  qs('#btnRecruit').onclick = () => { setStatus(recruit().msg); renderRosterHeader(); };
 }
 
-function renderArena() {
-  const c = G.state.combat;
-  const host = qs('#combatArena');
-  if (!c) { host.innerHTML = ''; return; }
-
-  const d = G.derived;
-  host.innerHTML = `
-    <div class="fight">
-      <div class="fighter player">
-        <div class="fighter-name"><span style="color:var(--gold)">${escapeHtml(G.state.name)}</span>
-          <small>Level ${G.state.player.level}</small></div>
-        <div class="bar life"><i id="pLifeBar"></i><span id="pLifeText"></span></div>
-        ${d.es > 0 ? '<div class="bar es"><i id="pEsBar"></i><span id="pEsText"></span></div>' : ''}
-        <div class="fighter-stats">
-          <span><b>${fmt(d.dps)}</b> dps</span>
-          <span><b>${d.aps.toFixed(2)}</b> aps</span>
-          <span><b>${fmt(d.armour)}</b> ar</span>
-          <span><b>${fmt(d.evasion)}</b> ev</span>
-        </div>
-      </div>
-      <div class="vs">VS</div>
-      <div class="fighter monster" id="monsterCard"></div>
-    </div>`;
-  updateArenaBars();
-}
-
-function updateArenaBars() {
-  const c = G.state?.combat;
-  if (!c || !c.pool) return;
-  const d = G.derived;
-
-  const lifeBar = qs('#pLifeBar');
-  if (lifeBar) {
-    const pct = clamp((c.pool.life / Math.max(1, c.pool.maxLife)) * 100, 0, 100);
-    lifeBar.style.width = `${pct}%`;
-    qs('#pLifeText').textContent = `${fmt(Math.max(0, c.pool.life))} / ${fmt(c.pool.maxLife)}`;
-  }
-  const esBar = qs('#pEsBar');
-  if (esBar) {
-    const pct = clamp((c.pool.es / Math.max(1, c.pool.maxES)) * 100, 0, 100);
-    esBar.style.width = `${pct}%`;
-    qs('#pEsText').textContent = `${fmt(Math.max(0, c.pool.es))} / ${fmt(c.pool.maxES)}`;
-  }
-
-  const card = qs('#monsterCard');
-  if (card) {
-    const m = c.monster;
-    if (!m) {
-      card.innerHTML = `<div class="idle-state" style="padding:14px">Advancing… ${c.travelTimer > 0 ? `${c.travelTimer.toFixed(1)}s` : ''}</div>`;
-    } else {
-      const pct = clamp((m.life / m.maxLife) * 100, 0, 100);
-      card.innerHTML = `
-        <div class="fighter-name"><span class="${m.isBoss ? 'boss-name' : ''}"
-          style="color:${m.isBoss ? '#d88ae0' : m.rarity === 'rare' ? 'var(--r-rare)' : m.rarity === 'magic' ? 'var(--r-magic)' : 'var(--r-normal)'}">
-          ${escapeHtml(m.name)}</span><small>${m.rarity}</small></div>
-        <div class="bar mon"><i style="width:${pct}%"></i><span>${fmt(Math.max(0, m.life))} / ${fmt(m.maxLife)}</span></div>
-        <div class="fighter-stats">
-          <span><b>${fmt(m.dmg)}</b> hit</span>
-          <span><b>${m.aps.toFixed(2)}</b> aps</span>
-          <span><b>${fmt(m.armour)}</b> ar</span>
-          <span><b>${m.res}%</b> res</span>
-        </div>`;
-    }
-  }
-
-  const fill = qs('#mapProgressFill');
-  if (fill) {
-    fill.style.width = `${mapProgress(c) * 100}%`;
-    qs('#mapProgressText').textContent = c.isBossRun
-      ? 'PINNACLE ENCOUNTER'
-      : `${c.index} / ${c.total}${c.bossPending ? '' : ' + BOSS'}`;
-    const rs = qs('#runStats');
-    if (rs) {
-      rs.textContent = `${fmtTime(c.elapsed)} · ${fmt(c.rewards.xp)} xp · ${c.rewards.items} items · ${c.rewards.currency} currency`;
-    }
-  }
-}
-
-function wireLogFilters() {
-  const host = qs('#logFilters');
-  const filters = [['all', 'All'], ['loot', 'Loot'], ['combat', 'Combat'], ['boss', 'Story']];
-  host.innerHTML = filters.map(([id, label]) =>
-    `<button class="btn tiny ${id === 'all' ? 'active' : ''}" data-filter="${id}">${label}</button>`).join('');
-  host.onclick = (e) => {
-    const b = e.target.closest('[data-filter]');
-    if (!b) return;
-    ui.logFilter = b.dataset.filter;
-    qsa('[data-filter]', host).forEach((x) => x.classList.toggle('active', x === b));
-    renderLog();
-  };
-}
-
-const LOG_GROUPS = {
-  loot: new Set(['loot', 'unique', 'xp']),
-  combat: new Set(['hit', 'crit', 'kill', 'danger']),
-  boss: new Set(['boss', 'sys', 'unique']),
-};
-
-function renderLog() {
-  const host = qs('#combatLog');
+function renderRoster() {
   const s = G.state;
+  const host = qs('#rosterList');
   if (!host || !s) return;
-  const group = LOG_GROUPS[ui.logFilter];
-  const atBottom = host.scrollHeight - host.scrollTop - host.clientHeight < 40;
+  renderRosterHeader();
 
-  const rows = s.log
-    .filter((l) => !group || group.has(l.cls))
-    .slice(-160)
-    .map((l) => `<div class="l ${l.cls}">${escapeHtml(l.msg)}</div>`);
-  host.innerHTML = rows.join('');
-  if (atBottom) host.scrollTop = host.scrollHeight;
-}
-
-// ===========================================================================
-// Atlas & maps
-// ===========================================================================
-
-function wireAtlasActions() {
-  qs('#btnSortMaps').onclick = () => sortMaps();
-  qs('#btnCraftMap').onclick = () => {
-    if (!hasCurrency('alchemy', 1)) { setStatus('You need an Orb of Alchemy to craft a map.'); return; }
-    if (G.state.maps.length >= mapCapacity()) { setStatus('Map stash is full.'); return; }
-    spendCurrency('alchemy', 1);
-    const map = createMap({ tier: 1, rarity: 'rare' });
-    addItem(map);
-    log(`Crafted ${map.name} (T1).`, 'loot');
-  };
-}
-
-function renderAtlas() {
-  const s = G.state;
-  const a = s.atlas;
-  const host = qs('#atlasSummary');
-  const maxShown = Math.max(16, a.unlocked + 2);
-
-  const bonuses = atlasBonuses(s);
-
-  let cells = '';
-  for (let t = 1; t <= maxShown; t++) {
-    const done = (a.completed[t] ?? 0) > 0;
-    const bonus = !!a.bonus?.[t];
-    const locked = t > a.unlocked;
-    const title = `Tier ${t}`
-      + (done ? ` — cleared ${a.completed[t]}x` : ' — not yet cleared')
-      + (bonus ? ' — bonus objective complete' : done ? ' — clear a RARE map here for the bonus' : '')
-      + (locked ? ' — locked' : '');
-    cells += `<div class="atlas-cell ${done ? 'done' : ''} ${bonus ? 'bonus' : ''} ${locked ? 'locked' : ''}"
-      title="${escapeHtml(title)}">${t}${done ? `<small>${a.completed[t]}</small>` : ''}</div>`;
-  }
-
-  host.innerHTML = `
-    <div class="map-banner">
-      <div class="map-banner-top">
-        <span class="map-title">The Atlas</span>
-        <span class="map-meta">Highest T${a.highestTier} · Unlocked T${a.unlocked} · ${fmtInt(s.stats.mapsRun)} runs</span>
-      </div>
-      <div class="atlas-grid">${cells}</div>
-      <div class="atlas-objectives">
-        <span>Tiers cleared <b>${bonuses.cleared}</b></span>
-        <span>Bonus objectives <b class="gold">${bonuses.bonuses}</b></span>
-        <span>Atlas reward <b class="gold">+${bonuses.quant}% Quantity &amp; Rarity</b></span>
-      </div>
-      <p class="hint" style="margin-top:5px">Clearing a tier for the first time grants +1%
-        permanently. Clearing it again on a <b style="color:var(--r-rare)">Rare</b> map completes
-        its bonus objective for +3% more — a reason to revisit tiers you have outgrown.</p>
-    </div>`;
-  qs('#mapBadge').textContent = s.maps.length;
-}
-
-function renderMaps() {
-  const s = G.state;
-  const host = qs('#mapList');
-  if (!host) return;
-  qs('#mapBadge').textContent = s.maps.length;
-
-  if (!s.maps.length) {
-    host.innerHTML = `<div class="empty-note">No maps in stash.<br>Complete a map to find more, or craft a Tier 1 above.</div>`;
+  if (!s.heroes.length) {
+    host.innerHTML = '<div class="empty-note">No heroes. Recruit someone.</div>';
     return;
   }
 
-  const running = !!s.combat;
-  host.innerHTML = s.maps.map((m) => {
-    const mm = mapModifiers(m);
-    const danger = mapDanger(m, mm);
-    const dcls = danger < 90 ? 'low' : danger < 220 ? 'mid' : 'high';
-    const craft = ui.craftCurrency ? canApply(ui.craftCurrency, m) : null;
-    return `<div class="map-row ${R(m.rarity)} ${craft ? (craft.ok ? 'craftable' : 'not-craftable') : ''}"
-                 data-uid="${m.uid}" data-kind="map">
-      <div class="map-tier">${m.tier}</div>
-      <div class="map-info">
-        <div class="map-name">${escapeHtml(m.name)}${m.quality ? ` <small style="color:var(--gold)">+${m.quality}%</small>` : ''}${m.corrupted ? ' <small style="color:#a4322a">corrupted</small>' : ''}</div>
-        <div class="map-sub">${m.mods.length} mods · ${monsterCount(m, mm)} monsters ·
-          <span style="color:var(--good)">+${mm.quant}% quant</span> ·
-          <span style="color:var(--r-rare)">+${mm.rarity}% rarity</span></div>
+  const sorted = s.heroes.slice().sort((a, b) => b.level - a.level
+    || (RARITY_BY_ID[b.rarity].mult - RARITY_BY_ID[a.rarity].mult));
+
+  host.innerHTML = sorted.map((h) => {
+    const info = heroInfo(h);
+    const sheet = G.sheets[h.uid];
+    const out = isDeployed(h);
+    const party = h.partyId ? partyById(h.partyId) : null;
+    const stam = clamp((h.stamina / BASE_STAMINA) * 100, 0, 100);
+    return `<div class="hero-card ${info.rarity.cls} ${out ? 'deployed' : ''}" data-hero="${h.uid}">
+      <div class="hero-top">
+        <span class="hero-name">${escapeHtml(h.name)}</span>
+        <span class="hero-lvl">Lv ${h.level}</span>
       </div>
-      <span class="danger-pill ${dcls}">${danger}</span>
-      <div class="map-actions">
-        <button class="btn tiny primary" data-run="${m.uid}" ${running ? 'disabled' : ''}>Run</button>
+      <div class="hero-sub">
+        <span class="hero-class">${escapeHtml(info.cls.name)}</span>
+        <span class="role role-${info.cls.role.toLowerCase()}">${info.cls.role}</span>
+        <span class="hero-rarity">${info.rarity.name}</span>
       </div>
+      <div class="hero-stats">
+        <span>${fmt(sheet?.dps ?? 0)} dps</span>
+        <span>${fmt(sheet?.life ?? 0)} hp</span>
+        ${sheet?.healPower > 0 ? `<span>${fmt(sheet.healPower)} heal</span>` : ''}
+      </div>
+      <div class="stam-track" title="Stamina">
+        <i class="stam-fill" data-stam="${h.uid}" style="width:${stam}%"></i>
+        <span class="stam-text" data-stamtext="${h.uid}">${Math.round(h.stamina)}</span>
+      </div>
+      <div class="hero-foot">${out ? '<span class="tag out">In the field</span>'
+    : party ? `<span class="tag">${escapeHtml(party.name)}</span>`
+      : '<span class="tag idle">Unassigned</span>'}</div>
     </div>`;
   }).join('');
 
   host.onclick = (e) => {
-    const runBtn = e.target.closest('[data-run]');
-    if (runBtn) {
-      if (startMap(runBtn.dataset.run)) gotoTab('combat');
-      return;
-    }
-    const row = e.target.closest('[data-uid]');
-    if (row && ui.craftCurrency) applyCraft(row.dataset.uid);
+    const card = e.target.closest('[data-hero]');
+    if (card) openHeroModal(card.dataset.hero);
   };
   host.onmouseover = (e) => {
-    const row = e.target.closest('[data-uid]');
-    if (row) showMapTooltip(findMap(row.dataset.uid), e);
+    const card = e.target.closest('[data-hero]');
+    if (card) showHeroTooltip(heroById(card.dataset.hero), e);
   };
   host.onmouseout = hideTooltip;
   host.onmousemove = moveTooltip;
 }
 
-function findMap(uid) { return G.state.maps.find((m) => m.uid === uid); }
-
-// ===========================================================================
-// Pinnacle bosses
-// ===========================================================================
-
-function renderBosses() {
+function updateStaminaBars() {
   const s = G.state;
-  const host = qs('#bossList');
-  const frags = s.stash.fragment ?? 0;
+  if (!s) return;
+  for (const h of s.heroes) {
+    const bar = qs(`[data-stam="${h.uid}"]`);
+    if (!bar) continue;
+    bar.style.width = `${clamp((h.stamina / BASE_STAMINA) * 100, 0, 100)}%`;
+    const txt = qs(`[data-stamtext="${h.uid}"]`);
+    if (txt) txt.textContent = Math.round(h.stamina);
+  }
+}
 
-  host.innerHTML = `
-    <div class="map-banner" style="margin-bottom:10px">
-      <div class="map-banner-top">
-        <span class="map-title">Pinnacle Encounters</span>
-        <span class="map-meta"><b style="color:var(--r-unique)">${frags}</b> Pinnacle Fragments</span>
+function showHeroTooltip(hero, event) {
+  if (!hero) return;
+  const info = heroInfo(hero);
+  const sheet = G.sheets[hero.uid] ?? heroStats(hero, G.state.upgrades);
+  const t = tip();
+  t.className = `tooltip ${info.rarity.cls}`;
+  t.innerHTML = `
+    <div class="tt-name">${escapeHtml(hero.name)}</div>
+    <div class="tt-base">${info.rarity.name} ${escapeHtml(info.cls.name)} · ${info.cls.role} · Level ${hero.level}</div>
+    <div class="tt-sep"></div>
+    ${line('Damage / sec', fmt(sheet.dps))}
+    ${line('Life', fmt(sheet.life))}
+    ${sheet.es > 0 ? line('Energy Shield', fmt(sheet.es)) : ''}
+    ${line('Armour', fmt(sheet.armour))}
+    ${line('Evasion', fmt(sheet.evasion))}
+    ${sheet.healPower > 0 ? line('Healing / cast', fmt(sheet.healPower)) : ''}
+    ${line('Attacks / sec', sheet.aps.toFixed(2))}
+    ${line('Threat', `${sheet.threat.toFixed(1)}×`)}
+    ${line('Resistances', `${sheet.res.fire.value}/${sheet.res.cold.value}/${sheet.res.light.value}/${sheet.res.chaos.value}`)}
+    ${info.traits.length ? '<div class="tt-sep"></div>' : ''}
+    ${info.traits.map((tr) => `<div class="tt-mod">${escapeHtml(tr.name)} — ${escapeHtml(tr.desc)}</div>`).join('')}
+    <div class="tt-hint">Click for equipment and party assignment</div>`;
+  t.classList.remove('hidden');
+  moveTooltip(event);
+}
+
+// ===========================================================================
+// Hero modal
+// ===========================================================================
+
+function openHeroModal(heroUid) {
+  const hero = heroById(heroUid);
+  if (!hero) return;
+  const info = heroInfo(hero);
+  const sheet = G.sheets[hero.uid] ?? heroStats(hero, G.state.upgrades);
+  const out = isDeployed(hero);
+
+  qs('#heroModalTitle').textContent = hero.name;
+  qs('#heroModalBody').innerHTML = `
+    <div class="hm-head ${info.rarity.cls}">
+      <div>
+        <div class="hm-name">${escapeHtml(hero.name)}</div>
+        <div class="hm-sub">${info.rarity.name} ${escapeHtml(info.cls.name)} ·
+          <span class="role role-${info.cls.role.toLowerCase()}">${info.cls.role}</span> · Level ${hero.level}</div>
       </div>
-      <p class="hint" style="margin-top:6px">Fragments drop from completing Tier 5+ maps. Spend them
-        to summon a pinnacle guardian — a pure stat check with a guaranteed unique-weighted loot table.</p>
+      <div class="hm-stats">
+        <span><b>${fmt(sheet.dps)}</b> dps</span>
+        <span><b>${fmt(sheet.life)}</b> life</span>
+        <span><b>${fmt(sheet.armour)}</b> armour</span>
+        <span><b>${fmt(ehp(sheet))}</b> ehp</span>
+      </div>
     </div>
-  ` + BOSSES.map((b) => {
-    const unlocked = s.atlas.highestTier >= b.tier;
-    const ready = unlocked && frags >= b.frags && !s.combat;
-    const kills = s.atlas.bossKills[b.id] ?? 0;
-    return `<div class="boss-card ${ready ? 'ready' : ''} ${unlocked ? '' : 'locked'}">
-      <div class="boss-top">
-        <span class="boss-name">${escapeHtml(b.name)}</span>
-        <span class="map-meta">${kills ? `${kills} kills` : 'never defeated'}</span>
+
+    <div class="section-head"><span>Traits</span></div>
+    <div class="trait-list">${info.traits.length
+    ? info.traits.map((t) => `<div class="trait t${t.tier}"><b>${escapeHtml(t.name)}</b>${escapeHtml(t.desc)}</div>`).join('')
+    : '<span class="hint">No traits.</span>'}</div>
+
+    <div class="section-head"><span>Equipment</span>
+      <div class="head-actions">
+        <button class="btn tiny ${ui.equipTarget === hero.uid ? 'active' : ''}" id="btnGearFor">Gear from Vault</button>
       </div>
-      <div class="boss-intro">${escapeHtml(b.intro)}</div>
-      <div class="boss-reqs">
-        <span>Requires <b>Tier ${b.tier}</b></span>
-        <span>Costs <b>${b.frags} Fragments</b></span>
-        <span>Unique chance <b>${Math.round(b.uniqueChance * 100)}%</b></span>
+    </div>
+    <div class="doll" id="heroDoll">${EQUIP_SLOTS.map((slotId) => {
+    const item = hero.equipment[slotId];
+    const label = SLOTS.find((x) => x.id === slotId)?.label ?? slotId;
+    if (!item) return `<div class="slot empty" style="grid-area:${slotId}" data-slot="${slotId}" data-label="${label}"></div>`;
+    const bs = itemBaseStats(item);
+    const sub = bs.dps ? `${fmt(bs.dps)} dps`
+      : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`, bs.es && `${fmt(bs.es)} es`]
+        .filter(Boolean).join(' · ') || `ilvl ${item.ilvl}`;
+    return `<div class="slot ${R(item.rarity)}" style="grid-area:${slotId}" data-slot="${slotId}" data-uid="${item.uid}">
+        <div class="slot-name">${escapeHtml(item.name)}</div><div class="slot-sub">${sub}</div></div>`;
+  }).join('')}</div>
+
+    <div class="section-head"><span>Party</span></div>
+    <div class="row" id="partyPicker">
+      ${G.state.parties.map((p) => `<button class="btn tiny ${hero.partyId === p.id ? 'active' : ''}"
+        data-assign="${p.id}" ${out ? 'disabled' : ''}>${escapeHtml(p.name)}</button>`).join('')}
+      <button class="btn tiny" data-assign="none" ${out ? 'disabled' : ''}>Unassigned</button>
+    </div>
+    ${out ? '<p class="hint" style="margin-top:8px">This hero is on an expedition and cannot be changed.</p>' : ''}
+
+    <div class="section-head"><span>Danger Zone</span></div>
+    <div class="row"><button class="btn danger" id="btnDismiss" ${out ? 'disabled' : ''}>Dismiss Hero</button></div>`;
+
+  qs('#btnGearFor').onclick = () => {
+    ui.equipTarget = ui.equipTarget === hero.uid ? null : hero.uid;
+    const gearing = ui.equipTarget;
+    renderEquipTarget(); renderVault();
+    closeModals();
+    gotoTab('vault');
+    setStatus(gearing ? `Vault is gearing ${hero.name}. Click an item to equip it.` : 'Gearing cancelled.');
+  };
+  const doll = qs('#heroDoll');
+  doll.onclick = (e) => {
+    const cell = e.target.closest('[data-slot]');
+    if (!cell || out) return;
+    if (hero.equipment[cell.dataset.slot]) {
+      unequipFromHero(hero.uid, cell.dataset.slot);
+      openHeroModal(hero.uid);
+    }
+  };
+  doll.onmouseover = (e) => {
+    const cell = e.target.closest('[data-uid]');
+    if (cell) showItemTooltip(hero.equipment[cell.dataset.slot], e, null, 'Click to unequip');
+  };
+  doll.onmouseout = hideTooltip;
+  doll.onmousemove = moveTooltip;
+
+  qs('#partyPicker').onclick = (e) => {
+    const b = e.target.closest('[data-assign]');
+    if (!b || b.disabled) return;
+    if (b.dataset.assign === 'none') removeFromParty(hero.uid);
+    else assignToParty(hero.uid, b.dataset.assign);
+    openHeroModal(hero.uid);
+  };
+  qs('#btnDismiss').onclick = () => confirmAction(
+    `Dismiss ${hero.name}?`,
+    'Their equipment returns to the vault. The hero is gone for good.',
+    () => { dismiss(hero.uid); closeModals(); },
+  );
+
+  openModal('modalHero');
+}
+
+// ===========================================================================
+// Parties
+// ===========================================================================
+
+function renderParties() {
+  const s = G.state;
+  const host = qs('#partyList');
+  if (!host || !s) return;
+
+  qs('#partyHeader').innerHTML = `
+    <div class="panel-head">
+      <span class="hint">${s.parties.length} part${s.parties.length === 1 ? 'y' : 'ies'} ·
+        ${partySlots()} charter${partySlots() === 1 ? '' : 's'}</span>
+      <button class="btn tiny" id="btnNewParty">New Party</button>
+    </div>`;
+  qs('#btnNewParty').onclick = () => { createParty(); setStatus('Party created.'); };
+
+  if (!s.parties.length) {
+    host.innerHTML = '<div class="empty-note">No parties yet.</div>';
+    return;
+  }
+
+  host.innerHTML = s.parties.map((p) => {
+    const members = partyMembers(p);
+    const running = s.expeditions.some((e) => e.partyId === p.id);
+    const dps = members.reduce((a, h) => a + (G.sheets[h.uid]?.dps ?? 0), 0);
+    const life = members.reduce((a, h) => a + (G.sheets[h.uid]?.life ?? 0), 0);
+    const roles = members.map((h) => CLASS_BY_ID[h.classId].role);
+    return `<div class="party-card ${running ? 'running' : ''}">
+      <div class="party-top">
+        <span class="party-name">${escapeHtml(p.name)}</span>
+        <span class="hint">${members.length}/${MAX_MEMBERS}</span>
       </div>
-      <button class="btn ${ready ? 'primary' : ''}" data-boss="${b.id}" ${ready ? '' : 'disabled'}>
-        ${!unlocked ? `Locked — reach Tier ${b.tier}` : frags < b.frags ? `Need ${b.frags - frags} more Fragments` : s.combat ? 'Finish your current run' : 'Summon'}
-      </button>
+      <div class="party-stats">
+        <span><b>${fmt(dps)}</b> party dps</span>
+        <span><b>${fmt(life)}</b> total life</span>
+      </div>
+      <div class="party-roles">
+        ${roles.length ? roles.map((r) => `<span class="role role-${r.toLowerCase()}">${r}</span>`).join('')
+    : '<span class="hint">Empty — assign heroes from the Roster.</span>'}
+        ${roles.length && !roles.includes('Tank') ? '<span class="warn">no tank</span>' : ''}
+        ${roles.length && !roles.includes('Healer') ? '<span class="warn">no healer</span>' : ''}
+      </div>
+      <div class="party-members">${members.map((h) => `<span class="pm ${RARITY_BY_ID[h.rarity].cls}"
+        data-hero="${h.uid}">${escapeHtml(h.name)} <small>Lv${h.level}</small></span>`).join('')}</div>
+      <div class="row">${running ? '<span class="tag out">On expedition</span>'
+    : `<button class="btn tiny danger" data-delparty="${p.id}">Disband</button>`}</div>
     </div>`;
   }).join('');
 
   host.onclick = (e) => {
-    const btn = e.target.closest('[data-boss]');
-    if (!btn || btn.disabled) return;
-    if (startBossFight(btn.dataset.boss)) gotoTab('combat');
-    renderBosses();
+    const del = e.target.closest('[data-delparty]');
+    if (del) {
+      confirmAction('Disband this party?', 'Its members become unassigned. No heroes are lost.',
+        () => deleteParty(del.dataset.delparty));
+      return;
+    }
+    const hero = e.target.closest('[data-hero]');
+    if (hero) openHeroModal(hero.dataset.hero);
   };
 }
 
 // ===========================================================================
-// Hideout: permanent upgrades and the unique collection log
+// Expeditions
 // ===========================================================================
 
-function renderHideoutSummary() {
+function renderRuns() {
   const s = G.state;
-  const host = qs('#hideoutSummary');
-  if (!host) return;
-  const up = upgradeEffects(s.upgrades);
-  const atlas = atlasBonuses(s);
-  const ranks = Object.values(s.upgrades ?? {}).reduce((a, b) => a + b, 0);
+  const host = qs('#activeRuns');
+  if (!host || !s) return;
 
-  host.innerHTML = `
-    <div class="map-banner">
+  if (!s.expeditions.length) {
+    host.innerHTML = `<div class="map-banner"><div class="idle-state">
+      <h3>No expeditions in the field</h3>
+      <p>Pick a dungeon below and dispatch a party.</p></div></div>`;
+    return;
+  }
+
+  host.innerHTML = s.expeditions.map((run) => {
+    const party = partyById(run.partyId);
+    return `<div class="map-banner running run-card">
       <div class="map-banner-top">
-        <span class="map-title">Your Hideout</span>
-        <span class="map-meta">${ranks} upgrade rank${ranks === 1 ? '' : 's'} purchased</span>
+        <span class="map-title">${escapeHtml(party?.name ?? 'Party')} — ${escapeHtml(run.name)}</span>
+        <span class="map-meta">${run.raidId ? 'RAID' : `Tier ${run.tier}`}</span>
       </div>
-      <p class="hint" style="margin-top:6px">Upgrades are permanent and apply to every
-        character in this save. Low tiers you can clear in seconds are often the fastest
-        way to fund them.</p>
-      <div class="hideout-stats">
-        <span>Quantity <b>+${up.quantity + atlas.quant}%</b></span>
-        <span>Rarity <b>+${up.rarity + atlas.rarity}%</b></span>
-        <span>Currency <b>+${up.currency}%</b></span>
-        <span>Experience <b>+${up.xp}%</b></span>
-        <span>Map drops <b>+${up.mapDrops}%</b></span>
-        <span>Uniques <b>+${up.unique}%</b></span>
+      <div class="progress-track">
+        <div class="progress-fill" data-prog="${run.id}"></div>
+        <span class="progress-text" data-progtext="${run.id}"></span>
+      </div>
+      <div class="run-body">
+        <div class="run-col" data-party-col="${run.id}"></div>
+        <div class="run-col" data-enemy-col="${run.id}"></div>
+      </div>
+      <div class="row">
+        <button class="btn tiny danger" data-recall="${run.id}">Recall</button>
+        <span class="hint" data-runstats="${run.id}"></span>
       </div>
     </div>`;
+  }).join('');
+
+  host.onclick = (e) => {
+    const b = e.target.closest('[data-recall]');
+    if (b) recall(b.dataset.recall);
+  };
+  updateRunBars();
 }
 
-function renderUpgrades() {
+function updateRunBars() {
+  const s = G.state;
+  if (!s) return;
+  for (const run of s.expeditions) {
+    const fill = qs(`[data-prog="${run.id}"]`);
+    if (!fill) continue;
+    fill.style.width = `${runProgress(run) * 100}%`;
+    const pt = qs(`[data-progtext="${run.id}"]`);
+    if (pt) pt.textContent = run.raidId ? 'RAID ENCOUNTER' : `Wave ${run.wave} / ${run.totalWaves + 1}`;
+
+    const pc = qs(`[data-party-col="${run.id}"]`);
+    if (pc) {
+      pc.innerHTML = run.combatants.map((c) => {
+        const pct = clamp((c.life / Math.max(1, c.maxLife)) * 100, 0, 100);
+        return `<div class="cbt ${c.down ? 'down' : ''}">
+          <div class="cbt-name">${escapeHtml(c.name)}<small>${c.role}</small></div>
+          <div class="bar life"><i style="width:${pct}%"></i>
+            <span>${c.down ? 'DOWN' : `${fmt(Math.max(0, c.life))} / ${fmt(c.maxLife)}`}</span></div>
+        </div>`;
+      }).join('');
+    }
+
+    const ec = qs(`[data-enemy-col="${run.id}"]`);
+    if (ec) {
+      ec.innerHTML = run.enemies.length
+        ? run.enemies.map((en) => {
+          const pct = clamp((en.life / en.maxLife) * 100, 0, 100);
+          return `<div class="cbt enemy">
+            <div class="cbt-name ${en.rarity === 'champion' ? 'champ' : ''}">${escapeHtml(en.name)}</div>
+            <div class="bar mon"><i style="width:${pct}%"></i>
+              <span>${fmt(Math.max(0, en.life))} / ${fmt(en.maxLife)}</span></div>
+          </div>`;
+        }).join('')
+        : '<div class="hint" style="padding:6px">Advancing…</div>';
+    }
+
+    const st = qs(`[data-runstats="${run.id}"]`);
+    if (st) {
+      st.textContent = `${fmtTime(run.elapsed)} · ${fmt(run.rewards.gold)}g · `
+        + `${run.rewards.gear} items · ${run.rewards.orbs} orbs`;
+    }
+  }
+}
+
+function renderDispatch() {
+  const s = G.state;
+  const host = qs('#dispatchPanel');
+  if (!host || !s) return;
+
+  const maxTier = Math.max(1, s.progress.highestTier + 1);
+  ui.dispatchTier = clamp(ui.dispatchTier, 1, maxTier);
+  const tier = ui.dispatchTier;
+  const free = partySlots() - s.expeditions.length;
+  const idleParties = s.parties.filter((p) => !s.expeditions.some((e) => e.partyId === p.id));
+
+  host.innerHTML = `
+    <div class="dispatch-bar">
+      <span class="dispatch-label">Tier</span>
+      <button class="btn tiny" id="tierDown" ${tier <= 1 ? 'disabled' : ''}>−</button>
+      <b class="tier-value">${tier}</b>
+      <button class="btn tiny" id="tierUp" ${tier >= maxTier ? 'disabled' : ''}>+</button>
+      <span class="hint">enemy level ~${tierToLevel(tier)} · ${staminaCost(tier)} stamina each</span>
+      <span class="hint" style="margin-left:auto">${free} charter${free === 1 ? '' : 's'} free</span>
+    </div>
+    <div class="dungeon-grid">${DUNGEONS.map((d) => {
+    const cleared = s.progress.cleared[`${d.id}:${tier}`] ?? 0;
+    return `<div class="dungeon ${cleared ? 'cleared' : ''}">
+        <div class="dg-top">
+          <span class="dg-name">${escapeHtml(d.name)}</span>
+          <span class="dg-focus">${escapeHtml(d.focus)}</span>
+        </div>
+        <div class="dg-blurb">${escapeHtml(d.blurb)}</div>
+        <div class="dg-counter">${escapeHtml(d.counter)}</div>
+        <div class="dg-rewards">
+          ${rewardBar('Gold', d.rewards.gold)}${rewardBar('Gear', d.rewards.gear)}
+          ${rewardBar('XP', d.rewards.xp)}${rewardBar('Orbs', d.rewards.orbs)}
+        </div>
+        <div class="dg-foot"><span class="hint">${d.waves} waves · ~${Math.round(expectedDuration(d, tier))}s${
+      cleared ? ` · cleared ${cleared}×` : ''}</span></div>
+        <div class="dg-parties">${idleParties.length
+      ? idleParties.map((p) => {
+        const check = canDispatch(p, staminaCost(tier));
+        const blocked = free <= 0 || !check.ok;
+        const why = free <= 0 ? 'No charters free' : check.ok ? `Send ${p.name}` : check.msg;
+        return `<button class="btn tiny ${blocked ? '' : 'primary'}" data-send="${p.id}" data-dg="${d.id}"
+              ${blocked ? 'disabled' : ''} title="${escapeHtml(why)}">Send ${escapeHtml(p.name)}</button>`;
+      }).join('')
+      : '<span class="hint">All parties are busy.</span>'}</div>
+      </div>`;
+  }).join('')}</div>`;
+
+  qs('#tierDown').onclick = () => { ui.dispatchTier = Math.max(1, tier - 1); renderDispatch(); };
+  qs('#tierUp').onclick = () => { ui.dispatchTier = Math.min(maxTier, tier + 1); renderDispatch(); };
+  host.querySelector('.dungeon-grid').onclick = (e) => {
+    const b = e.target.closest('[data-send]');
+    if (!b || b.disabled) return;
+    const res = dispatch(b.dataset.send, b.dataset.dg, ui.dispatchTier);
+    setStatus(res.msg);
+    if (res.ok) {
+      const party = partyById(b.dataset.send);
+      if (party) party.lastRun = { dungeonId: b.dataset.dg, tier: ui.dispatchTier };
+    }
+  };
+}
+
+function rewardBar(label, mult) {
+  const pct = clamp((mult / 2.5) * 100, 6, 100);
+  return `<div class="rw"><label>${label}</label>
+    <div class="rw-track"><i class="${mult >= 1.8 ? 'strong' : ''}" style="width:${pct}%"></i></div></div>`;
+}
+
+// ===========================================================================
+// Raids
+// ===========================================================================
+
+function renderRaids() {
+  const s = G.state;
+  const host = qs('#raidList');
+  if (!host || !s) return;
+  const seals = s.guild.seals ?? 0;
+  const idleParties = s.parties.filter((p) => !s.expeditions.some((e) => e.partyId === p.id));
+
+  host.innerHTML = `
+    <div class="map-banner" style="margin-bottom:10px">
+      <div class="map-banner-top">
+        <span class="map-title">Raids</span>
+        <span class="map-meta"><b class="c-seal">${seals}</b> Raid Seals</span>
+      </div>
+      <p class="hint" style="margin-top:6px">Seals drop from Tier 4+ expeditions. Raids are pure stat
+        checks with guaranteed payouts, and every first kill permanently raises guild rewards —
+        currently <b class="gold">+${s.progress.bonusMult}%</b>.</p>
+    </div>
+  ` + RAIDS.map((r) => {
+    const unlocked = s.progress.highestTier >= r.tier;
+    const kills = s.progress.raidKills[r.id] ?? 0;
+    const ready = unlocked && seals >= r.seals;
+    return `<div class="boss-card ${ready ? 'ready' : ''} ${unlocked ? '' : 'locked'}">
+      <div class="boss-top">
+        <span class="boss-name">${escapeHtml(r.name)}</span>
+        <span class="map-meta">${kills ? `${kills} kills` : 'never defeated'}</span>
+      </div>
+      <div class="boss-intro">${escapeHtml(r.blurb)}</div>
+      <div class="boss-reqs">
+        <span>Requires <b>Tier ${r.tier}</b></span>
+        <span>Costs <b>${r.seals} Seal${r.seals === 1 ? '' : 's'}</b></span>
+        <span>Unique <b>${Math.round(r.reward.uniqueChance * 100)}%</b></span>
+        <span>First kill <b class="gold">+${r.reward.bonus}% rewards</b></span>
+      </div>
+      <div class="row">${!unlocked
+      ? `<span class="hint">Clear a Tier ${r.tier} dungeon to unlock.</span>`
+      : seals < r.seals
+        ? `<span class="hint">Need ${r.seals - seals} more Seal${r.seals - seals === 1 ? '' : 's'}.</span>`
+        : idleParties.length
+          ? idleParties.map((p) => `<button class="btn tiny primary" data-raid="${r.id}"
+              data-party="${p.id}">Send ${escapeHtml(p.name)}</button>`).join('')
+          : '<span class="hint">All parties are busy.</span>'}</div>
+    </div>`;
+  }).join('');
+
+  host.onclick = (e) => {
+    const b = e.target.closest('[data-raid]');
+    if (!b) return;
+    const res = dispatchRaid(b.dataset.party, b.dataset.raid);
+    setStatus(res.msg);
+    if (res.ok) gotoTab('expeditions');
+  };
+}
+
+// ===========================================================================
+// Guild Hall
+// ===========================================================================
+
+function renderHall() {
   const s = G.state;
   const host = qs('#upgradeList');
-  if (!host) return;
-  renderHideoutSummary();
+  if (!host || !s) return;
+  const gu = guildEffects(s.upgrades);
+  const ranks = Object.values(s.upgrades ?? {}).reduce((a, b) => a + b, 0);
+
+  qs('#hallSummary').innerHTML = `
+    <div class="map-banner">
+      <div class="map-banner-top">
+        <span class="map-title">${escapeHtml(s.name)}</span>
+        <span class="map-meta">${ranks} upgrade rank${ranks === 1 ? '' : 's'} ·
+          <b class="c-gold">${fmt(s.guild.gold)}</b> gold</span>
+      </div>
+      <p class="hint" style="margin-top:6px">Upgrades are permanent. A low tier you clear in seconds
+        is often the fastest way to fund them — that is what the Deepmines are for.</p>
+      <div class="hideout-stats">
+        <span>Gold <b>+${gu.gold}%</b></span>
+        <span>Rarity <b>+${gu.rarity}%</b></span>
+        <span>Quantity <b>+${gu.quantity}%</b></span>
+        <span>Orbs <b>+${gu.orbs}%</b></span>
+        <span>Experience <b>+${gu.xp}%</b></span>
+        <span>Charters <b>${1 + gu.partySlots}</b></span>
+      </div>
+    </div>`;
 
   host.innerHTML = UPGRADES.map((u) => {
     const rank = s.upgrades[u.id] ?? 0;
     const maxed = rank >= u.max;
     const cost = upgradeCost(u.id, rank);
-    const cur = cost ? CURRENCY_BY_ID[cost.currency] : null;
-    const have = cost ? (s.stash[cost.currency] ?? 0) : 0;
-    const afford = cost ? have >= cost.amount : false;
+    const afford = !cost ? false
+      : cost.kind === 'gold' ? s.guild.gold >= cost.amount : hasOrb(cost.orb, cost.amount);
     const now = u.effect(rank);
     const next = maxed ? null : u.effect(rank + 1);
-    const key = Object.keys(now)[0];
+    const key = Object.keys(u.effect(1))[0];
+    const label = cost && (cost.kind === 'gold'
+      ? `${fmtInt(cost.amount)}g` : `${cost.amount}× ${CURRENCY_BY_ID[cost.orb]?.short ?? ''}`);
 
     return `<div class="upgrade ${maxed ? 'maxed' : afford ? 'afford' : ''}">
       <div class="up-top">
@@ -971,119 +693,141 @@ function renderUpgrades() {
         <span class="up-rank">${rank}/${u.max}</span>
       </div>
       <div class="up-desc">${escapeHtml(u.desc)}</div>
-      <div class="up-effect">
-        ${next
-    ? `<b>${fmt(now[key] ?? 0)} → ${fmt(next[key] ?? 0)}</b>${escapeHtml(u.unit)}`
-    : `<b>${fmt(now[key] ?? 0)}</b>${escapeHtml(u.unit)} <span class="up-next">MAX</span>`}
-      </div>
-      <div class="up-buy">
-        ${maxed ? '<span class="up-max">Fully upgraded</span>' : `
-          <button class="btn tiny ${afford ? 'primary' : ''}" data-buy="${u.id}" ${afford ? '' : 'disabled'}>
-            ${cost.amount}x ${escapeHtml(cur?.short ?? '')}
-          </button>
-          <span class="up-have ${afford ? '' : 'short'}">have ${fmtInt(have)}</span>`}
-      </div>
+      <div class="up-effect">${next
+      ? `<b>${fmt(now[key] ?? 0)} → ${fmt(next[key] ?? 0)}</b>${escapeHtml(u.unit)}`
+      : `<b>${fmt(now[key] ?? 0)}</b>${escapeHtml(u.unit)} <span class="up-next">MAX</span>`}</div>
+      <div class="up-buy">${maxed ? '<span class="up-max">Fully upgraded</span>'
+      : `<button class="btn tiny ${afford ? 'primary' : ''}" data-buy="${u.id}" ${afford ? '' : 'disabled'}>${label}</button>`}</div>
     </div>`;
   }).join('');
 
   host.onclick = (e) => {
-    const btn = e.target.closest('[data-buy]');
-    if (!btn || btn.disabled) return;
-    const res = buyUpgrade(btn.dataset.buy);
-    setStatus(res.msg);
-    renderUpgrades();
-    refreshDerived();
+    const b = e.target.closest('[data-buy]');
+    if (!b || b.disabled) return;
+    setStatus(buyUpgrade(b.dataset.buy).msg);
   };
-  host.onmouseover = (e) => {
-    const card = e.target.closest('[data-buy]');
-    if (!card) return;
-    const u = UPGRADE_BY_ID[card.dataset.buy];
-    const cost = upgradeCost(u.id, G.state.upgrades[u.id] ?? 0);
-    showUpgradeTooltip(u, cost, e);
-  };
-  host.onmouseout = hideTooltip;
-  host.onmousemove = moveTooltip;
 }
 
-function showUpgradeTooltip(u, cost, event) {
-  const cur = CURRENCY_BY_ID[cost.currency];
-  const t = tip();
-  t.className = 'tooltip';
-  t.innerHTML = `
-    <div class="tt-name" style="color:var(--gold)">${escapeHtml(u.name)}</div>
-    <div class="tt-sep"></div>
-    <div class="tt-implicit">${escapeHtml(u.desc)}</div>
-    <div class="tt-line" style="margin-top:6px"><label>Cost</label>
-      <span>${cost.amount}x ${escapeHtml(cur?.name ?? '')}</span></div>
-    <div class="tt-line"><label>You have</label>
-      <span>${fmtInt(G.state.stash[cost.currency] ?? 0)}</span></div>`;
-  t.classList.remove('hidden');
-  moveTooltip(event);
-}
-
-/**
- * Unique collection log. Unfound entries stay visible with their level
- * requirement, which doubles as a hint about which tier band to farm — unique
- * drop weighting favours items near the map's item level.
- */
 function renderCollection() {
   const s = G.state;
   const host = qs('#collectionList');
-  if (!host) return;
+  if (!host || !s) return;
   const found = UNIQUES.filter((u) => (s.collection?.[u.id] ?? 0) > 0).length;
   qs('#collectionCount').textContent = `${found}/${UNIQUES.length}`;
-
-  const sorted = UNIQUES.slice().sort((a, b) => a.lvl - b.lvl);
-  host.innerHTML = sorted.map((u) => {
+  host.innerHTML = UNIQUES.slice().sort((a, b) => a.lvl - b.lvl).map((u) => {
     const n = s.collection?.[u.id] ?? 0;
-    const tier = tierForItemLevel(u.lvl);
     return `<div class="col-entry ${n ? 'found' : ''}" title="${escapeHtml(u.flavour ?? '')}">
       <div class="col-name">${n ? escapeHtml(u.name) : '???'}</div>
-      <div class="col-meta">${n
-    ? `found ${n}×`
-    : `item level ${u.lvl} · around Tier ${tier}`}</div>
+      <div class="col-meta">${n ? `found ${n}×` : `item level ${u.lvl}`}</div>
     </div>`;
   }).join('');
 }
 
-/** Rough map tier that produces a given item level — used as a farming hint. */
-function tierForItemLevel(ilvl) {
-  for (let t = 1; t <= 40; t++) if (tierToIlvl(t) >= ilvl) return t;
-  return 40;
-}
-
 // ===========================================================================
-// Equipment doll & inventory
+// Vault
 // ===========================================================================
 
 const SALVAGE_FILTERS = {
   normal: { label: 'Normal', test: (i) => i.rarity === 'normal' },
   magic: { label: 'Normal and Magic', test: (i) => i.rarity === 'normal' || i.rarity === 'magic' },
-  rare: {
-    label: 'Normal, Magic and Rare',
-    test: (i) => i.rarity === 'normal' || i.rarity === 'magic' || i.rarity === 'rare',
-  },
+  rare: { label: 'Normal, Magic and Rare', test: (i) => ['normal', 'magic', 'rare'].includes(i.rarity) },
 };
 
-function wireGearActions() {
-  qs('#btnSortInv').onclick = () => sortInventory();
-
-  for (const [key, btn] of [['normal', '#btnSalvageNormal'], ['magic', '#btnSalvageMagic'], ['rare', '#btnSalvageRare']]) {
-    qs(btn).onclick = () => {
+function wireVaultActions() {
+  qs('#btnSortVault').onclick = () => sortVault();
+  for (const [key, sel] of [['normal', '#btnSalvageNormal'], ['magic', '#btnSalvageMagic'], ['rare', '#btnSalvageRare']]) {
+    qs(sel).onclick = () => {
       const f = SALVAGE_FILTERS[key];
       const n = countSalvageable(f.test);
-      if (!n) { setStatus(`No unlocked ${f.label} items to salvage.`); return; }
-      confirmAction(
-        `Salvage ${n} item${n === 1 ? '' : 's'}?`,
-        `All unlocked ${f.label} items in your inventory will be broken down into currency. `
-        + 'Locked and Unique items are skipped.',
-        () => { salvageAll(f.test); refreshDerived(); },
-      );
+      if (!n) { setStatus(`No unlocked ${f.label} items in the vault.`); return; }
+      confirmAction(`Salvage ${n} item${n === 1 ? '' : 's'}?`,
+        `All unlocked ${f.label} items in the vault become orbs and gold. `
+        + 'Locked and Unique items are skipped, and worn gear is never touched.',
+        () => salvageAll(f.test));
     };
   }
 }
 
-/** Keeps the salvage buttons showing how much they would actually destroy. */
+function renderEquipTarget() {
+  const host = qs('#equipTarget');
+  if (!host) return;
+  const hero = ui.equipTarget ? heroById(ui.equipTarget) : null;
+  if (!hero) { host.innerHTML = ''; return; }
+  const sheet = G.sheets[hero.uid];
+  host.innerHTML = `<div class="craft-banner">
+    Gearing <b>${escapeHtml(hero.name)}</b> — ${fmt(sheet?.dps ?? 0)} dps, ${fmt(sheet?.life ?? 0)} life.
+    Click an item to equip it.
+    <button class="btn tiny" id="btnClearTarget">Done</button></div>`;
+  qs('#btnClearTarget').onclick = () => { ui.equipTarget = null; renderEquipTarget(); renderVault(); };
+}
+
+function renderVault() {
+  const s = G.state;
+  const host = qs('#vaultGrid');
+  if (!host || !s) return;
+  qs('#vaultCount').textContent = `${s.vault.length}/${vaultCapacity()}`;
+  renderSalvageBar();
+
+  if (!s.vault.length) {
+    host.innerHTML = '<div class="empty-note" style="grid-column:1/-1">The vault is empty.</div>';
+    return;
+  }
+
+  const hero = ui.equipTarget ? heroById(ui.equipTarget) : null;
+  host.innerHTML = s.vault.map((item) => {
+    const craft = ui.craftOrb ? canApply(ui.craftOrb, item) : null;
+    const d = itemDescriptor(item);
+    const bs = itemBaseStats(item);
+    const num = bs.dps ? `${fmt(bs.dps)} dps`
+      : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`, bs.es && `${fmt(bs.es)} es`]
+        .filter(Boolean).join(' · ');
+    return `<div class="inv-cell ${R(item.rarity)} ${craft ? (craft.ok ? 'craftable' : 'not-craftable') : ''}"
+                 data-uid="${item.uid}">
+      <div class="inv-top">
+        <span class="inv-name">${escapeHtml(item.name)}</span>
+        <span class="inv-ilvl" title="Item level">i${item.ilvl}</span>
+      </div>
+      <div class="inv-type">${escapeHtml(d.category)}</div>
+      <div class="inv-sub">${escapeHtml(d.subtype)}${num ? ` · ${num}` : ''}</div>
+      <div class="inv-marks">
+        ${item.locked ? '<span class="mark lock" title="Locked">🔒</span>' : ''}
+        ${item.corrupted ? '<span class="mark corrupt" title="Corrupted">✦</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  host.onclick = (e) => {
+    const cell = e.target.closest('[data-uid]');
+    if (!cell) return;
+    const uid = cell.dataset.uid;
+    if (ui.craftOrb) { applyCraft(uid); return; }
+    if (hero) { equipOnHero(hero.uid, uid); hideTooltip(); return; }
+    const item = findItem(uid);
+    if (!item) return;
+    if (e.shiftKey) { salvageItem(item); hideTooltip(); }
+    else if (e.ctrlKey || e.metaKey) toggleLock(uid);
+    else openItemMenu(uid);
+  };
+  host.oncontextmenu = (e) => {
+    const cell = e.target.closest('[data-uid]');
+    if (!cell) return;
+    e.preventDefault();
+    hideTooltip();
+    openItemMenu(cell.dataset.uid);
+  };
+  host.onmouseover = (e) => {
+    const cell = e.target.closest('[data-uid]');
+    if (!cell) return;
+    const item = s.vault.find((i) => i.uid === cell.dataset.uid);
+    if (item) {
+      showItemTooltip(item, e, hero ? true : null,
+        hero ? `Click to equip on ${hero.name}` : 'Click for actions · Shift-click to salvage');
+    }
+  };
+  host.onmouseout = hideTooltip;
+  host.onmousemove = moveTooltip;
+}
+
 function renderSalvageBar() {
   for (const [key, sel] of [['normal', '#btnSalvageNormal'], ['magic', '#btnSalvageMagic'], ['rare', '#btnSalvageRare']]) {
     const btn = qs(sel);
@@ -1095,158 +839,50 @@ function renderSalvageBar() {
   }
 }
 
-function renderDoll() {
-  const s = G.state;
-  const host = qs('#equipDoll');
-  host.innerHTML = EQUIP_SLOTS.map((slotId) => {
-    const item = s.equipment[slotId];
-    const label = SLOTS.find((x) => x.id === slotId)?.label ?? slotId;
-    if (!item) {
-      return `<div class="slot empty" style="grid-area:${slotId}" data-slot="${slotId}" data-label="${label}"></div>`;
-    }
-    const bs = itemBaseStats(item);
-    const sub = bs.dps ? `${fmt(bs.dps)} dps`
-      : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`, bs.es && `${fmt(bs.es)} es`]
-        .filter(Boolean).join(' · ') || `ilvl ${item.ilvl}`;
-    return `<div class="slot ${R(item.rarity)}" style="grid-area:${slotId}"
-                 data-slot="${slotId}" data-uid="${item.uid}">
-      <div class="slot-name">${escapeHtml(item.name)}</div>
-      <div class="slot-sub">${sub}</div>
-    </div>`;
-  }).join('');
+// ===========================================================================
+// Item menu
+// ===========================================================================
 
-  host.onclick = (e) => {
-    const cell = e.target.closest('[data-slot]');
-    if (!cell) return;
-    const slotId = cell.dataset.slot;
-    if (ui.craftCurrency && s.equipment[slotId]) { applyCraft(s.equipment[slotId].uid); return; }
-    if (s.equipment[slotId]) { unequipItem(slotId); hideTooltip(); }
-  };
-  host.oncontextmenu = (e) => {
-    const cell = e.target.closest('[data-uid]');
-    if (!cell) return;
-    e.preventDefault();
-    hideTooltip();
-    openItemMenu(cell.dataset.uid);
-  };
-  host.onmouseover = (e) => {
-    const cell = e.target.closest('[data-uid]');
-    if (cell) showItemTooltip(s.equipment[cell.dataset.slot], e, null, 'Click to unequip · Right-click for actions');
-  };
-  host.onmouseout = hideTooltip;
-  host.onmousemove = moveTooltip;
-}
-
-function renderInventory() {
-  const s = G.state;
-  const host = qs('#invGrid');
-  qs('#invCount').textContent = `${s.inventory.length}/${inventoryCapacity()}`;
-  renderSalvageBar();
-
-  if (!s.inventory.length) {
-    host.innerHTML = `<div class="empty-note" style="grid-column:1/-1">Your inventory is empty.</div>`;
-    return;
-  }
-
-  // Without item icons, every cell has to say what the thing actually is:
-  // name, rarity colour, item level, category and sub-type.
-  host.innerHTML = s.inventory.map((item) => {
-    const craft = ui.craftCurrency ? canApply(ui.craftCurrency, item) : null;
-    const d = itemDescriptor(item);
-    const bs = itemBaseStats(item);
-    const num = bs.dps ? `${fmt(bs.dps)} dps`
-      : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`,
-        bs.es && `${fmt(bs.es)} es`].filter(Boolean).join(' · ');
-    return `<div class="inv-cell ${R(item.rarity)} ${craft ? (craft.ok ? 'craftable' : 'not-craftable') : ''}"
-                 data-uid="${item.uid}">
-      <div class="inv-top">
-        <span class="inv-name">${escapeHtml(item.name)}</span>
-        <span class="inv-ilvl" title="Item level">i${item.ilvl}</span>
-      </div>
-      <div class="inv-type">${escapeHtml(d.category)}</div>
-      <div class="inv-sub">${escapeHtml(d.subtype)}${num ? ` · ${num}` : ''}</div>
-      <div class="inv-marks">
-        ${item.locked ? '<span class="mark lock" title="Locked — protected from bulk salvage">🔒</span>' : ''}
-        ${item.corrupted ? '<span class="mark corrupt" title="Corrupted">✦</span>' : ''}
-      </div>
-    </div>`;
-  }).join('');
-
-  host.onclick = (e) => {
-    const cell = e.target.closest('[data-uid]');
-    if (!cell) return;
-    const uid = cell.dataset.uid;
-    if (ui.craftCurrency) { applyCraft(uid); return; }
-    const item = s.inventory.find((i) => i.uid === uid);
-    if (!item) return;
-    if (e.shiftKey) { salvageItem(item); hideTooltip(); }
-    else if (e.ctrlKey || e.metaKey) { toggleLock(uid); }
-    else { equipItem(uid); hideTooltip(); }
-  };
-  // Right-click opens the full action menu — the discoverable path to salvage.
-  host.oncontextmenu = (e) => {
-    const cell = e.target.closest('[data-uid]');
-    if (!cell) return;
-    e.preventDefault();
-    hideTooltip();
-    openItemMenu(cell.dataset.uid);
-  };
-  host.onmouseover = (e) => {
-    const cell = e.target.closest('[data-uid]');
-    if (!cell) return;
-    const item = s.inventory.find((i) => i.uid === cell.dataset.uid);
-    if (item) showItemTooltip(item, e, comparisonFor(item), 'Click to equip · Right-click for actions');
-  };
-  host.onmouseout = hideTooltip;
-  host.onmousemove = moveTooltip;
-}
-
-/**
- * Item action menu. Right-clicking any item opens this; it's the discoverable
- * route to salvaging rares and uniques, which shift-click alone hid too well.
- */
 function openItemMenu(uid) {
   const item = findItem(uid);
   if (!item) return;
-  ui.menuUid = uid;
-
-  const equipped = Object.values(G.state.equipment).some((x) => x && x.uid === uid);
+  const worn = wearerOf(uid);
   const d = itemDescriptor(item);
-  const value = Object.entries(salvagePreview(item))
-    .map(([id, n]) => `${n}x ${CURRENCY_BY_ID[id]?.short ?? id}`).join(', ');
+  const candidates = G.state.heroes.filter((h) => !isDeployed(h));
 
   qs('#itemMenuTitle').textContent = item.name;
   qs('#itemMenuBody').innerHTML = `
     <div class="menu-item ${R(item.rarity)}">
       <div class="menu-name">${escapeHtml(item.name)}</div>
       <div class="menu-sub">${escapeHtml(d.category)} · ${escapeHtml(d.subtype)} · Item Level ${item.ilvl}
-        ${item.locked ? ' · 🔒 Locked' : ''}${item.corrupted ? ' · Corrupted' : ''}</div>
+        ${item.locked ? ' · 🔒 Locked' : ''}${item.corrupted ? ' · Corrupted' : ''}
+        ${worn ? ` · worn by ${escapeHtml(worn.hero.name)}` : ''}</div>
       <div class="menu-mods">${itemMods(item).map((m) =>
     `<div class="${m.kind === 'implicit' ? 'tt-implicit' : m.kind === 'unique' ? 'tt-unique-mod' : 'tt-mod'}">
-        ${escapeHtml(m.text)}${m.tier ? ` <span class="tier">T${m.tier}</span>` : ''}</div>`).join('')}</div>
+      ${escapeHtml(m.text)}${m.tier ? ` <span class="tier">T${m.tier}</span>` : ''}</div>`).join('')}</div>
     </div>
+    ${worn ? '<div class="row"><button class="btn" data-act="unequip">Return to Vault</button></div>'
+    : `<div class="section-head"><span>Equip on</span></div>
+       <div class="row">${candidates.length
+      ? candidates.map((h) => `<button class="btn tiny" data-equip="${h.uid}">${escapeHtml(h.name)}
+          <small>${CLASS_BY_ID[h.classId].role}</small></button>`).join('')
+      : '<span class="hint">Every hero is in the field.</span>'}</div>`}
     <div class="row">
-      ${equipped
-    ? '<button class="btn" data-act="unequip">Unequip</button>'
-    : '<button class="btn primary" data-act="equip">Equip</button>'}
       <button class="btn" data-act="lock">${item.locked ? 'Unlock' : 'Lock'}</button>
-      <button class="btn danger" data-act="salvage">Salvage${value ? ` → ${escapeHtml(value)}` : ''}</button>
+      <button class="btn danger" data-act="salvage" ${worn ? 'disabled' : ''}>Salvage</button>
     </div>
-    <p class="hint" style="margin-top:8px">Shortcuts: click to equip · Shift-click to salvage ·
-      Ctrl-click to lock.</p>`;
+    <p class="hint" style="margin-top:8px">Shift-click salvages · Ctrl-click locks.</p>`;
 
   qs('#itemMenuBody').onclick = (e) => {
+    const eq = e.target.closest('[data-equip]');
+    if (eq) { equipOnHero(eq.dataset.equip, uid); closeModals(); return; }
     const btn = e.target.closest('[data-act]');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     const act = btn.dataset.act;
-    if (act === 'equip') { equipItem(uid); closeModals(); }
-    else if (act === 'unequip') {
-      const slot = Object.keys(G.state.equipment).find((k) => G.state.equipment[k]?.uid === uid);
-      if (slot) unequipItem(slot);
-      closeModals();
-    } else if (act === 'lock') { toggleLock(uid); openItemMenu(uid); }
+    if (act === 'unequip') { unequipFromHero(worn.hero.uid, worn.slot); closeModals(); }
+    else if (act === 'lock') { toggleLock(uid); openItemMenu(uid); }
     else if (act === 'salvage') {
-      const doIt = () => { salvageItem(item); closeModals(); refreshDerived(); };
+      const doIt = () => { salvageItem(item); closeModals(); };
       if (item.rarity === 'unique' || item.locked) {
         confirmAction('Salvage this item?',
           `${item.name} is ${item.locked ? 'locked' : 'a unique'}. Salvaging destroys it permanently.`, doIt);
@@ -1256,55 +892,35 @@ function openItemMenu(uid) {
   openModal('modalItem');
 }
 
-/**
- * Rough preview of a salvage payout. Deliberately does not use the seeded RNG,
- * so opening the menu can't shift the loot stream.
- */
-function salvagePreview(item) {
-  const score = Math.round((item.ilvl * 0.6) * ({ normal: 1, magic: 2.2, rare: 4.5, unique: 9 }[item.rarity] ?? 1));
-  const chaos = score * 0.014;
-  if (chaos >= 1) return { chaos: Math.max(1, Math.round(chaos)) };
-  if (chaos >= 0.4) return { regal: 1 };
-  if (chaos >= 0.15) return { alchemy: 1 };
-  return { transmute: 1 };
-}
-
-/** The currently-equipped item this one would replace. */
-function comparisonFor(item) {
-  const s = G.state;
-  if (item.kind !== 'gear') return null;
-  if (item.slot === 'ring') return s.equipment.ring1 ?? s.equipment.ring2 ?? null;
-  return s.equipment[item.slot] ?? null;
-}
-
 // ===========================================================================
-// Currency stash & crafting
+// Crafting orbs
 // ===========================================================================
 
-function buildCurrencyGrid() {
-  const host = qs('#currencyGrid');
+function buildOrbGrid() {
+  const host = qs('#orbGrid');
   host.onclick = (e) => {
-    const cell = e.target.closest('[data-cur]');
+    const cell = e.target.closest('[data-orb]');
     if (!cell) return;
-    const id = cell.dataset.cur;
-    if ((G.state.stash[id] ?? 0) <= 0) return;
-    selectCurrency(ui.craftCurrency === id ? null : id);
+    const id = cell.dataset.orb;
+    if ((G.state.orbs[id] ?? 0) <= 0) return;
+    selectOrb(ui.craftOrb === id ? null : id);
   };
   host.onmouseover = (e) => {
-    const cell = e.target.closest('[data-cur]');
-    if (cell) showCurrencyTooltip(CURRENCY_BY_ID[cell.dataset.cur], e);
+    const cell = e.target.closest('[data-orb]');
+    if (cell) showOrbTooltip(CURRENCY_BY_ID[cell.dataset.orb], e);
   };
   host.onmouseout = hideTooltip;
   host.onmousemove = moveTooltip;
 }
 
-function renderCurrency() {
+function renderOrbs() {
   const s = G.state;
-  const host = qs('#currencyGrid');
+  const host = qs('#orbGrid');
+  if (!host || !s) return;
   host.innerHTML = CURRENCIES.map((c) => {
-    const n = s.stash[c.id] ?? 0;
-    return `<div class="cur-cell ${n ? '' : 'zero'} ${ui.craftCurrency === c.id ? 'selected' : ''}"
-                 data-cur="${c.id}" data-tier="${c.tier}">
+    const n = s.orbs[c.id] ?? 0;
+    return `<div class="cur-cell ${n ? '' : 'zero'} ${ui.craftOrb === c.id ? 'selected' : ''}"
+                 data-orb="${c.id}" data-tier="${c.tier}">
       <div class="cur-orb">${c.short}</div>
       <div class="cur-count">${fmtInt(n)}</div>
       <div class="cur-name">${escapeHtml(c.name.replace('Orb of ', '').replace(' Orb', ''))}</div>
@@ -1312,19 +928,27 @@ function renderCurrency() {
   }).join('');
 }
 
-function selectCurrency(id) {
-  ui.craftCurrency = id;
-  renderCurrency();
-  renderInventory();
-  renderMaps();
-  renderCraftPanel();
-  renderGearBanner();
+function selectOrb(id) {
+  ui.craftOrb = id;
+  renderOrbs(); renderVault(); renderCraftPanel(); renderVaultBanner();
   if (id) {
-    gotoTab('gear');
-    setStatus(`${CURRENCY_BY_ID[id].name} selected — click an item to apply it. Press Esc to cancel.`);
-  } else {
-    setStatus('Crafting cancelled.');
+    gotoTab('vault');
+    setStatus(`${CURRENCY_BY_ID[id].name} selected — click a vault item to apply it. Esc to cancel.`);
+  } else setStatus('Crafting cancelled.');
+}
+
+function renderVaultBanner() {
+  let banner = qs('#vaultCraftBanner');
+  if (!ui.craftOrb) { if (banner) banner.remove(); return; }
+  if (!banner) {
+    banner = el('div', 'craft-banner');
+    banner.id = 'vaultCraftBanner';
+    qs('#tab-vault').prepend(banner);
   }
+  const c = CURRENCY_BY_ID[ui.craftOrb];
+  banner.innerHTML = `<b>${escapeHtml(c.name)}</b> — click a vault item to apply.
+    <button class="btn tiny" id="btnCancelCraft">Cancel</button>`;
+  qs('#btnCancelCraft').onclick = () => selectOrb(null);
 }
 
 function renderCraftPanel() {
@@ -1332,60 +956,35 @@ function renderCraftPanel() {
   const banner = qs('#craftBanner');
   if (!host) return;
 
-  if (!ui.craftCurrency) {
+  if (!ui.craftOrb) {
     banner.classList.add('hidden');
-    host.innerHTML = `<p class="hint">Select a currency orb above, then click an item in your
-      Equipment tab, an equipped item, or a map in the Atlas to apply it.</p>
-      <div class="section-head"><span>Crafting Reference</span></div>
-      ${CURRENCIES.filter((c) => c.tier > 0).map((c) =>
-    `<div class="stat-row"><label>${escapeHtml(c.name)}</label><b style="font-weight:400;font-size:11px">${escapeHtml(c.use)}</b></div>`).join('')}`;
+    host.innerHTML = '<p class="hint">Select an orb above, then click an item in the Vault.</p>'
+      + CURRENCIES.filter((c) => c.tier > 0).map((c) =>
+        `<div class="stat-row"><label>${escapeHtml(c.name)}</label>
+        <b style="font-weight:400;font-size:11px">${escapeHtml(c.use)}</b></div>`).join('');
     return;
   }
-
-  const c = CURRENCY_BY_ID[ui.craftCurrency];
+  const c = CURRENCY_BY_ID[ui.craftOrb];
   banner.classList.remove('hidden');
-  banner.innerHTML = `<b>${escapeHtml(c.name)}</b> ready — click a valid item.
-    <button class="btn tiny" id="btnCancelCraft">Cancel</button>`;
-  qs('#btnCancelCraft').onclick = () => selectCurrency(null);
-
-  host.innerHTML = `<div class="craft-target">
-      <b style="color:var(--gold)">${escapeHtml(c.name)}</b>
-      <div class="hint" style="margin-top:4px">${escapeHtml(c.desc)}</div>
-      <div class="hint">${escapeHtml(c.use)}</div>
-      <div class="hint" style="margin-top:4px">You have <b>${fmtInt(G.state.stash[c.id] ?? 0)}</b>.</div>
-    </div>`;
-}
-
-/** A duplicate banner inside the Equipment tab, where the items actually are. */
-function renderGearBanner() {
-  let banner = qs('#gearCraftBanner');
-  if (!ui.craftCurrency) { if (banner) banner.remove(); return; }
-  if (!banner) {
-    banner = el('div', 'craft-banner');
-    banner.id = 'gearCraftBanner';
-    qs('#tab-gear').prepend(banner);
-  }
-  const c = CURRENCY_BY_ID[ui.craftCurrency];
-  banner.innerHTML = `<b>${escapeHtml(c.name)}</b> — click a valid item to apply.
+  banner.innerHTML = `<b>${escapeHtml(c.name)}</b> ready — click a valid vault item.
     <button class="btn tiny" id="btnCancelCraft2">Cancel</button>`;
-  qs('#btnCancelCraft2').onclick = () => selectCurrency(null);
+  qs('#btnCancelCraft2').onclick = () => selectOrb(null);
+  host.innerHTML = `<div class="craft-target">
+    <b style="color:var(--gold)">${escapeHtml(c.name)}</b>
+    <div class="hint" style="margin-top:4px">${escapeHtml(c.desc)}</div>
+    <div class="hint">${escapeHtml(c.use)}</div>
+    <div class="hint" style="margin-top:4px">You have <b>${fmtInt(G.state.orbs[c.id] ?? 0)}</b>.</div>
+  </div>`;
 }
 
 function applyCraft(uid) {
-  const s = G.state;
-  const item = s.inventory.find((i) => i.uid === uid)
-    || s.maps.find((i) => i.uid === uid)
-    || Object.values(s.equipment).find((i) => i && i.uid === uid);
+  const item = findItem(uid);
   if (!item) return;
-
-  const res = applyCurrency(ui.craftCurrency, item);
+  const res = applyOrb(ui.craftOrb, item);
   setStatus(res.msg);
   if (!res.ok) return;
-
-  if ((s.stash[ui.craftCurrency] ?? 0) <= 0) selectCurrency(null);
-  else { renderCurrency(); renderInventory(); renderMaps(); renderCraftPanel(); }
-  renderDoll();
-  refreshDerived();
+  if ((G.state.orbs[ui.craftOrb] ?? 0) <= 0) selectOrb(null);
+  else { renderOrbs(); renderVault(); renderCraftPanel(); }
 }
 
 // ===========================================================================
@@ -1393,6 +992,10 @@ function applyCraft(uid) {
 // ===========================================================================
 
 const tip = () => qs('#tooltip');
+
+function line(label, value) {
+  return `<div class="tt-line"><label>${label}</label><span>${value}</span></div>`;
+}
 
 function showItemTooltip(item, event, compare = null, hint = '') {
   if (!item) return;
@@ -1404,17 +1007,14 @@ function showItemTooltip(item, event, compare = null, hint = '') {
 }
 
 function itemTooltipHtml(item, compare, hint) {
-  const base = BASE_BY_ID[item.baseId];
   const bs = itemBaseStats(item);
   const mods = itemMods(item);
-  const parts = [];
-
-  const desc = itemDescriptor(item);
-  parts.push(`<div class="tt-name">${escapeHtml(item.name)}</div>`);
-  if (item.rarity !== 'normal') parts.push(`<div class="tt-base">${escapeHtml(item.baseName ?? base?.class ?? '')}</div>`);
-  parts.push(`<div class="tt-base">${escapeHtml(desc.category)}${desc.subtype ? ` · ${escapeHtml(desc.subtype)}` : ''}</div>`);
-
+  const d = itemDescriptor(item);
+  const parts = [`<div class="tt-name">${escapeHtml(item.name)}</div>`];
+  if (item.rarity !== 'normal') parts.push(`<div class="tt-base">${escapeHtml(item.baseName ?? '')}</div>`);
+  parts.push(`<div class="tt-base">${escapeHtml(d.category)}${d.subtype ? ` · ${escapeHtml(d.subtype)}` : ''}</div>`);
   parts.push('<div class="tt-sep"></div>');
+
   if (bs.dps) {
     parts.push(line('Physical Damage', `${fmt(bs.physMin)} – ${fmt(bs.physMax)}`));
     parts.push(line('Attacks per Second', bs.aps.toFixed(2)));
@@ -1426,9 +1026,6 @@ function itemTooltipHtml(item, compare, hint) {
     if (bs.es) parts.push(line('Energy Shield', fmt(bs.es)));
   }
   if (item.quality) parts.push(line('Quality', `+${item.quality}%`));
-  if (bs.req) {
-    parts.push(line('Requires', Object.entries(bs.req).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(', ')));
-  }
   parts.push(line('Item Level', String(item.ilvl)));
 
   const implicit = mods.filter((m) => m.kind === 'implicit');
@@ -1444,91 +1041,53 @@ function itemTooltipHtml(item, compare, hint) {
         m.tier ? ` <span class="tier">T${m.tier}</span>` : ''}</div>`,
     ));
   }
-
   if (item.rarity === 'unique') {
     const u = UNIQUE_BY_ID[item.uniqueId];
     if (u?.flavour) parts.push(`<div class="tt-flavour">${escapeHtml(u.flavour)}</div>`);
   }
   if (item.corrupted) parts.push('<div class="tt-corrupt">Corrupted</div>');
-
-  if (compare) parts.push(compareHtml(item, compare));
+  if (compare && ui.equipTarget) parts.push(compareHtml(item));
   if (hint) parts.push(`<div class="tt-hint">${escapeHtml(hint)}</div>`);
   return parts.join('');
 }
 
-function line(label, value) {
-  return `<div class="tt-line"><label>${label}</label><span>${value}</span></div>`;
-}
+/** Diffs the gearing hero's sheet with this item equipped. */
+function compareHtml(item) {
+  const hero = heroById(ui.equipTarget);
+  if (!hero) return '';
+  const slot = item.slot === 'ring' ? (!hero.equipment.ring1 ? 'ring1' : 'ring2') : item.slot;
 
-/**
- * Diffs the character sheet with `item` equipped versus what's there now.
- * Equipment is swapped temporarily; computeStats never mutates state.
- */
-function compareHtml(item, current) {
-  const s = G.state;
-  const slot = item.slot === 'ring'
-    ? (s.equipment.ring1 === current ? 'ring1' : s.equipment.ring2 === current ? 'ring2' : 'ring1')
-    : item.slot;
-
-  const before = G.derived ?? computeStats(s);
-  const saved = s.equipment[slot];
-  s.equipment[slot] = item;
+  const before = G.sheets[hero.uid] ?? heroStats(hero, G.state.upgrades);
+  const saved = hero.equipment[slot];
+  hero.equipment[slot] = item;
   let after;
-  try { after = computeStats(s); } finally { s.equipment[slot] = saved; }
+  try { after = heroStats(hero, G.state.upgrades); } finally { hero.equipment[slot] = saved; }
 
   const rows = [
     ['DPS', before.dps, after.dps],
     ['Life', before.life, after.life],
-    ['Energy Shield', before.es, after.es],
     ['Armour', before.armour, after.armour],
     ['Evasion', before.evasion, after.evasion],
+    ['Healing', before.healPower, after.healPower],
   ].filter(([, a, b]) => Math.abs(b - a) > 0.5);
 
-  if (!rows.length) return '<div class="tt-compare">No net change to your defences or damage.</div>';
-  return `<div class="tt-compare">${rows.map(([label, a, b]) => {
+  if (!rows.length) return `<div class="tt-compare">No change for ${escapeHtml(hero.name)}.</div>`;
+  return `<div class="tt-compare"><div class="tt-kind">vs ${escapeHtml(hero.name)}</div>${rows.map(([label, a, b]) => {
     const diff = b - a;
-    const cls = diff > 0 ? 'tt-up' : 'tt-down';
     return `<div class="tt-line"><label>${label}</label>
-      <span class="${cls}">${signed(diff > 0 ? Math.round(diff) : Math.round(diff))} (${fmt(b)})</span></div>`;
+      <span class="${diff > 0 ? 'tt-up' : 'tt-down'}">${signed(Math.round(diff))} (${fmt(b)})</span></div>`;
   }).join('')}</div>`;
 }
 
-function showMapTooltip(map, event) {
-  if (!map) return;
-  const mm = mapModifiers(map);
-  const t = tip();
-  t.className = `tooltip ${R(map.rarity)}`;
-  t.innerHTML = `
-    <div class="tt-name">${escapeHtml(map.name)}</div>
-    <div class="tt-base">Tier ${map.tier} Map${map.quality ? ` · ${map.quality}% Quality` : ''}</div>
-    <div class="tt-sep"></div>
-    ${line('Monster Level', String(mapLevelOf(map)))}
-    ${line('Item Level', String(map.ilvl))}
-    ${line('Monsters', String(monsterCount(map, mm)))}
-    ${line('Item Quantity', `<span style="color:var(--good)">+${mm.quant}%</span>`)}
-    ${line('Item Rarity', `<span style="color:var(--r-rare)">+${mm.rarity}%</span>`)}
-    ${map.mods.length ? '<div class="tt-sep"></div>' : ''}
-    ${mapModLines(map).map((m) => `<div class="tt-mod">${escapeHtml(m.text)}</div>`).join('')}
-    ${map.corrupted ? '<div class="tt-corrupt">Corrupted</div>' : ''}
-    <div class="tt-hint">Click Run to enter${ui.craftCurrency ? ' · click the row to craft' : ''}</div>`;
-  t.classList.remove('hidden');
-  moveTooltip(event);
-}
-
-// Uses the shared curve rather than a local copy — an earlier duplicate here
-// went stale and reported Tier 1 maps as monster level 68.
-function mapLevelOf(map) { return tierToLevel(map.tier); }
-
-function showCurrencyTooltip(c, event) {
+function showOrbTooltip(c, event) {
   if (!c) return;
   const t = tip();
   t.className = 'tooltip';
-  t.innerHTML = `
-    <div class="tt-name" style="color:var(--r-currency)">${escapeHtml(c.name)}</div>
+  t.innerHTML = `<div class="tt-name" style="color:var(--r-currency)">${escapeHtml(c.name)}</div>
     <div class="tt-sep"></div>
     <div class="tt-implicit">${escapeHtml(c.desc)}</div>
     <div class="tt-mod" style="margin-top:4px">${escapeHtml(c.use)}</div>
-    <div class="tt-hint">Stack: ${fmtInt(G.state.stash[c.id] ?? 0)}</div>`;
+    <div class="tt-hint">Stock: ${fmtInt(G.state.orbs[c.id] ?? 0)}</div>`;
   t.classList.remove('hidden');
   moveTooltip(event);
 }
@@ -1549,6 +1108,41 @@ function moveTooltip(event) {
 function hideTooltip() { tip().classList.add('hidden'); }
 
 // ===========================================================================
+// Log
+// ===========================================================================
+
+function wireLogFilters() {
+  const host = qs('#logFilters');
+  const filters = [['all', 'All'], ['loot', 'Loot'], ['combat', 'Combat'], ['story', 'Guild']];
+  host.innerHTML = filters.map(([id, label]) =>
+    `<button class="btn tiny ${id === 'all' ? 'active' : ''}" data-filter="${id}">${label}</button>`).join('');
+  host.onclick = (e) => {
+    const b = e.target.closest('[data-filter]');
+    if (!b) return;
+    ui.logFilter = b.dataset.filter;
+    qsa('[data-filter]', host).forEach((x) => x.classList.toggle('active', x === b));
+    renderLog();
+  };
+}
+
+const LOG_GROUPS = {
+  loot: new Set(['loot', 'unique', 'gold', 'xp']),
+  combat: new Set(['hit', 'crit', 'kill', 'danger']),
+  story: new Set(['sys', 'boss', 'unique']),
+};
+
+function renderLog() {
+  const host = qs('#guildLog');
+  const s = G.state;
+  if (!host || !s) return;
+  const group = LOG_GROUPS[ui.logFilter];
+  const atBottom = host.scrollHeight - host.scrollTop - host.clientHeight < 40;
+  host.innerHTML = s.log.filter((l) => !group || group.has(l.cls)).slice(-160)
+    .map((l) => `<div class="l ${l.cls}">${escapeHtml(l.msg)}</div>`).join('');
+  if (atBottom) host.scrollTop = host.scrollHeight;
+}
+
+// ===========================================================================
 // Modals
 // ===========================================================================
 
@@ -1558,8 +1152,6 @@ function openModal(id) {
 }
 
 function closeModals() {
-  // Character creation on a fresh save is not dismissable — there is no
-  // character behind it to return to.
   if (isBlockingCreation()) return;
   qs('#modalBackdrop').classList.add('hidden');
   qsa('.modal').forEach((m) => m.classList.add('hidden'));
@@ -1576,56 +1168,33 @@ function wireModals() {
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (ui.craftCurrency) { selectCurrency(null); return; }
-    if (treeIsOpen() && qs('#modalBackdrop').classList.contains('hidden')) { closeTree(); return; }
+    if (ui.craftOrb) { selectOrb(null); return; }
     closeModals();
   });
 
-  // Save manager
-  qs('#btnExport').onclick = () => {
-    qs('#saveText').value = Save.exportSave();
-    setStatus('Save exported to the text box.');
-  };
+  qs('#btnExport').onclick = () => { qs('#saveText').value = Save.exportSave(); setStatus('Save exported.'); };
   qs('#btnCopy').onclick = async () => {
     const box = qs('#saveText');
     if (!box.value) box.value = Save.exportSave();
-    try {
-      await navigator.clipboard.writeText(box.value);
-      setStatus('Save string copied to clipboard.');
-    } catch {
-      box.select();
-      setStatus('Press Ctrl+C to copy the selected text.');
-    }
+    try { await navigator.clipboard.writeText(box.value); setStatus('Copied to clipboard.'); }
+    catch { box.select(); setStatus('Press Ctrl+C to copy.'); }
   };
   qs('#btnImport').onclick = () => {
     const text = qs('#saveText').value;
-    confirmAction('Import this save?', 'Your current character will be replaced by the imported data.', () => {
-      try {
-        Save.importSave(text);
-        Save.saveToSlot(G.slot, true);
-        closeModals();
-        log('Save imported.', 'sys');
-      } catch (e) {
-        setStatus(`Import failed: ${e.message}`);
-      }
+    confirmAction('Import this save?', 'Your current guild will be replaced.', () => {
+      try { Save.importSave(text); Save.saveToSlot(G.slot, true); closeModals(); log('Save imported.', 'sys'); }
+      catch (e) { setStatus(`Import failed: ${e.message}`); }
     });
   };
   qs('#btnDownload').onclick = () => Save.downloadSave();
   qs('#fileInput').onchange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      await Save.uploadSave(file);
-      Save.saveToSlot(G.slot, true);
-      closeModals();
-      log('Save file loaded.', 'sys');
-    } catch (err) {
-      setStatus(`Could not load file: ${err.message}`);
-    }
+    try { await Save.uploadSave(file); Save.saveToSlot(G.slot, true); closeModals(); log('Save file loaded.', 'sys'); }
+    catch (err) { setStatus(`Could not load file: ${err.message}`); }
     e.target.value = '';
   };
 
-  // Confirm dialog
   qs('#btnConfirmNo').onclick = () => { ui.confirmCb = null; closeModals(); };
   qs('#btnConfirmYes').onclick = () => {
     const cb = ui.confirmCb;
@@ -1634,63 +1203,19 @@ function wireModals() {
     if (cb) cb();
   };
 
-  // New character
-  qs('#classPicker').onclick = (e) => {
-    const card = e.target.closest('[data-class]');
-    if (!card) return;
-    ui.newClass = card.dataset.class;
-    renderClassPicker();
-  };
-  qs('#btnCreateChar').onclick = () => {
-    const name = (qs('#newName').value || 'Exile').trim().slice(0, 18);
-    G.state = newCharacter(name, ui.newClass);
-    addItem(grantStarterMap());
-    Save.saveToSlot(G.slot, true);
-    G.paused = false;                 // the character now exists — start the world
-    emit('loaded');
+  qs('#btnCreateGuild').onclick = async () => {
+    const name = (qs('#newName').value || 'The Wayfarers').trim().slice(0, 24);
+    const { foundGuild } = await import('./game.js');
+    foundGuild(name);
     closeModals();
-    log(`${name} the ${CLASS_BY_ID[ui.newClass].name} arrives on the shore.`, 'sys');
-    log('Pick a map in the Atlas tab and press Run to begin.', 'sys');
   };
   qs('#newName').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') qs('#btnCreateChar').click();
+    if (e.key === 'Enter') qs('#btnCreateGuild').click();
   });
 }
 
-function renderClassPicker() {
-  qs('#classPicker').innerHTML = CLASSES.map((c) => `
-    <div class="class-card ${ui.newClass === c.id ? 'selected' : ''}" data-class="${c.id}">
-      <div class="class-name">${escapeHtml(c.name)}</div>
-      <div class="class-attrs">
-        <span class="ca str">${c.attrs.str}</span>
-        <span class="ca dex">${c.attrs.dex}</span>
-        <span class="ca int">${c.attrs.int}</span>
-      </div>
-    </div>`).join('');
-
-  const c = CLASS_BY_ID[ui.newClass];
-  qs('#classDetail').innerHTML = `
-    <div class="cd-name">${escapeHtml(c.name)}</div>
-    <div class="cd-blurb">${escapeHtml(c.blurb)}</div>
-    <div class="cd-attrs">
-      <span><b class="c-str">${c.attrs.str}</b> Strength</span>
-      <span><b class="c-dex">${c.attrs.dex}</b> Dexterity</span>
-      <span><b class="c-int">${c.attrs.int}</b> Intelligence</span>
-    </div>
-    <div class="cd-asc">Ascendancies: ${c.ascendancies.map((a) =>
-    `<b>${escapeHtml(ASCENDANCIES[a].name)}</b>`).join(' · ')}</div>`;
-}
-
-/**
- * Opens character creation. The world stays paused until "Begin" is pressed —
- * from the player's point of view the character does not exist yet, so nothing
- * should be running behind the dialog.
- */
-export function openNewCharacter(isFirstRun = false) {
+export function openNewGuild(isFirstRun = false) {
   qs('#newName').value = '';
-  ui.newClass = ui.newClass ?? 'marauder';
-  renderClassPicker();
-  // On first run there is nothing to go back to, so hide the dismiss button.
   qs('#newCloseBtn').classList.toggle('hidden', isFirstRun);
   openModal('modalNew');
   setTimeout(() => qs('#newName').focus(), 50);
@@ -1708,49 +1233,42 @@ function renderSlots() {
   if (!host) return;
   host.innerHTML = Save.listSlots().map((s) => {
     if (s.empty) {
-      return `<div class="slot-card">
-        <div class="si"><div class="sn">Slot ${s.slot + 1}</div><div class="sd">Empty</div></div>
-        <div class="sa"><button class="btn tiny" data-save="${s.slot}">Save Here</button></div>
-      </div>`;
+      return `<div class="slot-card"><div class="si"><div class="sn">Slot ${s.slot + 1}</div>
+        <div class="sd">Empty</div></div>
+        <div class="sa"><button class="btn tiny" data-save="${s.slot}">Save Here</button></div></div>`;
     }
     if (s.corrupt) {
-      return `<div class="slot-card">
-        <div class="si"><div class="sn">Slot ${s.slot + 1}</div><div class="sd">Corrupt data</div></div>
-        <div class="sa"><button class="btn tiny danger" data-del="${s.slot}">Delete</button></div>
-      </div>`;
+      return `<div class="slot-card"><div class="si"><div class="sn">Slot ${s.slot + 1}</div>
+        <div class="sd">Corrupt data</div></div>
+        <div class="sa"><button class="btn tiny danger" data-del="${s.slot}">Delete</button></div></div>`;
     }
     const when = s.savedAt ? new Date(s.savedAt).toLocaleString() : 'unknown';
     return `<div class="slot-card ${s.slot === G.slot ? 'current' : ''}">
       <div class="si">
         <div class="sn">Slot ${s.slot + 1} — ${escapeHtml(s.name)}</div>
-        <div class="sd">Level ${s.level} · Tier ${s.tier} · ${fmtInt(s.kills)} kills · ${fmtTime(s.playtime)}</div>
+        <div class="sd">Guild ${s.level} · ${s.heroes ?? 0} heroes · Tier ${s.tier} · ${fmtTime(s.playtime)}</div>
         <div class="sd">${when}</div>
       </div>
       <div class="sa">
         <button class="btn tiny" data-load="${s.slot}">Load</button>
         <button class="btn tiny" data-save="${s.slot}">Overwrite</button>
         <button class="btn tiny danger" data-del="${s.slot}">Delete</button>
-      </div>
-    </div>`;
+      </div></div>`;
   }).join('');
 
   host.onclick = (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
-    if (btn.dataset.save !== undefined) {
-      Save.saveToSlot(Number(btn.dataset.save));
-      renderSlots();
-    } else if (btn.dataset.load !== undefined) {
+    if (btn.dataset.save !== undefined) { Save.saveToSlot(Number(btn.dataset.save)); renderSlots(); }
+    else if (btn.dataset.load !== undefined) {
       const slot = Number(btn.dataset.load);
-      confirmAction('Load this save?', 'Unsaved progress on your current character will be lost.', () => {
+      confirmAction('Load this save?', 'Unsaved progress will be lost.', () => {
         if (Save.loadSlot(slot)) { closeModals(); log(`Loaded slot ${slot + 1}.`, 'sys'); }
       });
     } else if (btn.dataset.del !== undefined) {
       const slot = Number(btn.dataset.del);
-      confirmAction('Delete this save?', 'This permanently erases the character in that slot.', () => {
-        Save.deleteSlot(slot);
-        renderSlots();
-        openModal('modalSaves');
+      confirmAction('Delete this save?', 'This permanently erases that guild.', () => {
+        Save.deleteSlot(slot); renderSlots(); openModal('modalSaves');
       });
     }
   };
@@ -1770,50 +1288,42 @@ function toggleRow(key, label, hint) {
 
 function renderSettings() {
   const host = qs('#settingsBody');
-  if (!host) return;
+  if (!host || !G.state) return;
   const s = G.state;
   host.innerHTML = `
-    ${toggleRow('autoRun', 'Auto-run maps',
-    'Off by default. When on, the highest safe map runs automatically once one finishes.')}
-    ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items are converted to currency on pickup.')}
-    ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items are converted to currency on pickup.')}
-    ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops',
-    'Rare items are converted to currency on pickup. Uniques are never auto-salvaged.')}
+    ${toggleRow('autoRedeploy', 'Auto-redeploy parties',
+    'Off by default. When on, an idle party is re-sent wherever it last went, stamina permitting.')}
+    ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items become orbs on pickup.')}
+    ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items become orbs on pickup.')}
+    ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items become orbs. Uniques are never auto-salvaged.')}
     <div class="setting-row">
-      <div><div class="sl">Combat speed</div><div class="sh">Simulation multiplier. Higher is faster but coarser.</div></div>
+      <div><div class="sl">Simulation speed</div><div class="sh">Higher is faster but coarser.</div></div>
       <select class="text-input" style="width:auto" id="setSpeed">
-        ${[0.5, 1, 2, 3, 5].map((v) => `<option value="${v}" ${s.settings.combatSpeed === v ? 'selected' : ''}>${v}×</option>`).join('')}
+        ${[0.5, 1, 2, 3, 5].map((v) => `<option value="${v}" ${s.settings.speed === v ? 'selected' : ''}>${v}×</option>`).join('')}
       </select>
     </div>
     <div class="setting-row">
-      <div><div class="sl">Combat log length</div><div class="sh">Lines kept in memory.</div></div>
+      <div><div class="sl">Log length</div><div class="sh">Lines kept in memory.</div></div>
       <select class="text-input" style="width:auto" id="setLog">
         ${[100, 200, 500, 1000].map((v) => `<option value="${v}" ${s.settings.logLimit === v ? 'selected' : ''}>${v}</option>`).join('')}
       </select>
     </div>
     <div class="section-head"><span>Danger Zone</span></div>
-    <div class="row">
-      <button class="btn" id="btnNewChar">New Character</button>
-      <button class="btn danger" id="btnWipe">Delete This Save</button>
-    </div>`;
+    <div class="row"><button class="btn danger" id="btnWipe">Delete This Guild</button></div>`;
 
   host.onchange = (e) => {
     const t = e.target;
-    if (t.dataset.set) {
-      s.settings[t.dataset.set] = t.checked;
-    } else if (t.id === 'setSpeed') {
-      s.settings.combatSpeed = Number(t.value);
-    } else if (t.id === 'setLog') {
-      s.settings.logLimit = Number(t.value);
-    }
+    if (t.dataset.set) s.settings[t.dataset.set] = t.checked;
+    else if (t.id === 'setSpeed') s.settings.speed = Number(t.value);
+    else if (t.id === 'setLog') s.settings.logLimit = Number(t.value);
   };
-  qs('#btnNewChar').onclick = () => { closeModals(); G.paused = true; openNewCharacter(true); };
   qs('#btnWipe').onclick = () => confirmAction(
-    'Delete this save?', `Slot ${G.slot + 1} will be erased and a new character created.`,
+    'Delete this guild?', `Slot ${G.slot + 1} will be erased and a new guild founded.`,
     () => {
       Save.deleteSlot(G.slot);
+      G.state = createState();
       G.paused = true;
-      openNewCharacter(true);
+      openNewGuild(true);
     },
   );
 }

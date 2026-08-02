@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // serve.js — a tiny static file server using only Node built-ins.
 //
-// Exile Idle uses native ES modules, which browsers refuse to load over the
+// Idle Guild uses native ES modules, which browsers refuse to load over the
 // file:// protocol. Run `node serve.js` and open the printed URL.
 
 const http = require('node:http');
@@ -46,5 +46,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  Exile Idle running at  http://localhost:${PORT}/\n  (Ctrl+C to stop)\n`);
+  console.log(`\n  Idle Guild running at  http://localhost:${PORT}/\n  (Ctrl+C to stop)\n`);
 });

@@ -3,12 +3,11 @@
 import { G, SAVE_VERSION, createState, log, emit } from './state.js';
 import { rng } from './rng.js';
 import { uidCounter, setUidFloor, defaults } from './util.js';
-import { TREE, START_IDS } from './passives.js';
-import { CLASS_BY_ID } from './data/classes.js';
+import { CLASS_BY_ID } from './data/heroclasses.js';
 
 export const SLOT_COUNT = 3;
-const KEY = (slot) => `exileIdle.slot${slot}`;
-const SETTINGS_KEY = 'exileIdle.lastSlot';
+const KEY = (slot) => `idleGuild.slot${slot}`;
+const SETTINGS_KEY = 'idleGuild.lastSlot';
 
 // ---------------------------------------------------------------------------
 // Base64 helpers that survive non-ASCII characters (item names use ’ and é).
@@ -53,52 +52,38 @@ export function serialize(state = G.state) {
 export function deserialize(payload) {
   if (!payload || typeof payload !== 'object') throw new Error('Save data is not an object.');
   const data = payload.state ?? payload;
-  if (!data.player || !data.equipment) throw new Error('Save data is missing core fields.');
+  // Exile Idle saves (version < 10) describe a different game entirely; there
+  // is nothing sensible to migrate, so they are rejected rather than mangled.
+  if (typeof payload.version === 'number' && payload.version < 10) {
+    throw new Error('That save is from Exile Idle and cannot be loaded into Idle Guild.');
+  }
+  if (!data.guild || !Array.isArray(data.heroes)) throw new Error('Save data is missing core fields.');
 
-  const fresh = createState(data.name ?? 'Exile');
+  const fresh = createState(data.name ?? 'The Wayfarers');
   const state = defaults(data, fresh);
   state.version = SAVE_VERSION;
   migrate(state);
-
-  // A run in progress can't be trusted across a reload of balance data.
-  if (state.combat && state.combat.status !== 'running') state.combat = null;
 
   if (payload.rng) rng.restore(payload.rng.seed, payload.rng.calls);
   if (payload.uidCounter) setUidFloor(payload.uidCounter);
   return state;
 }
 
-/**
- * Brings an older save in line with the current data.
- *
- * The passive tree was rebuilt around per-class start nodes, so saves from
- * before that carry allocated ids that no longer exist. Left alone they would
- * still count as "spent" and silently strand the player's points, so any node
- * we no longer recognise is dropped and refunded.
- */
+/** Brings an older Idle Guild save in line with the current data. */
 function migrate(state) {
-  // Notes are stashed on the state because log() writes to G.state, which is
-  // still null while a save is being deserialised. flushMigrationNotes() emits
-  // them once the state is actually installed.
   const notes = [];
 
-  if (!CLASS_BY_ID[state.player.class]) state.player.class = 'scion';
-  if (!state.passives.ascendancy || typeof state.passives.ascendancy !== 'object') {
-    state.passives.ascendancy = {};
+  for (const hero of state.heroes ?? []) {
+    if (!CLASS_BY_ID[hero.classId]) hero.classId = 'berserker';
+    if (hero.stamina === undefined) hero.stamina = 100;
+    if (!Array.isArray(hero.traits)) hero.traits = [];
+  }
+  // Expeditions hold live combat state that balance changes can invalidate.
+  if (state.expeditions?.length) {
+    notes.push(`${state.expeditions.length} expedition(s) were recalled by the update.`);
+    state.expeditions = [];
   }
 
-  const alloc = state.passives.allocated ?? {};
-  let dropped = 0;
-  for (const id of Object.keys(alloc)) {
-    if (!TREE[id] || START_IDS.has(id)) { delete alloc[id]; dropped++; }
-  }
-  if (dropped) {
-    state.passives.allocated = alloc;
-    notes.push(`The passive tree has changed — ${dropped} passive point${dropped === 1 ? '' : 's'} were refunded. Spend them in the Passives tab.`);
-  }
-
-  // Non-enumerable so it never reaches JSON, but configurable so the later
-  // `delete` doesn't throw — ES modules run in strict mode.
   if (notes.length) {
     Object.defineProperty(state, '__notes', {
       value: notes, enumerable: false, writable: true, configurable: true,
@@ -168,12 +153,13 @@ export function listSlots() {
       const s = p.state ?? p;
       out.push({
         slot: i, empty: false,
-        name: s.name ?? 'Exile',
-        level: s.player?.level ?? 1,
-        tier: s.atlas?.highestTier ?? 0,
+        name: s.name ?? 'Guild',
+        level: s.guild?.level ?? 1,
+        tier: s.progress?.highestTier ?? 0,
         playtime: s.playtime ?? 0,
         savedAt: p.savedAt ?? 0,
         kills: s.stats?.kills ?? 0,
+        heroes: s.heroes?.length ?? 0,
       });
     } catch {
       out.push({ slot: i, empty: false, corrupt: true, name: 'Corrupt save' });
@@ -221,7 +207,7 @@ export function downloadSave() {
   const a = document.createElement('a');
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   a.href = url;
-  a.download = `exile-idle-${G.state.name}-lv${G.state.player.level}-${stamp}.json`;
+  a.download = `idle-guild-${G.state.name}-g${G.state.guild.level}-${stamp}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();

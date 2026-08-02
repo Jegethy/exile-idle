@@ -42,9 +42,7 @@
   --font: 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif;
   --mono: 'Consolas', 'SF Mono', ui-monospace, monospace;
 }
-
 * { box-sizing:border-box; margin:0; padding:0; }
-
 html, body {
   height:100%;
   background:var(--bg-0);
@@ -53,7 +51,6 @@ html, body {
   font-size:14px;
   overflow:hidden;
 }
-
 body::before {
   /* subtle vignette + grain so the panels sit on something */
   content:'';
@@ -62,19 +59,15 @@ body::before {
     radial-gradient(ellipse at 50% 0%, rgba(200,170,110,.05), transparent 60%),
     radial-gradient(ellipse at 50% 120%, rgba(0,0,0,.7), transparent 60%);
 }
-
 #app { position:relative; z-index:1; display:flex; flex-direction:column; height:100vh; }
-
 button, input, textarea, select { font-family:inherit; font-size:inherit; color:inherit; }
 ::selection { background:var(--gold-dim); color:#000; }
-
 /* Scrollbars ------------------------------------------------------------- */
 * { scrollbar-width:thin; scrollbar-color:var(--line-2) transparent; }
 *::-webkit-scrollbar { width:9px; height:9px; }
 *::-webkit-scrollbar-track { background:rgba(0,0,0,.25); }
 *::-webkit-scrollbar-thumb { background:var(--line-2); border:2px solid var(--bg-1); border-radius:5px; }
 *::-webkit-scrollbar-thumb:hover { background:var(--gold-dim); }
-
 /* ==========================================================================
    Top bar
    ========================================================================== */
@@ -86,18 +79,15 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
   border-bottom:1px solid var(--line);
   box-shadow:0 2px 12px rgba(0,0,0,.6);
 }
-
 .brand { display:flex; align-items:center; gap:8px; user-select:none; }
 .brand-mark { color:var(--gold); font-size:22px; text-shadow:0 0 12px rgba(200,170,110,.5); }
 .brand-name { font-weight:700; letter-spacing:2.5px; color:var(--ink); font-size:15px; }
 .brand-name em { color:var(--gold); font-style:normal; }
-
 #charBar { flex:1 1 auto; max-width:420px; min-width:180px; }
 .char-id { display:flex; justify-content:space-between; align-items:baseline; font-size:12px; margin-bottom:3px; }
 #charName { color:var(--gold); font-weight:600; letter-spacing:.5px; }
 .char-level { color:var(--ink-dim); }
 .char-level b { color:var(--ink); }
-
 .xp-track {
   position:relative; height:13px; background:#0a0a0d;
   border:1px solid var(--line); border-radius:2px; overflow:hidden;
@@ -107,15 +97,13 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   font-size:10px; letter-spacing:.5px; color:#ddd8ef; text-shadow:0 1px 2px #000;
 }
-
 #quickStats { display:flex; gap:14px; }
 .qs { text-align:right; min-width:58px; }
 .qs label { display:block; font-size:9px; letter-spacing:1.5px; color:var(--ink-faint); }
 .qs b { font-size:15px; font-variant-numeric:tabular-nums; }
-.c-life { color:var(--life); } .c-es { color:var(--es); }
-
+.c-life { color:var(--life); }
+.c-es { color:var(--es); }
 #topActions { display:flex; gap:6px; }
-
 /* ==========================================================================
    Buttons & controls
    ========================================================================== */
@@ -134,18 +122,15 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 .btn.primary:hover:not(:disabled) { background:linear-gradient(180deg,#3a3020,#241d12); }
 .btn.danger:hover:not(:disabled) { border-color:var(--danger); color:#ff9c8c; }
 .btn.active { border-color:var(--gold); color:var(--gold); background:#241d12; }
-
 .text-input, .save-text {
   width:100%; background:#0a0a0d; border:1px solid var(--line-2);
   border-radius:var(--radius); padding:8px 10px; color:var(--ink);
 }
 .text-input:focus, .save-text:focus { outline:none; border-color:var(--gold-dim); }
 .save-text { min-height:110px; font-family:var(--mono); font-size:11px; resize:vertical; word-break:break-all; }
-
 .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
 .hint { color:var(--ink-dim); font-size:12px; line-height:1.5; }
 .hidden { display:none !important; }
-
 /* ==========================================================================
    Layout & panels
    ========================================================================== */
@@ -155,14 +140,12 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
   grid-template-columns:minmax(300px,1fr) minmax(380px,1.45fr) minmax(320px,1.05fr);
   min-height:0;
 }
-
 .panel {
   display:flex; flex-direction:column; min-height:0;
   background:linear-gradient(180deg,var(--bg-1),#0c0c10);
   border:1px solid var(--line); border-radius:4px;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.03), 0 4px 16px rgba(0,0,0,.4);
 }
-
 .tabs { display:flex; flex:0 0 auto; border-bottom:1px solid var(--line); background:rgba(0,0,0,.25); }
 .tab {
   flex:1 1 auto; background:none; border:none; border-bottom:2px solid transparent;
@@ -171,17 +154,14 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 }
 .tab:hover { color:var(--ink); background:rgba(255,255,255,.03); }
 .tab.active { color:var(--gold); border-bottom-color:var(--gold); background:rgba(200,170,110,.06); }
-
 .badge {
   display:inline-block; min-width:17px; padding:0 4px; margin-left:4px;
   background:var(--bg-3); border:1px solid var(--line-2); border-radius:8px;
   font-size:10px; color:var(--ink-dim);
 }
-
 .tab-body { display:none; flex:1 1 auto; overflow-y:auto; min-height:0; padding:10px; }
 .tab-body.active { display:block; }
 #tab-passives.active, #tab-combat.active { display:flex; flex-direction:column; overflow:hidden; }
-
 .section-head {
   display:flex; align-items:center; justify-content:space-between; gap:8px;
   margin:12px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--line);
@@ -189,17 +169,11 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 }
 .section-head b { color:var(--ink-dim); font-weight:400; letter-spacing:0; text-transform:none; }
 .head-actions { display:flex; gap:5px; }
-
 /* ==========================================================================
    Character sheet
    ========================================================================== */
 
 .stat-group { margin-bottom:14px; }
-.stat-group h3 {
-  font-size:10px; letter-spacing:2px; text-transform:uppercase;
-  color:var(--gold-dim); margin-bottom:5px; padding-bottom:3px;
-  border-bottom:1px solid var(--line);
-}
 .stat-row {
   display:flex; justify-content:space-between; align-items:baseline;
   padding:3px 4px; border-radius:2px; font-size:13px;
@@ -208,35 +182,6 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 .stat-row label { color:var(--ink-dim); }
 .stat-row b { font-variant-numeric:tabular-nums; font-weight:600; }
 .stat-row small { color:var(--ink-faint); font-size:11px; margin-left:5px; }
-
-.attr-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:12px; }
-.attr {
-  text-align:center; padding:8px 4px; border:1px solid var(--line);
-  border-radius:3px; background:var(--bg-2);
-}
-.attr label { display:block; font-size:9px; letter-spacing:1.5px; color:var(--ink-faint); }
-.attr b { font-size:19px; }
-.attr.str b { color:#c95c4a; } .attr.dex b { color:#6fbf5f; } .attr.int b { color:#5f8fd0; }
-
-.res-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
-.res {
-  text-align:center; padding:6px 2px; border:1px solid var(--line);
-  border-radius:3px; background:var(--bg-2); font-size:12px;
-}
-.res label { display:block; font-size:9px; letter-spacing:1px; color:var(--ink-faint); }
-.res b { font-size:15px; font-variant-numeric:tabular-nums; }
-.res.capped b { text-shadow:0 0 8px currentColor; }
-.res small { display:block; font-size:9px; color:var(--ink-faint); }
-.res.fire b { color:var(--fire); } .res.cold b { color:var(--cold); }
-.res.light b { color:var(--light); } .res.chaos b { color:var(--chaos); }
-.res.neg b { color:var(--danger); }
-
-.keystone-list { display:flex; flex-wrap:wrap; gap:5px; }
-.keystone-chip {
-  padding:3px 8px; border:1px solid var(--gold-dim); border-radius:10px;
-  background:rgba(200,170,110,.08); color:var(--gold); font-size:11px;
-}
-
 /* ==========================================================================
    Passive tree
    ========================================================================== */
@@ -246,149 +191,36 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
   position:fixed; inset:0; z-index:850; display:flex; flex-direction:column;
   background:radial-gradient(ellipse at center, #101018 0%, #050508 78%);
 }
-body.tree-open { overflow:hidden; }
-
-.tree-topbar {
-  flex:0 0 auto; display:flex; align-items:center; gap:14px;
-  padding:9px 14px; border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg,#15151b,#0c0c10);
-  box-shadow:0 2px 14px rgba(0,0,0,.6);
-}
-.tree-points { flex:1 1 auto; display:flex; align-items:center; gap:10px; }
-.tree-main { flex:1 1 auto; display:flex; min-height:0; }
-.tree-main #treeWrap { flex:1 1 auto; border:none; border-radius:0; }
-.tree-side {
-  flex:0 0 330px; display:flex; flex-direction:column; gap:8px;
-  padding:10px; overflow-y:auto; border-left:1px solid var(--line);
-  background:rgba(0,0,0,.35);
-}
-
-.tree-teaser { text-align:center; padding:34px 16px; }
-.tree-teaser h3 { color:var(--gold); letter-spacing:2px; margin-bottom:6px; }
-.tree-teaser .btn { margin-top:12px; }
-
-#passiveHeader {
-  display:flex; align-items:center; gap:10px; flex:1 1 auto;
-}
-.points-pill {
-  padding:4px 10px; border:1px solid var(--gold-dim); border-radius:12px;
-  background:rgba(200,170,110,.08); color:var(--gold); font-size:12px;
-}
-.points-pill.none { border-color:var(--line-2); color:var(--ink-faint); background:none; }
-
-#treeWrap {
-  position:relative; flex:1 1 auto; min-height:220px;
-  background:radial-gradient(ellipse at center, #14141b 0%, #08080b 75%);
-  overflow:hidden; cursor:grab;
-}
-#treeWrap.dragging { cursor:grabbing; }
-#tree { width:100%; height:100%; display:block; touch-action:none; }
-
-.tree-hint {
-  position:absolute; left:8px; bottom:6px; font-size:10px;
-  color:var(--ink-faint); pointer-events:none; letter-spacing:.5px;
-}
-.tree-controls { position:absolute; right:8px; top:8px; display:flex; gap:4px; }
-
 /* Node geometry is sized in SVG units; the tree spans ~1310 units inside a
    panel a few hundred pixels wide, so radii must be generous to stay legible
    at fit-zoom. */
 .tl { stroke:#2c2c38; stroke-width:5; }
-.tl.on { stroke:var(--gold-dim); stroke-width:8; }
-.tn { cursor:pointer; transition:filter .15s; }
-.tn:hover { filter:brightness(1.6); }
-.tn-c { fill:#16161d; stroke:#3a3a47; stroke-width:4; }
-.tn.minor .tn-c { r:14; }
-.tn.notable .tn-c { r:24; stroke-width:5; }
-.tn.keystone .tn-c { r:31; stroke-width:6; }
-.tn.start .tn-c { fill:#241d12; stroke:var(--gold); r:34; }
-.tn.on .tn-c { fill:#4a3a1c; stroke:var(--gold); filter:drop-shadow(0 0 6px rgba(200,170,110,.7)); }
-.tn.avail .tn-c { stroke:#6f6a5a; stroke-dasharray:3 2; }
-.tn.notable.on .tn-c { fill:#6b5320; }
-.tn.keystone .tn-c { fill:#1d1414; stroke:#6a4038; }
-.tn.keystone.on .tn-c { fill:#7a2f22; stroke:#e08a70; }
+/* A brightness filter blew saturated icon discs out to white, so hover just
+   lights the socket ring instead. */
+.tn:hover .tn-c { stroke:#fff4d8; }
+/* Only class starts are labelled; passives identify themselves on hover. */
 .tn-l {
   font-size:24px; fill:var(--ink-dim); text-anchor:middle;
   pointer-events:none; user-select:none;
   paint-order:stroke; stroke:#08080b; stroke-width:5px; stroke-linejoin:round;
 }
-/* Notables are only named once zoomed in — see LABEL_DETAIL_ZOOM in ui.js. */
-.tn.notable .tn-l { display:none; }
-#tree.detail .tn.notable .tn-l { display:block; }
-.tn.keystone .tn-l { fill:#e0a08a; font-size:26px; }
-.tn.on .tn-l { fill:var(--gold); }
-
-.passive-info {
-  flex:0 0 auto; margin-top:6px; padding:8px 10px; min-height:62px;
-  background:var(--bg-2); border:1px solid var(--line); border-radius:3px; font-size:12px;
-}
-.passive-info h4 { color:var(--gold); font-size:13px; margin-bottom:4px; }
-.passive-info .mod { color:var(--r-magic); }
-.passive-info .ks { color:#e08a70; }
-
+/* Icon placeholder disc. Swap for an <image> when real art exists — the
+   category class (ico-*) is already the only thing that varies. */
+/* Unallocated nodes sit back; reachable ones lift; allocated ones are full
+   strength. Without this the whole tree reads as uniform coloured noise. */
+.tn-i { pointer-events:none; opacity:.4; transition:opacity .12s; }
 /* Class start nodes: yours glows, the other six are dimmed origins. */
 .tn.start .tn-c { fill:#1a1a22; stroke:#4a4a58; }
-.tn.start.mine .tn-c { fill:#4a3a1c; stroke:var(--gold); filter:drop-shadow(0 0 10px rgba(200,170,110,.8)); }
-.tn.start.foreign { opacity:.4; }
-.tn.start.foreign .tn-l { fill:var(--ink-faint); }
-.tn.start.mine .tn-l { fill:var(--gold); font-weight:700; }
-
 /* ---- Ascendancy panel -------------------------------------------------- */
 .asc-panel { flex:0 0 auto; margin-top:6px; }
-.asc-locked {
-  display:flex; align-items:center; justify-content:space-between; gap:8px;
-  padding:7px 10px; border:1px dashed var(--line-2); border-radius:3px;
-  font-size:12px; color:var(--ink-dim);
-}
-.asc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
-.asc-name { color:#d88ae0; font-size:13px; letter-spacing:.5px; }
-.asc-nodes { display:grid; grid-template-columns:repeat(2,1fr); gap:4px; }
-.asc-node {
-  padding:6px 8px; border:1px solid var(--line); border-left:3px solid #4a2f52;
-  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
-}
-.asc-node:hover { background:var(--bg-3); }
-.asc-node.on { border-left-color:#d88ae0; background:rgba(216,138,224,.10); box-shadow:0 0 10px rgba(216,138,224,.12) inset; }
-.asc-node-name { font-size:11px; color:var(--ink); }
-.asc-node.on .asc-node-name { color:#d88ae0; }
-.asc-node-mods { font-size:9px; color:var(--ink-faint); line-height:1.4; margin-top:2px; }
-
-.asc-picker { display:flex; flex-direction:column; gap:8px; }
-.asc-card {
-  padding:10px 12px; border:1px solid var(--line-2); border-left:3px solid #6a3f78;
-  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
-}
-.asc-card:hover { border-left-color:#d88ae0; background:var(--bg-3); }
-.asc-card-name { color:#d88ae0; font-size:14px; margin-bottom:3px; }
-.asc-card-blurb { font-size:11px; color:var(--ink-dim); font-style:italic; margin-bottom:6px; }
-.asc-card-list { list-style:none; font-size:11px; color:var(--ink-faint); line-height:1.6; }
-.asc-card-list b { color:var(--r-magic); font-weight:600; }
-
 /* ---- Class picker ------------------------------------------------------ */
 .modal.wide { width:min(720px,94vw); }
-.class-picker { display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:6px; }
-.class-card {
-  padding:8px 6px; text-align:center; border:1px solid var(--line);
-  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
-}
-.class-card:hover { background:var(--bg-3); border-color:var(--line-2); }
-.class-card.selected { border-color:var(--gold); background:rgba(200,170,110,.12); box-shadow:0 0 12px rgba(200,170,110,.18); }
-.class-name { font-size:12px; letter-spacing:.5px; margin-bottom:4px; }
-.class-card.selected .class-name { color:var(--gold); }
-.class-attrs { display:flex; justify-content:center; gap:5px; font-size:10px; font-variant-numeric:tabular-nums; }
-.ca.str { color:#c95c4a; } .ca.dex { color:#6fbf5f; } .ca.int { color:#5f8fd0; }
-.c-str { color:#c95c4a; } .c-dex { color:#6fbf5f; } .c-int { color:#5f8fd0; }
-
-.class-detail {
-  margin-top:10px; padding:10px 12px; border:1px solid var(--line-2);
-  border-radius:3px; background:var(--bg-2);
-}
-.cd-name { color:var(--gold); font-size:15px; letter-spacing:.5px; }
-.cd-blurb { font-size:12px; color:var(--ink-dim); line-height:1.5; margin:4px 0 8px; }
-.cd-attrs { display:flex; gap:16px; font-size:12px; margin-bottom:6px; }
-.cd-asc { font-size:11px; color:var(--ink-faint); }
-.cd-asc b { color:#d88ae0; font-weight:600; }
-
+.ca.str { color:#c95c4a; }
+.ca.dex { color:#6fbf5f; }
+.ca.int { color:#5f8fd0; }
+.c-str { color:#c95c4a; }
+.c-dex { color:#6fbf5f; }
+.c-int { color:#5f8fd0; }
 /* ---- Item action menu -------------------------------------------------- */
 .menu-item {
   padding:9px 11px; border:1px solid var(--line-2); border-left-width:3px;
@@ -405,13 +237,11 @@ body.tree-open { overflow:hidden; }
 .menu-item.r-unique .menu-name { color:var(--r-unique); }
 .menu-sub { font-size:11px; color:var(--ink-faint); margin-top:2px; }
 .menu-mods { margin-top:7px; font-size:11px; line-height:1.5; }
-
 /* ==========================================================================
    Combat
    ========================================================================== */
 
 #mapHeader { flex:0 0 auto; margin-bottom:8px; }
-
 .map-banner {
   padding:10px 12px; border:1px solid var(--line-2); border-radius:3px;
   background:linear-gradient(180deg,#1b1b23,#121218);
@@ -424,7 +254,6 @@ body.tree-open { overflow:hidden; }
 .map-mods .mm { font-size:11px; color:var(--r-magic); }
 .map-mods .mm.bad { color:#e08a70; }
 .map-mods .mm.good { color:var(--good); }
-
 .progress-track {
   position:relative; height:16px; margin-top:8px; background:#0a0a0d;
   border:1px solid var(--line); border-radius:2px; overflow:hidden;
@@ -434,20 +263,16 @@ body.tree-open { overflow:hidden; }
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   font-size:10px; letter-spacing:1px; color:#000; font-weight:700; mix-blend-mode:screen;
 }
-
 .idle-state { text-align:center; padding:26px 14px; color:var(--ink-dim); }
 .idle-state h3 { color:var(--gold); margin-bottom:6px; letter-spacing:1px; }
-
 #combatArena { flex:0 0 auto; margin-bottom:8px; }
 .fight { display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; }
-
 .fighter {
   padding:9px 10px; border:1px solid var(--line); border-radius:3px; background:var(--bg-2);
 }
 .fighter.monster { border-color:#4a2b2b; }
 .fighter-name { font-size:13px; margin-bottom:6px; display:flex; justify-content:space-between; gap:6px; }
 .fighter-name small { color:var(--ink-faint); font-size:10px; }
-
 .bar { position:relative; height:15px; background:#0a0a0d; border:1px solid var(--line); border-radius:2px; overflow:hidden; margin-bottom:3px; }
 .bar > i { display:block; height:100%; transition:width .12s linear; }
 .bar.life > i { background:linear-gradient(90deg,#7a2118,var(--life)); }
@@ -457,18 +282,15 @@ body.tree-open { overflow:hidden; }
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   font-size:10px; color:#f0e8e0; text-shadow:0 1px 2px #000; font-variant-numeric:tabular-nums;
 }
-
 .vs { color:var(--ink-faint); font-size:11px; letter-spacing:2px; text-align:center; }
 .fighter-stats { display:flex; gap:8px; flex-wrap:wrap; font-size:10px; color:var(--ink-faint); margin-top:4px; }
 .fighter-stats span b { color:var(--ink-dim); }
-
 .log-head {
   flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
   font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold-dim);
   border-bottom:1px solid var(--line); padding-bottom:4px; margin-bottom:4px;
 }
 .log-filters { display:flex; gap:3px; }
-
 .log {
   flex:1 1 auto; overflow-y:auto; min-height:80px;
   font-size:12px; line-height:1.55; font-family:var(--mono);
@@ -484,40 +306,17 @@ body.tree-open { overflow:hidden; }
 .l.danger { color:#e0705c; border-left-color:var(--danger); }
 .l.boss { color:#d88ae0; border-left-color:#d88ae0; font-weight:600; }
 .l.xp { color:#b28ae0; }
-
 /* ==========================================================================
    Atlas & maps
    ========================================================================== */
 
 #atlasSummary { margin-bottom:6px; }
-.atlas-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(38px,1fr)); gap:4px; margin-top:6px; }
-.atlas-cell {
-  aspect-ratio:1; display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--line); border-radius:2px; background:var(--bg-2);
-  font-size:11px; color:var(--ink-faint); position:relative;
-}
-.atlas-cell.done { border-color:var(--gold-dim); color:var(--gold); background:rgba(200,170,110,.09); }
-.atlas-cell.bonus {
-  border-color:var(--r-rare); color:var(--r-rare);
-  background:rgba(255,255,119,.10); box-shadow:0 0 8px rgba(255,255,119,.18) inset;
-}
-.atlas-cell.locked { opacity:.32; }
-.atlas-cell small { position:absolute; bottom:1px; right:2px; font-size:8px; color:var(--ink-faint); }
-
-.atlas-objectives {
-  display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; padding-top:7px;
-  border-top:1px solid var(--line); font-size:11px; color:var(--ink-dim);
-}
-.atlas-objectives b { color:var(--ink); }
-.atlas-objectives b.gold { color:var(--gold); }
-
 /* ---- Hideout: upgrades & collection ------------------------------------ */
 .hideout-stats {
   display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; padding-top:7px;
   border-top:1px solid var(--line); font-size:11px; color:var(--ink-dim);
 }
 .hideout-stats b { color:var(--gold); }
-
 .upgrade-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:6px; }
 .upgrade {
   padding:8px 10px; border:1px solid var(--line); border-left:3px solid var(--line-2);
@@ -535,7 +334,6 @@ body.tree-open { overflow:hidden; }
 .up-have { font-size:10px; color:var(--ink-faint); }
 .up-have.short { color:#a4574a; }
 .up-max { font-size:10px; color:var(--good); }
-
 .collection-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:5px; }
 .col-entry {
   padding:6px 8px; border:1px solid var(--line); border-left:3px solid var(--line-2);
@@ -545,34 +343,6 @@ body.tree-open { overflow:hidden; }
 .col-name { font-size:11px; color:var(--ink-faint); }
 .col-entry.found .col-name { color:var(--r-unique); }
 .col-meta { font-size:9px; color:var(--ink-faint); margin-top:2px; }
-
-.map-list { display:flex; flex-direction:column; gap:4px; }
-.map-row {
-  display:flex; align-items:center; gap:8px; padding:7px 9px;
-  border:1px solid var(--line); border-left-width:3px; border-radius:3px;
-  background:var(--bg-2); cursor:pointer; transition:all .12s;
-}
-.map-row:hover { background:var(--bg-3); border-color:var(--line-2); }
-.map-row.r-normal { border-left-color:var(--r-normal); }
-.map-row.r-magic  { border-left-color:var(--r-magic); }
-.map-row.r-rare   { border-left-color:var(--r-rare); }
-.map-tier {
-  flex:0 0 34px; height:34px; display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--line-2); border-radius:3px; background:#0d0d11;
-  font-size:13px; font-weight:700; color:var(--gold);
-}
-.map-info { flex:1 1 auto; min-width:0; }
-.map-name { font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.map-sub { font-size:10px; color:var(--ink-faint); }
-.map-actions { display:flex; gap:4px; flex:0 0 auto; }
-
-.danger-pill {
-  padding:1px 6px; border-radius:8px; font-size:10px; border:1px solid;
-}
-.danger-pill.low  { color:var(--good); border-color:#2f5a28; }
-.danger-pill.mid  { color:#e8c04d; border-color:#5a4a1c; }
-.danger-pill.high { color:#e0705c; border-color:#5a2a22; }
-
 /* ==========================================================================
    Bosses
    ========================================================================== */
@@ -589,7 +359,6 @@ body.tree-open { overflow:hidden; }
 .boss-intro { font-size:11px; color:var(--ink-dim); font-style:italic; margin:5px 0 7px; }
 .boss-reqs { display:flex; gap:12px; font-size:11px; color:var(--ink-faint); margin-bottom:8px; }
 .boss-reqs b { color:var(--ink-dim); }
-
 /* ==========================================================================
    Equipment doll & inventory
    ========================================================================== */
@@ -616,11 +385,14 @@ body.tree-open { overflow:hidden; }
 }
 .slot-name { font-size:11px; line-height:1.3; word-break:break-word; }
 .slot-sub { font-size:9px; color:var(--ink-faint); margin-top:2px; }
-.slot.r-normal { border-color:#4a4a4a; } .slot.r-normal .slot-name { color:var(--r-normal); }
-.slot.r-magic  { border-color:#3a3a72; } .slot.r-magic  .slot-name { color:var(--r-magic); }
-.slot.r-rare   { border-color:#6a6a2a; } .slot.r-rare   .slot-name { color:var(--r-rare); }
-.slot.r-unique { border-color:#6a3a18; } .slot.r-unique .slot-name { color:var(--r-unique); }
-
+.slot.r-normal { border-color:#4a4a4a; }
+.slot.r-normal .slot-name { color:var(--r-normal); }
+.slot.r-magic  { border-color:#3a3a72; }
+.slot.r-magic  .slot-name { color:var(--r-magic); }
+.slot.r-rare   { border-color:#6a6a2a; }
+.slot.r-rare   .slot-name { color:var(--r-rare); }
+.slot.r-unique { border-color:#6a3a18; }
+.slot.r-unique .slot-name { color:var(--r-unique); }
 .salvage-bar {
   display:flex; align-items:center; gap:5px; flex-wrap:wrap;
   padding:6px 7px; margin-bottom:6px;
@@ -628,7 +400,6 @@ body.tree-open { overflow:hidden; }
 }
 .salvage-label { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--ink-faint); }
 .salvage-hint { flex:1 1 100%; font-size:10px; }
-
 /* Two columns of taller cells: with no item icons, each entry has to carry
    its own name, rarity, item level, category and sub-type. */
 .inv-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:4px; }
@@ -656,7 +427,6 @@ body.tree-open { overflow:hidden; }
 .inv-cell.r-unique .inv-name { color:var(--r-unique); }
 .inv-ilvl { flex:0 0 auto; font-size:9px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
 .empty-note { padding:18px 10px; text-align:center; color:var(--ink-faint); font-size:12px; }
-
 /* ==========================================================================
    Currency stash & crafting
    ========================================================================== */
@@ -681,7 +451,6 @@ body.tree-open { overflow:hidden; }
 .cur-cell[data-tier="4"] .cur-orb { background:radial-gradient(circle at 32% 28%,#f0c0f8,#a04ad8 60%,#4a1a68); box-shadow:0 0 12px rgba(176,74,216,.5); }
 .cur-name { font-size:9px; color:var(--ink-dim); line-height:1.2; }
 .cur-count { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
-
 .craft-banner {
   padding:8px 10px; margin-bottom:8px; border:1px solid var(--gold);
   border-radius:3px; background:rgba(200,170,110,.1); font-size:12px;
@@ -693,7 +462,6 @@ body.tree-open { overflow:hidden; }
   background:var(--bg-2); margin-bottom:8px;
 }
 .craft-mods { margin-top:6px; display:flex; flex-direction:column; gap:2px; font-size:11px; }
-
 /* ==========================================================================
    Tooltip
    ========================================================================== */
@@ -717,8 +485,8 @@ body.tree-open { overflow:hidden; }
 .tt-corrupt { color:#a4322a; text-align:center; font-size:11px; margin-top:4px; }
 .tt-hint { color:var(--ink-faint); font-size:10px; margin-top:6px; text-align:center; }
 .tt-compare { margin-top:6px; padding-top:5px; border-top:1px dashed var(--line-2); font-size:11px; }
-.tt-up { color:var(--good); } .tt-down { color:var(--bad); }
-
+.tt-up { color:var(--good); }
+.tt-down { color:var(--bad); }
 .tooltip.r-normal .tt-name { color:var(--r-normal); }
 .tooltip.r-magic  .tt-name { color:var(--r-magic); }
 .tooltip.r-rare   .tt-name { color:var(--r-rare); }
@@ -727,7 +495,12 @@ body.tree-open { overflow:hidden; }
 .tooltip.r-magic  { border-color:#3a3a72; }
 .tooltip.r-rare   { border-color:#6a6a2a; }
 .tooltip.r-unique { border-color:#6a3a18; }
-
+/* ---- Passive node tooltip (framed, like the PoE tree) ------------------ */
+.tooltip.passive { padding:0; max-width:300px; border-color:var(--line-2); }
+.tooltip.passive.notable .pt-head { color:var(--gold); }
+.tooltip.passive.keystone .pt-head { color:#e0a08a; }
+.tooltip.passive.keystone { border-color:#6a4038; }
+.tooltip.passive.keystone .pt-mod { color:#e08a70; }
 /* ==========================================================================
    Modals
    ========================================================================== */
@@ -747,7 +520,6 @@ body.tree-open { overflow:hidden; }
 }
 .modal h2 { font-size:15px; letter-spacing:1px; color:var(--gold); font-weight:600; }
 .modal-body { padding:14px; overflow-y:auto; }
-
 .slot-list { display:flex; flex-direction:column; gap:6px; }
 .slot-card {
   display:flex; align-items:center; gap:10px; padding:9px 11px;
@@ -758,7 +530,6 @@ body.tree-open { overflow:hidden; }
 .slot-card .sn { font-size:13px; color:var(--gold); }
 .slot-card .sd { font-size:11px; color:var(--ink-faint); }
 .slot-card .sa { display:flex; gap:4px; }
-
 .setting-row {
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   padding:8px 4px; border-bottom:1px solid var(--line);
@@ -778,7 +549,6 @@ body.tree-open { overflow:hidden; }
 }
 .switch input:checked + i { background:rgba(200,170,110,.25); border-color:var(--gold-dim); }
 .switch input:checked + i::before { transform:translateX(19px); background:var(--gold); }
-
 /* ==========================================================================
    Status bar & responsive
    ========================================================================== */
@@ -789,20 +559,204 @@ body.tree-open { overflow:hidden; }
   background:#0a0a0d; border-top:1px solid var(--line);
 }
 #statusRight { font-variant-numeric:tabular-nums; }
-
 @media (max-width:1180px) {
   #layout { grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; }
-  #rightPanel { grid-column:1 / -1; }
+#rightPanel { grid-column:1 / -1; }
 }
 @media (max-width:820px) {
   html, body { overflow:auto; }
-  #app { height:auto; }
-  #layout { grid-template-columns:1fr; grid-template-rows:none; }
-  .panel { min-height:420px; }
-  #topbar { flex-wrap:wrap; height:auto; padding:8px 10px; gap:10px; }
-  #quickStats { order:3; width:100%; justify-content:space-between; }
+#app { height:auto; }
+#layout { grid-template-columns:1fr; grid-template-rows:none; }
+.panel { min-height:420px; }
+#topbar { flex-wrap:wrap; height:auto; padding:8px 10px; gap:10px; }
+#quickStats { order:3; width:100%; justify-content:space-between; }
 }
-
 @media (prefers-reduced-motion:reduce) {
   * { transition:none !important; animation:none !important; }
+}
+
+/* ==========================================================================
+   Idle Guild — roster, parties, expeditions
+   ========================================================================== */
+
+:root {
+  --gold-coin:#e0b74a;
+  --seal:#c98ae0;
+  --h-common:#b8b4ac;
+  --h-uncommon:#6fbf5f;
+  --h-rare:#5f8fd0;
+  --h-epic:#b06fd8;
+  --h-legendary:#e0a03a;
+}
+
+.c-gold { color:var(--gold-coin); }
+.c-seal { color:var(--seal); }
+b.gold { color:var(--gold); }
+
+.panel-head {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding-bottom:7px; margin-bottom:7px; border-bottom:1px solid var(--line);
+}
+
+/* ---- Role badges ------------------------------------------------------- */
+.role {
+  padding:1px 6px; border-radius:8px; font-size:9px; letter-spacing:.6px;
+  text-transform:uppercase; border:1px solid;
+}
+.role-tank   { color:#d0a24a; border-color:#5a4620; background:rgba(208,162,74,.10); }
+.role-melee  { color:#d0644a; border-color:#5a2c20; background:rgba(208,100,74,.10); }
+.role-ranged { color:#6fbf5f; border-color:#2c5a24; background:rgba(111,191,95,.10); }
+.role-caster { color:#5f9fd0; border-color:#204a5a; background:rgba(95,159,208,.10); }
+.role-healer { color:#c98ae0; border-color:#4a2c5a; background:rgba(201,138,224,.10); }
+
+.tag {
+  padding:1px 7px; border-radius:8px; font-size:10px;
+  border:1px solid var(--line-2); color:var(--ink-dim);
+}
+.tag.out { color:var(--gold); border-color:var(--gold-dim); background:rgba(200,170,110,.10); }
+.tag.idle { color:var(--ink-faint); border-style:dashed; }
+.warn { font-size:10px; color:#d08a4a; }
+
+/* ---- Roster ------------------------------------------------------------ */
+.roster-list { display:flex; flex-direction:column; gap:5px; }
+.hero-card {
+  padding:7px 9px; border:1px solid var(--line); border-left:3px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
+}
+.hero-card:hover { background:var(--bg-3); border-color:var(--line-2); }
+.hero-card.deployed { opacity:.62; }
+.hero-card.h-common    { border-left-color:var(--h-common); }
+.hero-card.h-uncommon  { border-left-color:var(--h-uncommon); }
+.hero-card.h-rare      { border-left-color:var(--h-rare); }
+.hero-card.h-epic      { border-left-color:var(--h-epic); }
+.hero-card.h-legendary { border-left-color:var(--h-legendary); box-shadow:0 0 12px rgba(224,160,58,.12) inset; }
+
+.hero-top { display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
+.hero-name { font-size:13px; }
+.h-common .hero-name    { color:var(--h-common); }
+.h-uncommon .hero-name  { color:var(--h-uncommon); }
+.h-rare .hero-name      { color:var(--h-rare); }
+.h-epic .hero-name      { color:var(--h-epic); }
+.h-legendary .hero-name { color:var(--h-legendary); }
+.hero-lvl { font-size:10px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
+.hero-sub { display:flex; align-items:center; gap:6px; margin-top:3px; font-size:10px; color:var(--ink-dim); }
+.hero-rarity { color:var(--ink-faint); }
+.hero-stats { display:flex; gap:10px; margin-top:4px; font-size:10px; color:var(--ink-faint); }
+.hero-foot { margin-top:5px; }
+
+.stam-track {
+  position:relative; height:9px; margin-top:5px; background:#0a0a0d;
+  border:1px solid var(--line); border-radius:2px; overflow:hidden;
+}
+.stam-fill { display:block; height:100%; background:linear-gradient(90deg,#2c5a4a,#4aa88a); transition:width .3s linear; }
+.stam-text {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:8px; color:#cfe8e0; text-shadow:0 1px 2px #000;
+}
+
+/* ---- Parties ----------------------------------------------------------- */
+.party-list { display:flex; flex-direction:column; gap:6px; }
+.party-card {
+  padding:8px 10px; border:1px solid var(--line); border-radius:3px; background:var(--bg-2);
+}
+.party-card.running { border-color:var(--gold-dim); box-shadow:0 0 14px rgba(200,170,110,.10) inset; }
+.party-top { display:flex; align-items:baseline; justify-content:space-between; }
+.party-name { color:var(--gold); font-size:13px; }
+.party-stats { display:flex; gap:12px; font-size:10px; color:var(--ink-faint); margin-top:3px; }
+.party-stats b { color:var(--ink-dim); }
+.party-roles { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; align-items:center; }
+.party-members { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.pm {
+  padding:2px 7px; border-radius:3px; font-size:10px; cursor:pointer;
+  border:1px solid var(--line-2); background:#0f0f13;
+}
+.pm:hover { border-color:var(--gold-dim); }
+.pm small { color:var(--ink-faint); }
+.pm.h-common { color:var(--h-common); } .pm.h-uncommon { color:var(--h-uncommon); }
+.pm.h-rare { color:var(--h-rare); } .pm.h-epic { color:var(--h-epic); }
+.pm.h-legendary { color:var(--h-legendary); }
+
+/* ---- Dispatch ---------------------------------------------------------- */
+.dispatch-bar {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:7px 9px; margin-bottom:7px;
+  background:rgba(0,0,0,.25); border:1px solid var(--line); border-radius:3px;
+}
+.dispatch-label { font-size:10px; letter-spacing:1.2px; text-transform:uppercase; color:var(--ink-faint); }
+.tier-value { color:var(--gold); font-size:16px; min-width:26px; text-align:center; font-variant-numeric:tabular-nums; }
+
+.dungeon-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:7px; }
+.dungeon {
+  padding:9px 11px; border:1px solid var(--line); border-left:3px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2);
+}
+.dungeon.cleared { border-left-color:var(--gold-dim); }
+.dg-top { display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
+.dg-name { font-size:13px; color:var(--ink); }
+.dg-focus {
+  font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--gold);
+  border:1px solid var(--gold-dim); border-radius:8px; padding:1px 6px; white-space:nowrap;
+}
+.dg-blurb { font-size:10px; color:var(--ink-dim); font-style:italic; line-height:1.45; margin:5px 0 4px; }
+.dg-counter { font-size:10px; color:#d08a4a; line-height:1.4; margin-bottom:6px; }
+.dg-rewards { display:grid; grid-template-columns:repeat(2,1fr); gap:3px 10px; margin-bottom:6px; }
+.rw { display:flex; align-items:center; gap:5px; }
+.rw label { font-size:9px; color:var(--ink-faint); width:30px; }
+.rw-track { flex:1 1 auto; height:5px; background:#0a0a0d; border-radius:3px; overflow:hidden; }
+.rw-track i { display:block; height:100%; background:var(--line-2); }
+.rw-track i.strong { background:linear-gradient(90deg,var(--gold-dim),var(--gold)); }
+.dg-foot { margin-bottom:6px; }
+.dg-parties { display:flex; flex-wrap:wrap; gap:4px; }
+
+/* ---- Active expeditions ------------------------------------------------ */
+.run-card { margin-bottom:8px; }
+.run-body { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.run-col { display:flex; flex-direction:column; gap:4px; }
+.cbt { padding:4px 6px; border:1px solid var(--line); border-radius:3px; background:#0f0f13; }
+.cbt.down { opacity:.45; }
+.cbt.enemy { border-color:#4a2b2b; }
+.cbt-name {
+  display:flex; align-items:baseline; justify-content:space-between; gap:6px;
+  font-size:10px; margin-bottom:3px; color:var(--ink-dim);
+}
+.cbt-name small { color:var(--ink-faint); font-size:8px; }
+.cbt-name.champ { color:#d88ae0; }
+.cbt .bar { height:11px; margin-bottom:0; }
+.cbt .bar span { font-size:8px; }
+
+/* ---- Hero modal -------------------------------------------------------- */
+.hm-head {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  padding:10px 12px; border:1px solid var(--line-2); border-left-width:3px;
+  border-radius:3px; background:var(--bg-2);
+}
+.hm-head.h-common    { border-left-color:var(--h-common); }
+.hm-head.h-uncommon  { border-left-color:var(--h-uncommon); }
+.hm-head.h-rare      { border-left-color:var(--h-rare); }
+.hm-head.h-epic      { border-left-color:var(--h-epic); }
+.hm-head.h-legendary { border-left-color:var(--h-legendary); }
+.hm-name { font-size:16px; color:var(--gold); }
+.hm-sub { font-size:11px; color:var(--ink-dim); margin-top:3px; display:flex; align-items:center; gap:6px; }
+.hm-stats { display:flex; flex-direction:column; gap:2px; text-align:right; font-size:11px; color:var(--ink-faint); }
+.hm-stats b { color:var(--ink); }
+
+.trait-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:5px; }
+.trait {
+  padding:6px 8px; border:1px solid var(--line); border-left:3px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2); font-size:10px; color:var(--ink-faint);
+}
+.trait b { display:block; font-size:11px; color:var(--r-magic); margin-bottom:2px; }
+.trait.t2 { border-left-color:var(--h-rare); }
+.trait.t3 { border-left-color:var(--h-epic); }
+.trait.t3 b { color:var(--h-epic); }
+
+/* ---- Hero rarity tint for tooltips ------------------------------------- */
+.tooltip.h-common .tt-name    { color:var(--h-common); }
+.tooltip.h-uncommon .tt-name  { color:var(--h-uncommon); }
+.tooltip.h-rare .tt-name      { color:var(--h-rare); }
+.tooltip.h-epic .tt-name      { color:var(--h-epic); }
+.tooltip.h-legendary .tt-name { color:var(--h-legendary); }
+
+@media (max-width:1180px) {
+  .run-body { grid-template-columns:1fr; }
 }

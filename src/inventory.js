@@ -1,59 +1,45 @@
-// inventory.js — carrying, equipping and salvaging items.
+// inventory.js — the guild vault: storing, salvaging and crafting-currency flow.
 
-import { G, log, emit, inventoryCapacity, mapCapacity } from './state.js';
+import { G, log, emit, vaultCapacity, addGold, spendGold } from './state.js';
 import { rng } from './rng.js';
-import { BASE_BY_ID } from './data/bases.js';
 import { itemScore, RARITY } from './items.js';
 import { CURRENCIES, CURRENCY_VALUE } from './data/currency.js';
 import { UPGRADE_BY_ID, upgradeCost } from './data/upgrades.js';
 
-/** Where an item lives: gear goes to `inventory`, maps to `maps`. */
-function binFor(item) { return item.kind === 'map' ? 'maps' : 'inventory'; }
-function capacityFor(item) { return item.kind === 'map' ? mapCapacity() : inventoryCapacity(); }
-
-export function invCount() { return G.state.inventory.length; }
-export function mapCount() { return G.state.maps.length; }
-
-export function isFull(kind = 'gear') {
-  const s = G.state;
-  return kind === 'map' ? s.maps.length >= mapCapacity() : s.inventory.length >= inventoryCapacity();
-}
+export function vaultCount() { return G.state.vault.length; }
+export function vaultFull() { return G.state.vault.length >= vaultCapacity(); }
 
 /**
- * Adds an item to the correct bin.
- * @returns {'added'|'salvaged'|'full'}
+ * Adds gear to the vault.
+ * @returns {'added'|'salvaged'|'salvaged-full'|'full'}
  */
-export function addItem(item, opts = {}) {
+export function addToVault(item, opts = {}) {
   const s = G.state;
-  const bin = binFor(item);
 
-  if (!opts.noAutoSalvage && item.kind === 'gear' && shouldAutoSalvage(item)) {
+  if (!opts.noAutoSalvage && shouldAutoSalvage(item)) {
     salvageItem(item, true);
     return 'salvaged';
   }
 
-  if (s[bin].length >= capacityFor(item)) {
-    if (item.kind === 'map') return 'full';
-
-    // A unique is the headline drop of an entire session — never throw one away
-    // for want of space. Break down the least valuable unlocked item instead.
+  if (s.vault.length >= vaultCapacity()) {
+    // A unique is the highlight of a session — never bin one for want of space.
     if (item.rarity === 'unique') {
-      const victim = s.inventory
+      const victim = s.vault
         .filter((x) => x.rarity !== 'unique' && !x.locked)
         .sort((a, b) => itemScore(a) - itemScore(b))[0];
       if (!victim) return 'full';
       salvageItem(victim, true);
-      s.inventory.push(item);
-      log(`Inventory full — salvaged ${victim.name} to make room for ${item.name}.`, 'unique');
-      emit('inventory');
+      s.vault.push(item);
+      log(`Vault full — salvaged ${victim.name} to make room for ${item.name}.`, 'unique');
+      emit('vault');
       return 'added';
     }
-
     salvageItem(item, true);
     return 'salvaged-full';
   }
-  s[bin].push(item);
-  emit(bin === 'maps' ? 'maps' : 'inventory');
+
+  s.vault.push(item);
+  emit('vault');
   return 'added';
 }
 
@@ -65,211 +51,145 @@ function shouldAutoSalvage(item) {
   return false;   // uniques are never auto-salvaged
 }
 
-/** Toggles the "keep this" flag that protects an item from bulk salvage. */
 export function toggleLock(uid) {
   const item = findItem(uid);
   if (!item) return false;
   item.locked = !item.locked;
-  emit('inventory');
+  emit('vault');
   return item.locked;
 }
 
-export function removeItem(uid) {
+export function removeFromVault(uid) {
   const s = G.state;
-  for (const bin of ['inventory', 'maps']) {
-    const i = s[bin].findIndex((x) => x.uid === uid);
-    if (i >= 0) {
-      const [item] = s[bin].splice(i, 1);
-      emit(bin === 'maps' ? 'maps' : 'inventory');
-      return item;
+  const i = s.vault.findIndex((x) => x.uid === uid);
+  if (i < 0) return null;
+  const [item] = s.vault.splice(i, 1);
+  emit('vault');
+  return item;
+}
+
+/** Finds an item anywhere: vault or worn by any hero. */
+export function findItem(uid) {
+  const s = G.state;
+  const inVault = s.vault.find((x) => x.uid === uid);
+  if (inVault) return inVault;
+  for (const h of s.heroes) {
+    for (const slot of Object.keys(h.equipment)) {
+      if (h.equipment[slot]?.uid === uid) return h.equipment[slot];
     }
   }
   return null;
 }
 
-export function findItem(uid) {
-  const s = G.state;
-  return s.inventory.find((x) => x.uid === uid)
-    || s.maps.find((x) => x.uid === uid)
-    || Object.values(s.equipment).find((x) => x && x.uid === uid)
-    || null;
-}
-
-// ---------------------------------------------------------------------------
-// Equipping
-// ---------------------------------------------------------------------------
-
-/** Concrete equipment slot an item should occupy, preferring an empty ring. */
-export function targetSlot(item) {
-  const s = G.state;
-  if (item.slot === 'ring') return !s.equipment.ring1 ? 'ring1' : (!s.equipment.ring2 ? 'ring2' : 'ring1');
-  return item.slot;
-}
-
-export function equipItem(uid, forcedSlot = null) {
-  const s = G.state;
-  const item = s.inventory.find((x) => x.uid === uid);
-  if (!item || item.kind !== 'gear') return false;
-
-  const slot = forcedSlot ?? targetSlot(item);
-  const base = BASE_BY_ID[item.baseId];
-  const twoHanded = base?.slot === 'weapon' && base.hands === 2;
-
-  // Removing from inventory first guarantees space for whatever comes off.
-  removeItem(uid);
-
-  const swapped = [];
-  if (s.equipment[slot]) swapped.push(s.equipment[slot]);
-  if (twoHanded && s.equipment.offhand) swapped.push(s.equipment.offhand);
-  if (slot === 'offhand' && s.equipment.weapon) {
-    const wBase = BASE_BY_ID[s.equipment.weapon.baseId];
-    if (wBase?.hands === 2) swapped.push(s.equipment.weapon);
+/** The hero wearing an item, if any. */
+export function wearerOf(uid) {
+  for (const h of G.state.heroes) {
+    for (const slot of Object.keys(h.equipment)) {
+      if (h.equipment[slot]?.uid === uid) return { hero: h, slot };
+    }
   }
-
-  s.equipment[slot] = item;
-  if (twoHanded) s.equipment.offhand = null;
-  for (const old of swapped) {
-    if (old === item) continue;
-    if (s.equipment.weapon === old) s.equipment.weapon = null;
-    if (s.equipment.offhand === old) s.equipment.offhand = null;
-    addItem(old, { noAutoSalvage: true });
-  }
-
-  log(`Equipped ${item.name}.`, 'sys');
-  emit('equipment'); emit('stats');
-  return true;
-}
-
-export function unequipItem(slot) {
-  const s = G.state;
-  const item = s.equipment[slot];
-  if (!item) return false;
-  if (isFull('gear')) { log('Inventory is full.', 'danger'); return false; }
-  s.equipment[slot] = null;
-  addItem(item, { noAutoSalvage: true });
-  emit('equipment'); emit('stats');
-  return true;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
-// Salvage — converts unwanted loot into currency
+// Salvage
 // ---------------------------------------------------------------------------
 
-/** Expected currency value returned when salvaging. */
+/** Expected value returned when salvaging, in "chaos equivalent". */
 export function salvageValue(item) {
-  const score = itemScore(item);
-  return score * 0.014 * (item.corrupted ? 0.5 : 1);
+  return itemScore(item) * 0.014 * (item.corrupted ? 0.5 : 1);
 }
 
-/**
- * Breaks an item down. Payout is weighted toward cheap currency, with a small
- * chance at something meaningful from high-value items.
- */
+/** Breaks an item down into orbs and a little gold. */
 export function salvageItem(item, quiet = false) {
   const s = G.state;
   const value = salvageValue(item);
   const gained = {};
 
   let budget = value;
-  const pool = CURRENCIES.filter((c) => c.weight > 0 && CURRENCY_VALUE[c.id] <= Math.max(0.03, budget));
+  const pool = CURRENCIES.filter((c) => c.weight > 0);
   let guard = 0;
   while (budget > 0.01 && guard++ < 24) {
     const affordable = pool.filter((c) => CURRENCY_VALUE[c.id] <= budget);
     if (!affordable.length) break;
-    // Bias toward the most expensive thing the budget allows.
     const c = rng.weighted(affordable, (x) => x.weight * (CURRENCY_VALUE[x.id] >= budget * 0.4 ? 3 : 1));
     gained[c.id] = (gained[c.id] ?? 0) + 1;
     budget -= CURRENCY_VALUE[c.id];
   }
-  // Guarantee at least a scrap so salvaging never feels wasted.
   if (!Object.keys(gained).length) gained.scroll = 1;
 
-  for (const [id, n] of Object.entries(gained)) s.stash[id] = (s.stash[id] ?? 0) + n;
-  removeItem(item.uid);
+  for (const [id, n] of Object.entries(gained)) s.orbs[id] = (s.orbs[id] ?? 0) + n;
+  const gold = Math.max(1, Math.round(item.ilvl * 1.2 * ({ normal: 1, magic: 2, rare: 4, unique: 10 }[item.rarity] ?? 1)));
+  addGold(gold);
 
+  removeFromVault(item.uid);
   if (!quiet) {
     const parts = Object.entries(gained)
       .map(([id, n]) => `${n}x ${CURRENCIES.find((c) => c.id === id).short}`).join(', ');
-    log(`Salvaged ${item.name} → ${parts}.`, 'loot');
+    log(`Salvaged ${item.name} → ${parts}, ${gold} gold.`, 'loot');
   }
-  emit('stash'); emit('inventory');
+  emit('orbs'); emit('vault');
   return gained;
 }
 
-/**
- * Salvages everything matching a filter. Locked items are always skipped, so
- * bulk-salvaging rares can't eat the piece you were saving.
- */
+/** Salvages everything matching a filter. Locked items are always skipped. */
 export function salvageAll(filter) {
   const s = G.state;
-  const doomed = s.inventory.filter((i) => !i.locked && filter(i));
+  const doomed = s.vault.filter((i) => !i.locked && filter(i));
   const gained = {};
+  let gold = 0;
+  const before = s.guild.gold;
   for (const item of doomed) {
     const got = salvageItem(item, true);
     for (const [id, n] of Object.entries(got)) gained[id] = (gained[id] ?? 0) + n;
   }
+  gold = s.guild.gold - before;
   if (doomed.length) {
-    const parts = Object.entries(gained)
-      .sort((a, b) => b[1] - a[1]).slice(0, 4)
+    const parts = Object.entries(gained).sort((a, b) => b[1] - a[1]).slice(0, 4)
       .map(([id, n]) => `${n}x ${CURRENCIES.find((c) => c.id === id)?.short ?? id}`).join(', ');
-    log(`Salvaged ${doomed.length} item${doomed.length === 1 ? '' : 's'} → ${parts}.`, 'loot');
+    log(`Salvaged ${doomed.length} item${doomed.length === 1 ? '' : 's'} → ${parts}, ${gold} gold.`, 'loot');
   }
   return doomed.length;
 }
 
-/** Count of inventory items a bulk-salvage filter would actually destroy. */
 export function countSalvageable(filter) {
-  return G.state.inventory.filter((i) => !i.locked && filter(i)).length;
+  return G.state.vault.filter((i) => !i.locked && filter(i)).length;
 }
 
-// ---------------------------------------------------------------------------
-// Sorting
-// ---------------------------------------------------------------------------
-
-export function sortInventory() {
-  G.state.inventory.sort((a, b) => {
+export function sortVault() {
+  G.state.vault.sort((a, b) => {
     const r = (RARITY[b.rarity]?.order ?? 0) - (RARITY[a.rarity]?.order ?? 0);
     if (r) return r;
     if (a.slot !== b.slot) return a.slot.localeCompare(b.slot);
     return itemScore(b) - itemScore(a);
   });
-  emit('inventory');
-}
-
-export function sortMaps() {
-  G.state.maps.sort((a, b) => (b.tier - a.tier)
-    || ((RARITY[b.rarity]?.order ?? 0) - (RARITY[a.rarity]?.order ?? 0)));
-  emit('maps');
+  emit('vault');
 }
 
 // ---------------------------------------------------------------------------
-// Stash helpers
+// Orbs
 // ---------------------------------------------------------------------------
 
-export function addCurrency(id, n = 1) {
-  G.state.stash[id] = (G.state.stash[id] ?? 0) + n;
-  G.state.stats.currencyFound += n;
-  emit('stash');
+export function addOrb(id, n = 1) {
+  G.state.orbs[id] = (G.state.orbs[id] ?? 0) + n;
+  emit('orbs');
 }
 
-export function spendCurrency(id, n = 1) {
+export function spendOrb(id, n = 1) {
   const s = G.state;
-  if ((s.stash[id] ?? 0) < n) return false;
-  s.stash[id] -= n;
-  emit('stash');
+  if ((s.orbs[id] ?? 0) < n) return false;
+  s.orbs[id] -= n;
+  emit('orbs');
   return true;
 }
 
-export function hasCurrency(id, n = 1) { return (G.state.stash[id] ?? 0) >= n; }
+export function hasOrb(id, n = 1) { return (G.state.orbs[id] ?? 0) >= n; }
 
 // ---------------------------------------------------------------------------
-// Permanent upgrades
+// Guild Hall upgrades
 // ---------------------------------------------------------------------------
 
-/**
- * Buys the next rank of a Hideout upgrade.
- * @returns {{ok: boolean, msg: string}}
- */
+/** Buys the next rank of a Guild Hall upgrade. */
 export function buyUpgrade(id) {
   const s = G.state;
   const def = UPGRADE_BY_ID[id];
@@ -279,14 +199,15 @@ export function buyUpgrade(id) {
   if (rank >= def.max) return { ok: false, msg: `${def.name} is already at maximum rank.` };
 
   const cost = upgradeCost(id, rank);
-  if (!hasCurrency(cost.currency, cost.amount)) {
-    const c = CURRENCIES.find((x) => x.id === cost.currency);
-    return { ok: false, msg: `Needs ${cost.amount}x ${c?.name ?? cost.currency}.` };
+  if (cost.kind === 'gold') {
+    if (!spendGold(cost.amount)) return { ok: false, msg: `Needs ${cost.amount} gold.` };
+  } else if (!spendOrb(cost.orb, cost.amount)) {
+    const c = CURRENCIES.find((x) => x.id === cost.orb);
+    return { ok: false, msg: `Needs ${cost.amount}x ${c?.name ?? cost.orb}.` };
   }
 
-  spendCurrency(cost.currency, cost.amount);
   s.upgrades[id] = rank + 1;
-  log(`${def.name} improved to rank ${rank + 1}.`, 'loot');
-  emit('upgrades'); emit('stash'); emit('stats');
+  log(`${def.name} improved to rank ${rank + 1}.`, 'gold');
+  emit('upgrades'); emit('guild'); emit('sheets');
   return { ok: true, msg: `${def.name} is now rank ${rank + 1}.` };
 }

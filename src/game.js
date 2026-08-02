@@ -1,22 +1,29 @@
-// game.js — boot sequence, the fixed-step main loop, auto-save and auto-run.
+// game.js — boot sequence, the fixed-step main loop and auto-save.
 
-import { G, newCharacter, log, emit, on } from './state.js';
+import { G, createState, log, emit, on } from './state.js';
 import { rng } from './rng.js';
 import * as Save from './save.js';
-import { tickCombat, startMap, refreshDerived } from './combat.js';
-import { addItem } from './inventory.js';
-import { grantStarterMap } from './maps.js';
-import { initUI, renderAll, tick as uiTick, openNewCharacter } from './ui.js';
+import { tickAll, dispatch } from './expedition.js';
+import { restAll, startingRoster, createParty, assignToParty } from './heroes.js';
+import { rebuildSheets } from './stats.js';
+import { initUI, renderAll, tick as uiTick, openNewGuild } from './ui.js';
 
 const AUTOSAVE_INTERVAL = 30;    // seconds
-const UI_INTERVAL = 0.1;         // seconds between light UI refreshes
-const MAX_STEP = 0.25;           // clamp so tab-switching doesn't fast-forward wildly
-const AUTORUN_DELAY = 1.5;       // pause between automatic map runs
+const UI_INTERVAL = 0.1;
+const MAX_STEP = 0.25;           // clamp so tab-switching doesn't fast-forward
+const REDEPLOY_DELAY = 1.5;
 
 let last = 0;
 let autosaveTimer = 0;
 let uiTimer = 0;
-let autorunTimer = 0;
+let redeployTimer = 0;
+
+/** Rebuilds every hero's derived sheet. Called whenever gear or level changes. */
+export function refreshSheets() {
+  if (!G.state) return;
+  rebuildSheets(G.state, G.sheets);
+  emit('sheets');
+}
 
 // ---------------------------------------------------------------------------
 // Boot
@@ -30,34 +37,46 @@ function boot() {
     fresh = false;
   } else {
     G.slot = slot;
-    G.state = newCharacter('Exile');
+    G.state = createState();
     rng.seed(Date.now() >>> 0);
   }
 
-  // A brand-new save has no character yet, so the world stays frozen — and
-  // unsaved — until the player has picked a class and a name.
+  // A brand-new guild does not exist until it has been named, so the world
+  // stays frozen and unsaved behind the creation dialog.
   G.paused = fresh;
 
-  refreshDerived();
+  refreshSheets();
   initUI();
 
   if (fresh) {
-    openNewCharacter(true);
+    openNewGuild(true);
   } else {
-    log(`Welcome back, ${G.state.name}.`, 'sys');
-    ensureNotStuck();
+    log(`Welcome back to ${G.state.name}.`, 'sys');
   }
 
   renderAll();
-
   last = performance.now();
   requestAnimationFrame(loop);
 
   window.addEventListener('beforeunload', () => { if (!G.paused) Save.saveToSlot(G.slot, true); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { if (!G.paused) Save.saveToSlot(G.slot, true); }
-    else last = performance.now();       // don't bank hidden time as one huge step
+    else last = performance.now();
   });
+}
+
+/** Sets up the opening guild: a starting party and three heroes. */
+export function foundGuild(name) {
+  G.state = createState(name);
+  G.state.heroes = startingRoster();
+  const party = createParty('First Company');
+  for (const h of G.state.heroes) assignToParty(h.uid, party.id);
+  refreshSheets();
+  G.paused = false;
+  Save.saveToSlot(G.slot, true);
+  emit('loaded');
+  log(`${name} opens its doors.`, 'sys');
+  log('Send your first company into the Deepmines from the Expeditions tab.', 'sys');
 }
 
 // ---------------------------------------------------------------------------
@@ -71,21 +90,17 @@ function loop(now) {
   const s = G.state;
   if (s && !G.paused) {
     s.playtime += dt;
+    const speed = s.settings.speed ?? 1;
 
-    const speed = s.settings.combatSpeed ?? 1;
-    if (s.combat && s.combat.status === 'running') {
+    if (s.expeditions.length) {
       // Sub-stepping keeps fast speeds from skipping attack timers.
       const steps = Math.min(6, Math.ceil(speed));
       const step = (dt * speed) / steps;
-      for (let i = 0; i < steps; i++) {
-        if (!s.combat || s.combat.status !== 'running') break;
-        tickCombat(step);
-      }
-    } else {
-      // Runs even with auto-run disabled, so a manual player is never stranded.
-      ensureNotStuck();
-      handleAutoRun(dt);
+      for (let i = 0; i < steps; i++) tickAll(step);
     }
+
+    restAll(dt * speed);
+    handleRedeploy(dt);
 
     autosaveTimer += dt;
     if (autosaveTimer >= AUTOSAVE_INTERVAL) {
@@ -95,54 +110,34 @@ function loop(now) {
   }
 
   uiTimer += dt;
-  if (uiTimer >= UI_INTERVAL) {
-    uiTimer = 0;
-    uiTick();
-  }
+  if (uiTimer >= UI_INTERVAL) { uiTimer = 0; uiTick(); }
 
   requestAnimationFrame(loop);
 }
 
-// ---------------------------------------------------------------------------
-// Auto-run
-// ---------------------------------------------------------------------------
-
-function handleAutoRun(dt) {
-  const s = G.state;
-  if (!s.settings.autoRun) return;
-  autorunTimer += dt;
-  if (autorunTimer < AUTORUN_DELAY) return;
-  autorunTimer = 0;
-  if (!s.maps.length) return;
-
-  // Prefer the highest tier at or below the adaptive safe ceiling; that ceiling
-  // rises on every clear and drops on death, so unattended play self-corrects.
-  const ceiling = s.atlas.safeTier ?? 1;
-  const sorted = s.maps.slice().sort((a, b) => (b.tier - a.tier) || (b.mods.length - a.mods.length));
-  const best = sorted.find((m) => m.tier <= ceiling) ?? sorted[sorted.length - 1];
-  if (best) startMap(best.uid);
-}
-
 /**
- * Running out of maps would strand the player with nothing to do, so the Atlas
- * always keeps a Tier 1 in reserve. T1 is the floor of the reward curve, so
- * this costs nothing in balance terms and removes the only true dead end.
+ * Optional convenience: re-send idle parties to whatever they last ran, as
+ * long as they still have the stamina for it. Off by default — choosing where
+ * to send each party is the game.
  */
-function ensureNotStuck() {
+function handleRedeploy(dt) {
   const s = G.state;
-  if (s.maps.length > 0) return;
-  addItem(grantStarterMap());
-  log('The Atlas offers a fresh path. (Tier 1 map granted.)', 'sys');
-  emit('maps');
+  if (!s.settings.autoRedeploy) return;
+  redeployTimer += dt;
+  if (redeployTimer < REDEPLOY_DELAY) return;
+  redeployTimer = 0;
+
+  for (const party of s.parties) {
+    if (!party.lastRun) continue;
+    if (s.expeditions.some((e) => e.partyId === party.id)) continue;
+    dispatch(party.id, party.lastRun.dungeonId, party.lastRun.tier);
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Re-render on load and expose a small debug handle.
-// ---------------------------------------------------------------------------
+on('loaded', () => { refreshSheets(); redeployTimer = 0; });
+on('sheets-request', refreshSheets);
 
-on('loaded', () => { refreshDerived(); autorunTimer = 0; });
-
-window.EXILE = { G, Save, rng, refreshDerived };
+window.IDLE_GUILD = { G, Save, rng, refreshSheets };
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot);

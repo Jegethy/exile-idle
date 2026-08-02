@@ -65,30 +65,25 @@ export const CURRENCIES = [
     use: 'Any item with an implicit.',
   },
   {
-    id: 'chisel', name: 'Cartographer\'s Chisel', short: 'Chi', weight: 60, tier: 2,
-    desc: 'Improves the quality of a Map, increasing its rewards.',
-    use: 'Map → +5% quality (max 20%).',
+    id: 'whetstone', name: 'Blacksmith\'s Whetstone', short: 'Whe', weight: 60, tier: 2,
+    desc: 'Improves the quality of a piece of equipment.',
+    use: 'Any item → +5% quality (max 20%).',
   },
   {
     id: 'vaal', name: 'Vaal Orb', short: 'Vaa', weight: 20, tier: 3,
     desc: 'Corrupts an item, with unpredictable results.',
     use: 'Any item → corrupt. Cannot be modified afterwards.',
   },
-  {
-    id: 'fragment', name: 'Pinnacle Fragment', short: 'Frg', weight: 0, tier: 4,
-    desc: 'A shard of a pinnacle guardian\'s dominion. Four open a boss arena.',
-    use: 'Consumed in sets of 4 to summon a Pinnacle Boss.',
-  },
 ];
 
 export const CURRENCY_BY_ID = Object.fromEntries(CURRENCIES.map((c) => [c.id, c]));
 
-/** Currencies that can appear in the map drop table. */
+/** Currencies that can appear in expedition drop tables. */
 export const DROPPABLE = CURRENCIES.filter((c) => c.weight > 0);
 
 /** Rough vendor value used for salvage payouts, in "chaos equivalent". */
 export const CURRENCY_VALUE = {
-  scroll: 0.01, transmute: 0.02, augment: 0.03, alteration: 0.03, chisel: 0.1,
+  scroll: 0.01, transmute: 0.02, augment: 0.03, alteration: 0.03, whetstone: 0.1,
   blessed: 0.2, scour: 0.15, alchemy: 0.15, regal: 0.4, chaos: 1, annul: 2,
-  vaal: 1, exalt: 12, divine: 15, fragment: 25,
+  vaal: 1, exalt: 12, divine: 15,
 };
