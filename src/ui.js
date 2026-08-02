@@ -30,7 +30,7 @@ import { BOSSES } from './data/monsters.js';
 import { describeStats } from './data/statlabels.js';
 import { UPGRADES, UPGRADE_BY_ID, upgradeCost, upgradeEffects } from './data/upgrades.js';
 import {
-  TREE, TREE_RADIUS, START_IDS, nodeText, canAllocate, canRefund,
+  TREE, TREE_RADIUS, START_IDS, nodeText, nodeIcon, canAllocate, canRefund,
   pointSummary, ascendancySummary, treeIsFull, startFor,
 } from './passives.js';
 import * as Save from './save.js';
@@ -71,7 +71,7 @@ export function initUI() {
   on('stats', () => { renderStatSheet(); renderQuickStats(); renderPassiveHeader(); });
   on('combat', () => { renderMapHeader(); renderArena(); renderMaps(); });
   on('log', () => { renderLog(); });
-  on('passives', () => { renderTree(); renderPassiveHeader(); renderStatSheet(); });
+  on('passives', () => { renderTree(); renderPassiveHeader(); renderTreeSummary(); renderStatSheet(); });
   on('saves', () => { renderSlots(); });
   on('upgrades', () => { renderUpgrades(); });
   on('loaded', () => { ui.craftCurrency = null; closeTree(); renderAll(); });
@@ -85,6 +85,7 @@ export function renderAll() {
   renderStatSheet();
   renderPassiveHeader();
   renderTree();
+  renderTreeSummary();
   renderMapHeader();
   renderArena();
   renderLog();
@@ -138,6 +139,7 @@ export function openTree() {
   qs('#treeScreen').classList.remove('hidden');
   document.body.classList.add('tree-open');
   renderPassiveHeader();
+  renderTreeSummary();
   // The SVG needs a laid-out container before it can size itself.
   requestAnimationFrame(() => { renderTree(); applyTreeTransform(); });
 }
@@ -467,8 +469,66 @@ function wireTree() {
   });
   svg.addEventListener('mouseover', (e) => {
     const g = e.target.closest('.tn');
-    if (g) showNodeInfo(g.dataset.id);
+    if (g) showNodeTooltip(g.dataset.id, e);
   });
+  svg.addEventListener('mouseout', (e) => {
+    if (e.target.closest('.tn')) hideTooltip();
+  });
+  svg.addEventListener('mousemove', (e) => {
+    if (ui.tree.dragging) { hideTooltip(); return; }
+    moveTooltip(e);
+  });
+}
+
+/** PoE-style hover panel: name, kind, effects, and what a click would do. */
+function showNodeTooltip(id, event) {
+  const node = TREE[id];
+  const s = G.state;
+  if (!node || !s) return;
+  const startId = startFor(s);
+
+  const t = tip();
+  if (START_IDS.has(id)) {
+    const cls = CLASS_BY_ID[node.classId];
+    t.className = 'tooltip passive';
+    t.innerHTML = `
+      <div class="pt-head">${escapeHtml(cls.name)}</div>
+      <div class="pt-body">
+        <div class="pt-kind">Class starting location</div>
+        <div class="pt-mod">${escapeHtml(cls.blurb)}</div>
+        <div class="pt-hint">${id === startId
+      ? 'Your tree begins here.'
+      : 'Another class begins here — you cannot allocate from it.'}</div>
+      </div>`;
+    t.classList.remove('hidden');
+    moveTooltip(event);
+    return;
+  }
+
+  const allocated = !!s.passives.allocated[id];
+  const available = pointSummary(s).available;
+  let hint;
+  if (allocated) {
+    hint = canRefund(s.passives.allocated, id, startId)
+      ? 'Click to refund'
+      : 'Cannot refund — other allocated nodes route through it';
+  } else if (!canAllocate(s.passives.allocated, id, startId)) {
+    hint = 'Not connected to your tree';
+  } else {
+    hint = available > 0 ? 'Click to allocate' : 'No passive points available';
+  }
+
+  const kindLabel = { minor: 'Passive Skill', notable: 'Notable Passive Skill', keystone: 'Keystone' }[node.kind];
+  t.className = `tooltip passive ${node.kind}`;
+  t.innerHTML = `
+    <div class="pt-head">${escapeHtml(node.name)}</div>
+    <div class="pt-body">
+      <div class="pt-kind">${kindLabel}</div>
+      ${nodeText(node).map((l) => `<div class="pt-mod">${escapeHtml(l)}</div>`).join('')}
+      <div class="pt-hint ${allocated ? 'alloc' : ''}">${escapeHtml(hint)}</div>
+    </div>`;
+  t.classList.remove('hidden');
+  moveTooltip(event);
 }
 
 function zoomTree(factor) {
@@ -476,17 +536,11 @@ function zoomTree(factor) {
   applyTreeTransform();
 }
 
-/** Zoom past this and notable names appear; below it only landmarks are named. */
-const LABEL_DETAIL_ZOOM = 1.35;
-
 function applyTreeTransform() {
   const g = qs('#treeG');
   if (!g) return;
   const { x, y, scale } = ui.tree;
   g.setAttribute('transform', `translate(${x} ${y}) scale(${scale})`);
-  // 30 notables sitting shoulder to shoulder makes their labels collide at
-  // fit-zoom, so only keystones and class starts are named until you zoom in.
-  qs('#tree').classList.toggle('detail', scale >= LABEL_DETAIL_ZOOM);
 }
 
 function renderTree() {
@@ -512,14 +566,20 @@ function renderTree() {
       }
     }
 
+    // Nodes carry no name labels — hovering shows a tooltip instead, the way
+    // Path of Exile does it. The inner disc is an icon placeholder coloured by
+    // the node's category; real art can replace it without touching layout.
     for (const node of Object.values(TREE)) {
-      const dy = node.kind === 'start' ? 58 : node.labelAbove ? -44 : 52;
-      const label = node.kind === 'minor' ? '' :
-        `<text class="tn-l" x="${node.x.toFixed(1)}" y="${(node.y + dy).toFixed(1)}">${escapeHtml(node.name)}</text>`;
+      const x = node.x.toFixed(1);
+      const y = node.y.toFixed(1);
+      const label = node.kind === 'start'
+        ? `<text class="tn-l" x="${x}" y="${(node.y + 58).toFixed(1)}">${escapeHtml(node.name)}</text>`
+        : '';
       parts.push(
-        `<g class="tn ${node.kind}" data-id="${node.id}">` +
-        `<circle class="tn-c" cx="${node.x.toFixed(1)}" cy="${node.y.toFixed(1)}"/>` +
-        label + '</g>',
+        `<g class="tn ${node.kind} ico-${nodeIcon(node)}" data-id="${node.id}">`
+        + `<circle class="tn-c" cx="${x}" cy="${y}"/>`
+        + `<circle class="tn-i" cx="${x}" cy="${y}"/>`
+        + label + '</g>',
       );
     }
     parts.push('</g>');
@@ -543,39 +603,39 @@ function renderTree() {
   }
   for (const line of qsa('.tl', svg)) {
     const [a, b] = line.dataset.link.split('|');
-    const live = (x) => x === startId || (!START_IDS.has(x) && alloc[x]);
+    // The `!!` matters: `alloc[x]` is undefined for unallocated nodes, and
+    // classList.toggle(name, undefined) *toggles* rather than forcing off,
+    // which made the whole tree flash on alternate allocations.
+    const live = (x) => x === startId || (!START_IDS.has(x) && !!alloc[x]);
     line.classList.toggle('on', live(a) && live(b));
   }
 }
 
-function showNodeInfo(id) {
-  const node = TREE[id];
-  if (!node) return;
+/**
+ * Beside the tree, a running total of everything the allocated nodes grant.
+ * The old per-node info panel is gone — hovering a node shows a tooltip now.
+ */
+function renderTreeSummary() {
+  const host = qs('#passiveInfo');
   const s = G.state;
-  const startId = startFor(s);
+  if (!host || !s) return;
 
-  if (START_IDS.has(id)) {
-    const cls = CLASS_BY_ID[node.classId];
-    qs('#passiveInfo').innerHTML =
-      `<h4>${escapeHtml(cls.name)} <span class="hint">· class start</span></h4>
-       <div class="mod">${escapeHtml(cls.blurb)}</div>
-       <div class="hint" style="margin-top:4px">${id === startId
-        ? 'This is where your tree begins.'
-        : 'Another class starts here. You cannot allocate from it.'}</div>`;
-    return;
+  const bag = {};
+  const keystones = [];
+  for (const id of Object.keys(s.passives.allocated)) {
+    const node = TREE[id];
+    if (!node) continue;
+    if (node.kind === 'keystone') keystones.push(node.name);
+    for (const [k, v] of Object.entries(node.stats)) bag[k] = (bag[k] ?? 0) + v;
   }
 
-  const allocated = !!s.passives.allocated[id];
-  const lines = nodeText(node).map((t) =>
-    `<div class="${node.kind === 'keystone' ? 'ks' : 'mod'}">${escapeHtml(t)}</div>`).join('');
-  const action = allocated
-    ? (canRefund(s.passives.allocated, id, startId) ? 'Click to refund' : 'Cannot refund — other nodes depend on it')
-    : (canAllocate(s.passives.allocated, id, startId)
-      ? (pointSummary(s).available > 0 ? 'Click to allocate' : 'No points available')
-      : 'Not connected to your tree');
-  qs('#passiveInfo').innerHTML =
-    `<h4>${escapeHtml(node.name)} <span class="hint">· ${node.kind}</span></h4>${lines}
-     <div class="hint" style="margin-top:4px">${action}</div>`;
+  const lines = describeStats(bag);
+  host.innerHTML = `
+    <h4>Allocated Passives <span class="hint">· ${Object.keys(s.passives.allocated).length} nodes</span></h4>
+    ${keystones.length ? `<div class="ks">${keystones.map(escapeHtml).join(' · ')}</div>` : ''}
+    ${lines.length
+    ? lines.map((l) => `<div class="mod">${escapeHtml(l)}</div>`).join('')
+    : '<div class="hint">Nothing allocated yet. Hover any node for details, then click to take it.</div>'}`;
 }
 
 function onNodeClick(id) {
@@ -594,7 +654,6 @@ function onNodeClick(id) {
   }
   emit('passives');
   refreshDerived();
-  showNodeInfo(id);
 }
 
 // ===========================================================================

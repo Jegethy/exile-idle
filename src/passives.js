@@ -381,6 +381,54 @@ export function nodeText(node) {
 }
 
 // ---------------------------------------------------------------------------
+// Node icons
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps a stat key to an icon category. Order matters: the first stat on a node
+ * that matches decides the icon, and arm content is authored with the node's
+ * defining stat first.
+ *
+ * These currently render as coloured discs (see `.tn-i` in styles.css). When
+ * real art arrives, swap that element for an <image> keyed on the same
+ * category — nothing else needs to change.
+ */
+const ICON_CATEGORIES = {
+  str: 'str', dex: 'dex', int: 'int',
+  flatLife: 'life', incLife: 'life', lifeRegenFlat: 'life', lifeRegenPct: 'life', lifeLeech: 'life',
+  flatES: 'es', incES: 'es', esRecharge: 'es',
+  flatArmour: 'armour', incArmour: 'armour', moreArmour: 'armour', block: 'armour', damageTaken: 'armour',
+  flatEvasion: 'evasion', incEvasion: 'evasion', moreEvasion: 'evasion', moreArmourLess: 'evasion',
+  incPhys: 'phys', incDamage: 'phys', moreDamage: 'phys',
+  incFire: 'fire', penFire: 'fire', moreFire: 'fire', resFire: 'fire',
+  incCold: 'cold', penCold: 'cold', resCold: 'cold',
+  incLight: 'light', penLight: 'light', resLight: 'light',
+  incChaos: 'chaos', resChaos: 'chaos',
+  incEle: 'ele', moreEle: 'ele', maxRes: 'res',
+  incCrit: 'crit', critMulti: 'crit',
+  incAtkSpeed: 'speed', moveSpeed: 'speed', accuracy: 'accuracy', incAccuracy: 'accuracy',
+  flatMana: 'mana', incMana: 'mana',
+  incRarity: 'utility', incQuant: 'utility', reflect: 'utility',
+};
+
+/**
+ * Icon category for a node, used to colour (and later illustrate) it.
+ *
+ * Keystones always claim their own category rather than inheriting one from
+ * their stats — they are landmarks and will get bespoke art, and letting
+ * Resolute Technique inherit the near-white "physical" colour made it read as
+ * a blank node.
+ */
+export function nodeIcon(node) {
+  if (node.kind === 'start') return 'start';
+  if (node.kind === 'keystone') return 'keystone';
+  for (const key of Object.keys(node.stats ?? {})) {
+    if (ICON_CATEGORIES[key]) return ICON_CATEGORIES[key];
+  }
+  return 'utility';
+}
+
+// ---------------------------------------------------------------------------
 // Allocation rules
 // ---------------------------------------------------------------------------
 

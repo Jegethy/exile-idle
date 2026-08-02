@@ -295,8 +295,11 @@ body.tree-open { overflow:hidden; }
    at fit-zoom. */
 .tl { stroke:#2c2c38; stroke-width:5; }
 .tl.on { stroke:var(--gold-dim); stroke-width:8; }
-.tn { cursor:pointer; transition:filter .15s; }
-.tn:hover { filter:brightness(1.6); }
+.tn { cursor:pointer; }
+/* A brightness filter blew saturated icon discs out to white, so hover just
+   lights the socket ring instead. */
+.tn:hover .tn-c { stroke:#fff4d8; }
+.tn:hover .tn-i { opacity:1; }
 .tn-c { fill:#16161d; stroke:#3a3a47; stroke-width:4; }
 .tn.minor .tn-c { r:14; }
 .tn.notable .tn-c { r:24; stroke-width:5; }
@@ -307,15 +310,45 @@ body.tree-open { overflow:hidden; }
 .tn.notable.on .tn-c { fill:#6b5320; }
 .tn.keystone .tn-c { fill:#1d1414; stroke:#6a4038; }
 .tn.keystone.on .tn-c { fill:#7a2f22; stroke:#e08a70; }
+/* Only class starts are labelled; passives identify themselves on hover. */
 .tn-l {
   font-size:24px; fill:var(--ink-dim); text-anchor:middle;
   pointer-events:none; user-select:none;
   paint-order:stroke; stroke:#08080b; stroke-width:5px; stroke-linejoin:round;
 }
-/* Notables are only named once zoomed in — see LABEL_DETAIL_ZOOM in ui.js. */
-.tn.notable .tn-l { display:none; }
-#tree.detail .tn.notable .tn-l { display:block; }
-.tn.keystone .tn-l { fill:#e0a08a; font-size:26px; }
+
+/* Icon placeholder disc. Swap for an <image> when real art exists — the
+   category class (ico-*) is already the only thing that varies. */
+/* Unallocated nodes sit back; reachable ones lift; allocated ones are full
+   strength. Without this the whole tree reads as uniform coloured noise. */
+.tn-i { pointer-events:none; opacity:.4; transition:opacity .12s; }
+.tn.minor .tn-i { r:6; }
+.tn.notable .tn-i { r:11; }
+.tn.keystone .tn-i { r:14; }
+.tn.start .tn-i { r:0; }
+.tn.avail .tn-i { opacity:.72; }
+.tn.on .tn-i { opacity:1; }
+
+.ico-str .tn-i      { fill:#c95c4a; }
+.ico-dex .tn-i      { fill:#6fbf5f; }
+.ico-int .tn-i      { fill:#5f8fd0; }
+.ico-life .tn-i     { fill:#c0392b; }
+.ico-es .tn-i       { fill:#5fa8d3; }
+.ico-armour .tn-i   { fill:#9a8f7a; }
+.ico-evasion .tn-i  { fill:#5f9f4f; }
+.ico-phys .tn-i     { fill:#bdb5a6; }
+.ico-fire .tn-i     { fill:#e2603a; }
+.ico-cold .tn-i     { fill:#4aa8d8; }
+.ico-light .tn-i    { fill:#e8d44d; }
+.ico-chaos .tn-i    { fill:#b04ad8; }
+.ico-ele .tn-i      { fill:#d8a04a; }
+.ico-res .tn-i      { fill:#a06fd0; }
+.ico-crit .tn-i     { fill:#ffcf6b; }
+.ico-speed .tn-i    { fill:#7fe3d4; }
+.ico-accuracy .tn-i { fill:#cfc08a; }
+.ico-mana .tn-i     { fill:#2f6fb5; }
+.ico-utility .tn-i  { fill:#c8aa6e; }
+.ico-keystone .tn-i { fill:#e0705c; }
 .tn.on .tn-l { fill:var(--gold); }
 
 .passive-info {
@@ -727,6 +760,29 @@ body.tree-open { overflow:hidden; }
 .tooltip.r-magic  { border-color:#3a3a72; }
 .tooltip.r-rare   { border-color:#6a6a2a; }
 .tooltip.r-unique { border-color:#6a3a18; }
+
+/* ---- Passive node tooltip (framed, like the PoE tree) ------------------ */
+.tooltip.passive { padding:0; max-width:300px; border-color:var(--line-2); }
+.pt-head {
+  padding:7px 12px; text-align:center; font-size:14px; letter-spacing:.5px;
+  color:var(--ink); background:linear-gradient(180deg,#2a2a33,#16161c);
+  border-bottom:1px solid var(--line-2);
+}
+.tooltip.passive.notable .pt-head { color:var(--gold); }
+.tooltip.passive.keystone .pt-head { color:#e0a08a; }
+.tooltip.passive.keystone { border-color:#6a4038; }
+.pt-body { padding:8px 12px 9px; }
+.pt-kind {
+  font-size:10px; letter-spacing:1.4px; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:5px;
+}
+.pt-mod { color:var(--r-magic); line-height:1.5; }
+.tooltip.passive.keystone .pt-mod { color:#e08a70; }
+.pt-hint {
+  margin-top:7px; padding-top:5px; border-top:1px dashed var(--line-2);
+  font-size:11px; color:var(--ink-faint);
+}
+.pt-hint.alloc { color:var(--gold-dim); }
 
 /* ==========================================================================
    Modals

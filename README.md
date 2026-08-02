@@ -56,6 +56,13 @@ Blood Magic trades energy shield for life, Glancing Blows buys block chance at
 the cost of partial mitigation, and Pain Attunement only pays out while you are
 nearly dead.
 
+Nodes are unlabelled, as in Path of Exile — hovering one shows a framed tooltip
+with its name, kind and effects, and a sidebar keeps a running total of
+everything you have allocated. Each node carries a coloured icon disc keyed to
+what it does (life, energy shield, fire, crit, …) so the tree is readable at a
+glance; those discs are placeholders that bespoke art can replace without
+touching the layout.
+
 Once the tree is full, further points become **mastery** points, which scale
 forever — this is what keeps uber tiers reachable.
 
