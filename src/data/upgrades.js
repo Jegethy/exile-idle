@@ -99,8 +99,8 @@ export const UPGRADES = [
     effect: (r) => ({ incDamage: r * 3 }),
   },
   {
-    id: 'sealsmith', name: 'Sealsmith', cost: 'orbs',
-    orb: 'chaos', baseCost: 4, growth: 1.55, max: 10,
+    id: 'sealsmith', name: 'Sealsmith', cost: 'mats',
+    mat: 'radiant_essence', baseCost: 2, growth: 1.5, max: 10,
     desc: 'Raid Seals are recovered more often from deep expeditions.',
     unit: '% increased Raid Seal drops',
     effect: (r) => ({ seals: r * 18 }),
@@ -114,7 +114,7 @@ export function upgradeCost(id, rank) {
   const u = UPGRADE_BY_ID[id];
   if (!u || rank >= u.max) return null;
   const amount = Math.ceil(u.baseCost * Math.pow(u.growth, rank));
-  return u.cost === 'orbs' ? { kind: 'orb', orb: u.orb, amount } : { kind: 'gold', amount };
+  return u.cost === 'mats' ? { kind: 'mat', mat: u.mat, amount } : { kind: 'gold', amount };
 }
 
 /** Accumulated effects of every purchased upgrade. */

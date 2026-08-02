@@ -26,10 +26,12 @@ Any static server works equally well (`python -m http.server`, `npx serve`, …)
 2. **Build parties.** Four to five heroes, ideally with a Tank and a Healer.
 3. **Dispatch.** Pick a *tier* (how hard) and a *dungeon* (what for), then send
    a party. With enough Expedition Charters, several parties run at once.
+   Gathering runs like the Dark Forest exist purely to stock the workshop.
 4. **Combat resolves automatically** — tanks soak, healers mend, damage classes
    kill. Fallen heroes sit out the rest of the run but are never lost.
 5. **Spend the returns.** Gold buys recruits and permanent Guild Hall upgrades;
-   orbs craft gear; equipment kits out the roster.
+   materials craft and improve gear, and brew flasks; equipment kits out the
+   roster.
 6. **Push tiers, then raid.** Raid Seals drop from Tier 4+ and open milestone
    bosses whose first kills permanently raise guild rewards.
 
@@ -78,10 +80,13 @@ Tier and dungeon are deliberately independent. Tier is *how hard*; dungeon is
 
 | Dungeon | Pays in | Defensive slant |
 |---|---|---|
-| The Deepmines | Gold | Heavily armoured — physical struggles |
-| The Sunken Crypt | Equipment | High life, hits hard — bring sustain |
-| The Proving Arena | Experience | Fast and aggressive — bring a Tank |
-| The Arcane Vault | Crafting orbs | Elementally resistant — physical cuts deeper |
+| The Deepmines | Gold, metal, stone | Heavily armoured — physical struggles |
+| The Sunken Crypt | Equipment, bone, cloth | High life, hits hard — bring sustain |
+| The Proving Arena | Experience, leather | Fast and aggressive — bring a Tank |
+| The Arcane Vault | Essence, stone | Elementally resistant — physical cuts deeper |
+| The Dark Forest | **Wood, herbs** | Fast and evasive — accuracy over armour |
+| The Wild Marches | **Leather, bone** | Slow heavy brutes — a Tank holds them |
+| Silkmoth Hollow | **Cloth, herbs** | Swarms of weak attackers — sustain beats armour |
 
 So a Tier 4 Deepmines run you finish in twenty seconds can out-earn gold from a
 Tier 12 you barely survive. Cleared content stays useful, which was the single
@@ -114,9 +119,26 @@ on the Expeditions tab. Early runs are also deliberately short — dungeons reac
 their full wave count around Tier 8.
 
 **Itemisation** — Nine slots, 29 formula-driven bases, tiered affixes gated by
-item level, 19 uniques, and 13 crafting orbs with their real PoE behaviour.
-Everything is shared through one guild vault, so gearing is a genuine allocation
-problem across the whole roster.
+item level and 19 uniques, all shared through one guild vault, so gearing is a
+genuine allocation problem across the whole roster.
+
+**Materials** — Eight families (metal, cloth, leather, bone, wood, stone,
+essence, herb) at three grades each. They come from expeditions and from
+salvage — and salvage returns what the item is actually *made of*, so a plate
+cuirass gives metal, a robe gives cloth and a bow gives wood. Base type finally
+matters for something other than its stat block.
+
+**The workshop** — Eight bench recipes replace the old currency orbs. Temper
+raises quality, Imbue and Enrich promote rarity, Reforge rerolls a Rare,
+Augment adds a modifier, Refine rerolls numbers, Strip clears them and Warp is
+the one-way gamble. Costs scale with the item's level and use the family the
+item is built from, so reworking deep-tier gear is a project rather than a
+click.
+
+**Alchemy** — Flasks and elixirs brewed from herbs. A flask is assigned to a
+party and drunk on dispatch, buffing that whole expedition — armour, life,
+damage, attack speed, or the elixirs that raise item rarity and gold. Deciding
+which company gets the good one is the point.
 
 **Guild Hall** — Thirteen permanent upgrades. **Expedition Charters** are the
 headline purchase: each one lets another party run concurrently, which changes
@@ -157,13 +179,13 @@ src/
   expedition.js     party-vs-wave combat, loot, run resolution
   stats.js          class + level + traits + gear -> hero stat sheet
   items.js          item generation, affix rolling, naming
-  currency.js       crafting orb rules
   inventory.js      guild vault, salvage, Guild Hall purchases
   save.js           slots, migration, export/import
   ui.js             all rendering and interaction
   rng.js            seeded PRNG
   util.js           formatting and DOM helpers
-  data/             bases, affixes, uniques, currency, monsters,
+  crafting.js       bench recipes and alchemy
+  data/             bases, affixes, uniques, materials, recipes, monsters,
                     heroclasses, traits, dungeons, upgrades
 ```
 

@@ -130,9 +130,24 @@ export const STEPS = [
     tab: 'vault', target: '#vaultGrid',
     title: 'The Vault',
     body: 'Recovered equipment lands here, shared across the whole guild. Click an item for its '
-      + 'actions, <b>Shift-click</b> to salvage it into crafting orbs and gold, or '
+      + 'actions, <b>Shift-click</b> to break it down for materials and gold, or '
       + '<b>Ctrl-click</b> to lock it against bulk salvage.'
-      + '<br><br>Space is limited, so salvaging is part of the loop rather than a chore.',
+      + '<br><br>What an item breaks into depends on what it is made of — plate gives metal, '
+      + 'a robe gives cloth, a bow gives wood.',
+    advance: 'next',
+  },
+  {
+    id: 'workshop',
+    tab: 'orbs', target: '#orbGrid',
+    title: 'Materials and the Workshop',
+    body: 'Eight families of material, three grades each. They come from salvage and from '
+      + 'expeditions — and <b>where you send a party decides what you bring back</b>. The Dark '
+      + 'Forest yields wood and herbs; the Arcane Vault yields essence.'
+      + '<br><br>Below the materials is the bench: <b>Reforge</b> rerolls a Rare, <b>Augment</b> '
+      + 'adds a modifier, <b>Temper</b> raises quality. Costs scale with the item level, so '
+      + 'reworking deep-tier gear is a project.'
+      + '<br><br>The alchemy bench brews <b>flasks</b> from herbs. Assign one to a party and they '
+      + 'drink it on their way out.',
     advance: 'next',
   },
   {

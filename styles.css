@@ -1012,3 +1012,76 @@ body.splash-open { overflow:hidden; }
   color:var(--gold); font-size:12.5px; line-height:1.55;
 }
 .tut-ready-note b { color:#efe8dc; }
+
+/* ==========================================================================
+   Workshop: materials, recipes, alchemy
+   ========================================================================== */
+
+.mat-family {
+  padding:7px 9px; margin-bottom:5px;
+  border:1px solid var(--line); border-radius:3px; background:var(--bg-2);
+}
+.mat-family.empty { opacity:.5; }
+.mf-head {
+  font-size:10px; letter-spacing:1.4px; text-transform:uppercase; margin-bottom:5px;
+}
+.mf-row { display:flex; gap:5px; }
+.mat {
+  flex:1 1 0; display:flex; align-items:center; gap:5px;
+  padding:4px 7px; border-radius:3px;
+  border:1px solid var(--line); background:#0d0d11;
+  cursor:default; transition:border-color .12s;
+}
+.mat:hover { border-color:var(--line-2); }
+.mat.zero { opacity:.38; }
+.mat-dot {
+  width:9px; height:9px; border-radius:50%; flex:0 0 auto;
+  background:var(--mat); box-shadow:0 0 6px color-mix(in srgb, var(--mat) 55%, transparent);
+}
+.mat.g1 .mat-dot { opacity:.55; transform:scale(.78); }
+.mat.g2 .mat-dot { opacity:.8; }
+.mat.g3 .mat-dot { opacity:1; transform:scale(1.15); }
+.mat-n { font-size:11px; font-variant-numeric:tabular-nums; color:var(--ink-dim); }
+.mat.zero .mat-n { color:var(--ink-faint); }
+
+/* ---- Bench recipes ----------------------------------------------------- */
+.recipe-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:5px; }
+.recipe {
+  padding:7px 9px; border:1px solid var(--line); border-left:3px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
+}
+.recipe:hover { background:var(--bg-3); border-left-color:var(--gold-dim); }
+.recipe.selected {
+  border-color:var(--gold); border-left-color:var(--gold);
+  background:rgba(200,170,110,.12); box-shadow:0 0 10px rgba(200,170,110,.15);
+}
+.recipe.risky { border-left-color:#7a3226; }
+.recipe.risky .rc-name { color:#e0705c; }
+.rc-name { font-size:12px; color:var(--ink); margin-bottom:3px; }
+.recipe.selected .rc-name { color:var(--gold); }
+.rc-desc { font-size:10px; color:var(--ink-faint); line-height:1.45; }
+
+/* ---- Alchemy ----------------------------------------------------------- */
+.flask-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:5px; }
+.flask {
+  padding:8px 10px; border:1px solid var(--line); border-left:3px solid #3a5a3a;
+  border-radius:3px; background:var(--bg-2);
+}
+.flask.afford { border-left-color:var(--good); }
+.fl-top { display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
+.fl-name { font-size:12px; color:#9fd08a; }
+.fl-held { font-size:10px; color:var(--gold); }
+.fl-effect { font-size:10px; color:var(--r-magic); margin:3px 0 5px; line-height:1.4; }
+.fl-cost { display:flex; flex-wrap:wrap; gap:8px; font-size:10px; color:var(--ink-faint); margin-bottom:6px; }
+.fl-cost .short { color:#c9705c; }
+
+/* ---- Flask assignment on a party --------------------------------------- */
+.flask-picker {
+  display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-top:7px;
+  padding-top:7px; border-top:1px solid var(--line);
+}
+.fp-label {
+  font-size:9px; letter-spacing:1.2px; text-transform:uppercase; color:var(--ink-faint);
+  margin-right:2px;
+}
+.flask-picker .btn small { color:var(--gold); margin-left:3px; }

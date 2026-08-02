@@ -14,8 +14,9 @@ import {
   DUNGEON_BY_ID, RAID_BY_ID, tierToLevel, tierToIlvl, staminaCost, wavesFor,
 } from './data/dungeons.js';
 import { createItem, rollUnique } from './items.js';
-import { addToVault, addOrb } from './inventory.js';
-import { DROPPABLE } from './data/currency.js';
+import { addToVault, addMaterial, spendFlask } from './inventory.js';
+import { materialOf, gradeForIlvl } from './data/materials.js';
+import { FLASK_BY_ID } from './data/recipes.js';
 import { guildEffects } from './data/upgrades.js';
 import {
   partyById, partyMembers, heroById, canDispatch, staminaCostFor, grantHeroXp,
@@ -37,6 +38,11 @@ const MON_ACC_GROWTH = 1.22;
 
 const WAVE_GAP = 1.1;             // seconds between waves
 const DAMAGE_TYPES = ['phys', 'fire', 'cold', 'light', 'chaos'];
+
+/** Stat effect of whatever flask this run is carrying. */
+function flaskFx(run) { return run.flaskId ? (FLASK_BY_ID[run.flaskId]?.effect ?? {}) : {}; }
+/** Find-rate effect (rarity, gold) of this run's flask. */
+function flaskFind(run) { return run.flaskId ? (FLASK_BY_ID[run.flaskId]?.find ?? {}) : {}; }
 
 function tierScale(tier, base, growth, soft = SOFT_LIFE) {
   if (tier <= SOFT_CAP_TIER) return base * Math.pow(growth, tier - 1);
@@ -126,13 +132,18 @@ export function dispatch(partyId, dungeonId, tier) {
   const members = partyMembers(party);
   for (const hero of members) hero.stamina -= staminaCostFor(hero, cost);
 
+  // A flask is drunk on the way out, not saved for a rainy day.
+  let flaskId = null;
+  if (party.flask && spendFlask(party.flask, 1)) flaskId = party.flask;
+
   s.expeditions.push(buildRun({
     partyId, members, tier,
     dungeonId, dungeon, name: dungeon.name,
-    totalWaves: wavesFor(dungeon, tier), profile: dungeon.monsters,
+    totalWaves: wavesFor(dungeon, tier), profile: dungeon.monsters, flaskId,
   }));
 
-  log(`${party.name} sets out for ${dungeon.name} (Tier ${tier}).`, 'sys');
+  log(`${party.name} sets out for ${dungeon.name} (Tier ${tier}).`
+    + (flaskId ? ` They carry ${FLASK_BY_ID[flaskId].name}.` : ''), 'sys');
   emit('expeditions'); emit('roster');
   return { ok: true, msg: `${party.name} dispatched.` };
 }
@@ -181,11 +192,16 @@ function partySlotLimit() {
 }
 
 function buildRun(opts) {
+  const flask = opts.flaskId ? FLASK_BY_ID[opts.flaskId] : null;
+  const fx = flask?.effect ?? {};
+  const lifeMult = 1 + (fx.incLife ?? 0) / 100;
+
   const combatants = opts.members.map((hero) => {
     const sheet = G.sheets[hero.uid] ?? heroStats(hero, G.state.upgrades);
+    const maxLife = Math.round(sheet.life * lifeMult);
     return {
       uid: hero.uid, name: hero.name, classId: hero.classId, role: sheet.role,
-      life: sheet.life, maxLife: sheet.life,
+      life: maxLife, maxLife,
       es: sheet.es, maxES: sheet.es,
       timer: rng.range(0.1, 0.6), down: false,
     };
@@ -208,6 +224,7 @@ function buildRun(opts) {
     combatants,
     waveTimer: 0.7,
     elapsed: 0,
+    flaskId: opts.flaskId ?? null,
     status: 'running',
     rewards: { gold: 0, gear: 0, orbs: 0, xp: 0, uniques: 0, seals: 0 },
   };
@@ -258,10 +275,11 @@ function tickRun(run, dt) {
     const sheet = G.sheets[c.uid];
     if (!sheet) continue;
     c.timer -= dt;
+    const aps = sheet.aps * (1 + (flaskFx(run).incAtkSpeed ?? 0) / 100);
     let guard = 0;
     while (c.timer <= 0 && guard++ < 12 && run.enemies.length) {
       heroAct(run, c, sheet);
-      c.timer += 1 / Math.max(0.15, sheet.aps);
+      c.timer += 1 / Math.max(0.15, aps);
     }
     if (!run.enemies.length) break;
   }
@@ -288,8 +306,10 @@ function tickRun(run, dt) {
   // --- Regeneration ---
   for (const c of alive) {
     const sheet = G.sheets[c.uid];
-    if (sheet?.regen > 0 && c.life < c.maxLife) {
-      c.life = Math.min(c.maxLife, c.life + sheet.regen * dt);
+    const flaskRegen = c.maxLife * (flaskFx(run).lifeRegenPct ?? 0) / 100;
+    const regen = (sheet?.regen ?? 0) + flaskRegen;
+    if (regen > 0 && c.life < c.maxLife) {
+      c.life = Math.min(c.maxLife, c.life + regen * dt);
     }
   }
 }
@@ -337,12 +357,13 @@ function heroAct(run, c, sheet) {
 
   const crit = rng.chance(sheet.critChance / 100);
   const critMult = crit ? sheet.critMulti / 100 : 1;
+  const dmgMult = 1 + (flaskFx(run).incDamage ?? 0) / 100;
 
   let total = 0; let physDealt = 0;
   for (const type of DAMAGE_TYPES) {
     const [lo, hi] = sheet.dmg[type];
     if (hi <= 0) continue;
-    let d = rng.range(lo, hi) * critMult;
+    let d = rng.range(lo, hi) * critMult * dmgMult;
     if (type === 'phys') {
       d *= (1 - armourReduction(target.armour, d));
       physDealt += d;
@@ -382,7 +403,8 @@ function enemyAct(run, e) {
   let taken = 0;
   for (const [type, frac] of Object.entries(e.split)) {
     const raw = base * frac;
-    if (type === 'phys') taken += raw * (1 - armourReduction(sheet.armour, raw));
+    const armour = sheet.armour * (1 + (flaskFx(run).incArmour ?? 0) / 100);
+    if (type === 'phys') taken += raw * (1 - armourReduction(armour, raw));
     else taken += raw * (1 - (sheet.res[type]?.value ?? 0) / 100);
   }
   taken *= (1 + sheet.damageTaken / 100);
@@ -423,7 +445,7 @@ function onEnemyKilled(run, enemy) {
   // --- Gold ---
   const gold = Math.round(
     (1.6 + run.tier * 1.15) * enemy.dropMult * focus.gold
-    * (1 + (gu.gold + partyGold) / 100),
+    * (1 + (gu.gold + partyGold + (flaskFind(run).gold ?? 0)) / 100),
   );
   addGold(gold);
   run.rewards.gold += gold;
@@ -443,22 +465,39 @@ function onEnemyKilled(run, enemy) {
   // slots is ~45 slots to fill, so the drop rate has to be far higher than a
   // single-character game would use or nobody ever gets a weapon.
   const quant = 1 + (gu.quantity + partyBonus(run, 'quantity')) / 100;
-  const rarityBonus = gu.rarity + partyRarity;
+  const rarityBonus = gu.rarity + partyRarity + (flaskFind(run).rarity ?? 0);
   let gearRolls = 0.22 * enemy.dropMult * focus.gear * quant;
   let n = Math.floor(gearRolls);
   if (rng.chance(gearRolls - n)) n++;
   for (let k = 0; k < Math.min(n, 5); k++) dropGear(run, rarityBonus, enemy.isBoss);
 
-  // --- Orbs ---
-  let orbChance = 0.05 * enemy.dropMult * focus.orbs * quant * (1 + gu.orbs / 100);
-  let o = Math.floor(orbChance);
-  if (rng.chance(orbChance - o)) o++;
-  for (let k = 0; k < Math.min(o, 5); k++) {
-    const orb = rng.weighted(DROPPABLE, (x) => x.weight * (x.tier >= 3 ? 1 + rarityBonus / 400 : 1));
-    addOrb(orb.id, 1);
-    run.rewards.orbs++;
-    if (orb.tier >= 3) log(`${orb.name} recovered from ${run.name}.`, 'unique');
-  }
+  // --- Materials ---
+  let matChance = 0.30 * enemy.dropMult * (focus.mats ?? 1) * quant * (1 + gu.orbs / 100);
+  let o = Math.floor(matChance);
+  if (rng.chance(matChance - o)) o++;
+  for (let k = 0; k < Math.min(o, 8); k++) dropMaterial(run);
+}
+
+/**
+ * Materials come from the dungeon's own family table, so where you send a party
+ * decides what you can craft with afterwards.
+ */
+function dropMaterial(run) {
+  const dungeon = run.dungeonId ? DUNGEON_BY_ID[run.dungeonId] : null;
+  const table = dungeon?.materials ?? { metal: 1, stone: 1, essence: 1 };
+  const families = Object.entries(table);
+  const total = families.reduce((a, [, w]) => a + w, 0);
+  let roll = rng.float() * total;
+  let family = families[0][0];
+  for (const [f, w] of families) { roll -= w; if (roll <= 0) { family = f; break; } }
+
+  // Mostly the grade the tier supports, occasionally one better.
+  let grade = gradeForIlvl(run.ilvl);
+  if (grade < 3 && rng.chance(0.08)) grade++;
+  const mat = materialOf(family, grade);
+  addMaterial(mat.id, 1);
+  run.rewards.orbs++;
+  if (grade >= 3 && rng.chance(0.3)) log(`${mat.name} recovered from ${run.name}.`, 'unique');
 }
 
 function dropGear(run, rarityBonus, fromBoss) {
@@ -565,12 +604,8 @@ function grantClearBonus(run) {
   addGold(gold);
   run.rewards.gold += gold;
 
-  const orbs = Math.max(1, Math.round(dungeon.rewards.orbs * 1.6 * bonusMult * (1 + gu.orbs / 100)));
-  for (let i = 0; i < orbs; i++) {
-    const orb = rng.weighted(DROPPABLE, (x) => x.weight);
-    addOrb(orb.id, 1);
-    run.rewards.orbs++;
-  }
+  const mats = Math.max(2, Math.round((dungeon.rewards.mats ?? 1) * 3 * bonusMult * (1 + gu.orbs / 100)));
+  for (let i = 0; i < mats; i++) dropMaterial(run);
 
   const gearCount = Math.max(2, Math.round(dungeon.rewards.gear * 2.5 * bonusMult));
   for (let i = 0; i < gearCount; i++) dropGear(run, gu.rarity, true);
@@ -601,11 +636,7 @@ function grantRaidRewards(run) {
 
   addGold(def.reward.gold);
   run.rewards.gold += def.reward.gold;
-  for (let i = 0; i < def.reward.orbs; i++) {
-    const orb = rng.weighted(DROPPABLE.filter((x) => x.tier >= 2), (x) => x.weight);
-    addOrb(orb.id, 1);
-    run.rewards.orbs++;
-  }
+  for (let i = 0; i < def.reward.orbs; i++) dropMaterial(run);
   if (rng.chance(def.reward.uniqueChance)) {
     const u = rollUnique(tierToIlvl(def.tier));
     if (u && addToVault(u) === 'added') {
