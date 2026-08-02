@@ -963,3 +963,33 @@ body.splash-open { overflow:hidden; }
   border-color:#4a2a24; color:#c98a7a; background:linear-gradient(180deg,#241a18,#180f0e);
 }
 .splash .btn.danger:hover:not(:disabled) { border-color:var(--danger); color:#ff9c8c; }
+
+/* ---- Expeditions tab: the log gets its own scroller -------------------- */
+/* Without this the whole centre panel grew one ever-lengthening scrollbar as
+   the log filled up, pushing the dispatch controls off-screen. */
+#tab-expeditions.active { display:flex; flex-direction:column; overflow:hidden; }
+.exped-top { flex:1 1 auto; overflow-y:auto; min-height:0; padding-right:2px; }
+#tab-expeditions .log-head { flex:0 0 auto; margin-top:8px; }
+#tab-expeditions #guildLog {
+  flex:0 0 38%; min-height:130px; overflow-y:auto;
+  border:1px solid var(--line); border-radius:3px;
+  background:rgba(0,0,0,.22); padding:4px 6px;
+}
+
+/* ---- Auto-redeploy control -------------------------------------------- */
+.auto-box {
+  display:flex; align-items:center; gap:8px; margin-left:auto;
+  padding:3px 9px 3px 6px; border-radius:12px;
+  border:1px solid var(--line-2); background:rgba(0,0,0,.3);
+}
+.auto-box.locked { opacity:.72; }
+.auto-box .al {
+  font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--ink-dim);
+  white-space:nowrap;
+}
+.auto-box.on { border-color:var(--gold-dim); background:rgba(200,170,110,.10); }
+.auto-box.on .al { color:var(--gold); }
+.auto-lock { font-size:10px; color:var(--ink-faint); white-space:nowrap; }
+.switch.small { width:34px; height:18px; }
+.switch.small i::before { width:12px; height:12px; }
+.switch.small input:checked + i::before { transform:translateX(16px); }

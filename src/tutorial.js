@@ -99,8 +99,9 @@ export const STEPS = [
     title: 'The Expedition',
     body: 'Combat resolves on its own. Your party is on the left, the current enemies on the '
       + 'right, and the guild log below narrates it.'
-      + '<br><br>A hero who falls sits out the rest of the run — they are never lost permanently. '
-      + 'Let us watch them finish.',
+      + '<br><br>A hero who falls sits out the rest of the run — they are never lost permanently.'
+      + '<br><br><i>This first run is running at five times normal speed so you are not kept '
+      + 'waiting. Later expeditions take their own time.</i>',
     advance: 'wait',
     waitFor: () => G.state.expeditions.length === 0
       && (G.state.stats.runs + G.state.stats.runsFailed) > 0,
@@ -140,6 +141,17 @@ export const STEPS = [
     body: 'Permanent upgrades, bought with gold. Most raise your returns.'
       + '<br><br><b>Expedition Charters</b> are the one to aim for — each lets another party run '
       + 'at the same time, which changes how the game plays more than any stat.',
+    advance: 'next',
+  },
+  {
+    id: 'standingOrders',
+    tab: 'expeditions', target: '#autoDispatchBox',
+    title: 'Doing It Yourself',
+    body: 'Auto-redeploy lives here, and it is locked until you buy <b>Standing Orders</b> in the '
+      + 'Guild Hall for 1,500 gold.'
+      + '<br><br>That is deliberate. Sending the first several expeditions by hand is how you learn '
+      + 'which dungeon pays what and how far your party can be pushed. Once that is second nature, '
+      + 'buy it and let idle parties repeat their last run on their own.',
     advance: 'next',
   },
   {

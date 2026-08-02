@@ -11,7 +11,7 @@ import { G, log, emit, addGold, grantGuildXp } from './state.js';
 import { hitChance, armourReduction, heroStats } from './stats.js';
 import { ARCHETYPES, MONSTER_RARITY, CHAMPION_TITLES, GUARDIAN_TITLES } from './data/monsters.js';
 import {
-  DUNGEON_BY_ID, RAID_BY_ID, tierToLevel, tierToIlvl, staminaCost,
+  DUNGEON_BY_ID, RAID_BY_ID, tierToLevel, tierToIlvl, staminaCost, wavesFor,
 } from './data/dungeons.js';
 import { createItem, rollUnique } from './items.js';
 import { addToVault, addOrb } from './inventory.js';
@@ -129,7 +129,7 @@ export function dispatch(partyId, dungeonId, tier) {
   s.expeditions.push(buildRun({
     partyId, members, tier,
     dungeonId, dungeon, name: dungeon.name,
-    totalWaves: dungeon.waves, profile: dungeon.monsters,
+    totalWaves: wavesFor(dungeon, tier), profile: dungeon.monsters,
   }));
 
   log(`${party.name} sets out for ${dungeon.name} (Tier ${tier}).`, 'sys');

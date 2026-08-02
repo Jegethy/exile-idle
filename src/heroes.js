@@ -280,13 +280,18 @@ export function heroInfo(hero) {
 
 /**
  * Starting roster: one of each core role, each holding a basic weapon.
- * Unarmed heroes do almost no damage, so handing out kit here is the
- * difference between a first expedition that works and one that stalls.
+ *
+ * All three are deliberately Common. Handing out free Uncommons would make the
+ * first genuinely better recruit feel like a sidegrade, and the whole point of
+ * the recruit roll is that rarity is something you go and find.
+ *
+ * They do get basic kit, though — unarmed heroes deal almost no damage, which
+ * is the difference between a first expedition that works and one that stalls.
  */
 export function startingRoster() {
   const roster = [
-    rollHero({ classId: 'guardian', rarity: 'uncommon' }),
-    rollHero({ classId: 'berserker', rarity: 'uncommon' }),
+    rollHero({ classId: 'guardian', rarity: 'common' }),
+    rollHero({ classId: 'berserker', rarity: 'common' }),
     rollHero({ classId: 'cleric', rarity: 'common' }),
   ];
   for (const hero of roster) {

@@ -114,7 +114,19 @@ export function staminaCost(tier) {
   return Math.min(45, 8 + Math.floor(tier * 1.2));
 }
 
+/**
+ * Waves in a run at this tier.
+ *
+ * Early dungeons are deliberately short. A full-length Tier 1 run took over a
+ * minute of watching a log scroll, which is the worst possible pacing for the
+ * first few expeditions a player ever sends. Runs reach their full advertised
+ * length by around Tier 8, once there is enough else to be doing between them.
+ */
+export function wavesFor(dungeon, tier) {
+  return Math.max(3, Math.min(dungeon.waves, 2 + Math.ceil(tier * 0.8)));
+}
+
 /** Roughly how long an expedition takes, used for the UI estimate only. */
 export function expectedDuration(dungeon, tier) {
-  return dungeon.waves * (2.2 + tier * 0.05);
+  return wavesFor(dungeon, tier) * (2.4 + tier * 0.05);
 }

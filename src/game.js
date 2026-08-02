@@ -6,14 +6,20 @@ import * as Save from './save.js';
 import { tickAll, dispatch } from './expedition.js';
 import { restAll, startingRoster, createParty, assignToParty } from './heroes.js';
 import { rebuildSheets } from './stats.js';
+import { guildEffects } from './data/upgrades.js';
 import { initUI, renderAll, tick as uiTick } from './ui.js';
-import { startTutorial, shouldRunTutorial } from './tutorial.js';
+import { startTutorial, shouldRunTutorial, isTutorialActive } from './tutorial.js';
 import { initSplash, showSplash, hideSplash } from './splash.js';
 
 const AUTOSAVE_INTERVAL = 30;    // seconds
 const UI_INTERVAL = 0.1;
 const MAX_STEP = 0.25;           // clamp so tab-switching doesn't fast-forward
 const REDEPLOY_DELAY = 1.5;
+// The tutorial's demonstration expedition runs accelerated. Watching a real
+// one crawl by for a minute is the worst possible first impression, and the
+// step exists to show how a run reads, not to be endured. Skipping the
+// tutorial drops this immediately, since isTutorialActive() goes false.
+const TUTORIAL_SPEED = 5;
 
 let last = 0;
 let autosaveTimer = 0;
@@ -96,7 +102,7 @@ function loop(now) {
   const s = G.state;
   if (s && !G.paused) {
     s.playtime += dt;
-    const speed = s.settings.speed ?? 1;
+    const speed = (s.settings.speed ?? 1) * (isTutorialActive() ? TUTORIAL_SPEED : 1);
 
     if (s.expeditions.length) {
       // Sub-stepping keeps fast speeds from skipping attack timers.
@@ -128,6 +134,9 @@ function loop(now) {
  */
 function handleRedeploy(dt) {
   const s = G.state;
+  // Gated behind the Standing Orders unlock so the opening expeditions are
+  // dispatched by hand and the player learns what the choice is for.
+  if (!guildEffects(s.upgrades).autoDispatch) return;
   if (!s.settings.autoRedeploy) return;
   redeployTimer += dt;
   if (redeployTimer < REDEPLOY_DELAY) return;

@@ -59,8 +59,10 @@ runs a real expedition.
 
 Steps advance in three ways: pressing **Continue**, clicking the highlighted
 element, or waiting on the game itself (the expedition step waits for your party
-to actually come home). Progress is saved, so closing the tab mid-tutorial picks
-up where you left off.
+to actually come home). That demonstration run is accelerated 5× and says so, so
+the step takes a few seconds rather than a minute of watching a bar move.
+Skipping the tutorial drops the acceleration immediately. Progress is saved, so
+closing the tab mid-tutorial picks up where you left off.
 
 **Skip Tutorial** is always available. It warns that finishing is advised and
 that it cannot be restarted, and only then takes the choice.
@@ -89,6 +91,9 @@ Common to Legendary set both stat multipliers and how many **traits** a hero
 rolls — 28 traits across three tiers, from `Sturdy` to `Executioner`. Rogues
 bring back more gold; Treasure Hunters more still.
 
+Your three starters are all **Common** on purpose. Handing out free Uncommons
+would make the first genuinely better recruit feel like a sidegrade.
+
 **Roles are mechanical, not cosmetic.** Enemies pick targets by threat weight, so
 a Guardian at 6.0× soaks nearly everything. Healers spend their turn mending the
 most wounded ally instead of attacking. A party with no Tank and no Healer is
@@ -96,6 +101,13 @@ flagged in the UI, and dies accordingly.
 
 **Stamina** — Expeditions cost stamina that recovers while a hero rests, so roster
 depth matters: you rotate parties rather than running the same five heroes forever.
+
+**Dispatching by hand, at first.** Auto-redeploy is locked behind **Standing
+Orders**, a one-off 1,500 gold purchase in the Guild Hall. Sending the opening
+expeditions yourself is how you learn which dungeon pays what and how far a
+party can be pushed; once that is second nature, buy it and the toggle appears
+on the Expeditions tab. Early runs are also deliberately short — dungeons reach
+their full wave count around Tier 8.
 
 **Itemisation** — Nine slots, 29 formula-driven bases, tiered affixes gated by
 item level, 19 uniques, and 13 crafting orbs with their real PoE behaviour.

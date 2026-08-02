@@ -14,6 +14,14 @@ export const UPGRADES = [
     effect: (r) => ({ partySlots: r }),
   },
   {
+    id: 'autoDispatch', name: 'Standing Orders', cost: 'gold',
+    baseCost: 1500, growth: 1, max: 1,
+    desc: 'Lets idle parties re-run their last expedition without being told. '
+      + 'Bought once; the toggle then lives on the Expeditions tab.',
+    unit: ' — auto-redeploy unlocked',
+    effect: (r) => ({ autoDispatch: r }),
+  },
+  {
     id: 'quarters', name: 'Guild Quarters', cost: 'gold',
     baseCost: 300, growth: 1.55, max: 15,
     desc: 'Better beds. Heroes recover stamina faster between expeditions.',
@@ -112,7 +120,7 @@ export function upgradeCost(id, rank) {
 /** Accumulated effects of every purchased upgrade. */
 export function guildEffects(ranks = {}) {
   const out = {
-    partySlots: 0, stamina: 0, vaultSlots: 0, gold: 0, rarity: 0, quantity: 0,
+    partySlots: 0, autoDispatch: 0, stamina: 0, vaultSlots: 0, gold: 0, rarity: 0, quantity: 0,
     orbs: 0, xp: 0, recruitQuality: 0, healing: 0, incLife: 0, incArmour: 0,
     incDamage: 0, seals: 0,
   };

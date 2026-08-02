@@ -14,7 +14,7 @@ import { UNIQUE_BY_ID, UNIQUES } from './data/uniques.js';
 import { CURRENCIES, CURRENCY_BY_ID } from './data/currency.js';
 import { CLASS_BY_ID, RARITY_BY_ID } from './data/heroclasses.js';
 import {
-  DUNGEONS, DUNGEON_BY_ID, RAIDS, staminaCost, expectedDuration, tierToLevel,
+  DUNGEONS, DUNGEON_BY_ID, RAIDS, staminaCost, expectedDuration, tierToLevel, wavesFor,
 } from './data/dungeons.js';
 import { UPGRADES, upgradeCost, guildEffects } from './data/upgrades.js';
 import {
@@ -542,7 +542,8 @@ function renderDispatch() {
       <b class="tier-value">${tier}</b>
       <button class="btn tiny" id="tierUp" ${tier >= maxTier ? 'disabled' : ''}>+</button>
       <span class="hint">enemy level ~${tierToLevel(tier)} · ${staminaCost(tier)} stamina each</span>
-      <span class="hint" style="margin-left:auto">${free} charter${free === 1 ? '' : 's'} free</span>
+      <span class="hint">${free} charter${free === 1 ? '' : 's'} free</span>
+      ${autoDispatchControl()}
     </div>
     <div class="dungeon-grid">${DUNGEONS.map((d) => {
     const cleared = s.progress.cleared[`${d.id}:${tier}`] ?? 0;
@@ -557,7 +558,7 @@ function renderDispatch() {
           ${rewardBar('Gold', d.rewards.gold)}${rewardBar('Gear', d.rewards.gear)}
           ${rewardBar('XP', d.rewards.xp)}${rewardBar('Orbs', d.rewards.orbs)}
         </div>
-        <div class="dg-foot"><span class="hint">${d.waves} waves · ~${Math.round(expectedDuration(d, tier))}s${
+        <div class="dg-foot"><span class="hint">${wavesFor(d, tier)} waves · ~${Math.round(expectedDuration(d, tier))}s${
       cleared ? ` · cleared ${cleared}×` : ''}</span></div>
         <div class="dg-parties">${idleParties.length
       ? idleParties.map((p) => {
@@ -571,6 +572,16 @@ function renderDispatch() {
       </div>`;
   }).join('')}</div>`;
 
+  const toggle = qs('#autoRedeployToggle');
+  if (toggle) {
+    toggle.onchange = () => {
+      s.settings.autoRedeploy = toggle.checked;
+      setStatus(toggle.checked
+        ? 'Auto-redeploy on — idle parties will re-run their last expedition.'
+        : 'Auto-redeploy off.');
+      renderDispatch();
+    };
+  }
   qs('#tierDown').onclick = () => { ui.dispatchTier = Math.max(1, tier - 1); renderDispatch(); };
   qs('#tierUp').onclick = () => { ui.dispatchTier = Math.min(maxTier, tier + 1); renderDispatch(); };
   host.querySelector('.dungeon-grid').onclick = (e) => {
@@ -583,6 +594,28 @@ function renderDispatch() {
       if (party) party.lastRun = { dungeonId: b.dataset.dg, tier: ui.dispatchTier };
     }
   };
+}
+
+/**
+ * Auto-redeploy sits here rather than in Settings so it is discoverable, and is
+ * locked until Standing Orders is bought — the opening expeditions are meant to
+ * be dispatched by hand.
+ */
+function autoDispatchControl() {
+  const s = G.state;
+  const unlocked = guildEffects(s.upgrades).autoDispatch > 0;
+  if (!unlocked) {
+    return `<div class="auto-box locked" id="autoDispatchBox" title="Buy Standing Orders in the Guild Hall">
+      <span class="al">Auto-redeploy</span>
+      <span class="auto-lock">🔒 Guild Hall</span>
+    </div>`;
+  }
+  const on = !!s.settings.autoRedeploy;
+  return `<div class="auto-box ${on ? 'on' : ''}" id="autoDispatchBox"
+               title="Idle parties re-run their last expedition automatically">
+    <span class="al">Auto-redeploy</span>
+    <label class="switch small"><input type="checkbox" id="autoRedeployToggle" ${on ? 'checked' : ''}><i></i></label>
+  </div>`;
 }
 
 function rewardBar(label, mult) {
@@ -690,7 +723,7 @@ function renderHall() {
     const label = cost && (cost.kind === 'gold'
       ? `${fmtInt(cost.amount)}g` : `${cost.amount}× ${CURRENCY_BY_ID[cost.orb]?.short ?? ''}`);
 
-    return `<div class="upgrade ${maxed ? 'maxed' : afford ? 'afford' : ''}">
+    return `<div class="upgrade ${maxed ? 'maxed' : afford ? 'afford' : ''}" data-upgrade="${u.id}">
       <div class="up-top">
         <span class="up-name">${escapeHtml(u.name)}</span>
         <span class="up-rank">${rank}/${u.max}</span>
@@ -1278,8 +1311,6 @@ function renderSettings() {
   if (!host || !G.state) return;
   const s = G.state;
   host.innerHTML = `
-    ${toggleRow('autoRedeploy', 'Auto-redeploy parties',
-    'Off by default. When on, an idle party is re-sent wherever it last went, stamina permitting.')}
     ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items become orbs on pickup.')}
     ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items become orbs on pickup.')}
     ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items become orbs. Uniques are never auto-salvaged.')}
