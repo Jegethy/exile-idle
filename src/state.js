@@ -3,11 +3,22 @@
 import { rng } from './rng.js';
 import { EQUIP_SLOTS } from './data/bases.js';
 import { CURRENCIES } from './data/currency.js';
+import { upgradeEffects } from './data/upgrades.js';
 import { createItem } from './items.js';
 
-export const SAVE_VERSION = 1;
-export const INVENTORY_CAPACITY = 60;   // 12 x 5 grid
-export const MAP_CAPACITY = 40;
+export const SAVE_VERSION = 2;
+export const BASE_INVENTORY_CAPACITY = 60;
+export const BASE_MAP_CAPACITY = 40;
+
+/** Inventory size, including any Bulging Pack upgrade ranks. */
+export function inventoryCapacity(state = G.state) {
+  return BASE_INVENTORY_CAPACITY + (upgradeEffects(state?.upgrades).invSlots ?? 0);
+}
+
+/** Map stash size, including any Cartographer's Case upgrade ranks. */
+export function mapCapacity(state = G.state) {
+  return BASE_MAP_CAPACITY + (upgradeEffects(state?.upgrades).mapSlots ?? 0);
+}
 
 /** Live game singleton. Modules read `G.state` and `G.derived`. */
 export const G = {
@@ -87,8 +98,14 @@ export function createState(name = 'Exile', classId = 'scion') {
       unlocked: 1,          // highest tier the player may craft/run
       safeTier: 1,          // adaptive ceiling used by auto-run (see combat.js)
       completed: {},        // tier -> completions
+      bonus: {},            // tier -> true once cleared on a Rare map
       bossKills: {},        // bossId -> kills
     },
+
+    // Permanent, account-wide purchases. See data/upgrades.js.
+    upgrades: {},
+    // uniqueId -> number found, for the collection log.
+    collection: {},
 
     combat: null,           // active run, see maps.js/combat.js
 

@@ -58,18 +58,11 @@
       </div>
 
       <div class="tab-body" id="tab-passives">
-        <div id="passiveHeader"></div>
-        <div id="treeWrap">
-          <svg id="tree" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div class="tree-hint">Drag to pan · Scroll to zoom</div>
-          <div class="tree-controls">
-            <button class="btn tiny" id="btnTreeZoomIn">+</button>
-            <button class="btn tiny" id="btnTreeZoomOut">−</button>
-            <button class="btn tiny" id="btnTreeReset">Reset</button>
-          </div>
+        <div class="tree-teaser">
+          <h3>Passive Skill Tree</h3>
+          <p class="hint">206 nodes across six class arms. The tree opens full screen.</p>
+          <button class="btn primary" id="btnOpenTree">Open Passive Tree</button>
         </div>
-        <div id="passiveInfo" class="passive-info">Hover a node for details. Click to allocate.</div>
-        <div id="ascendancyPanel" class="asc-panel"></div>
       </div>
     </section>
 
@@ -79,6 +72,7 @@
         <button class="tab active" data-tab="combat">Combat</button>
         <button class="tab" data-tab="atlas">Atlas <span class="badge" id="mapBadge">0</span></button>
         <button class="tab" data-tab="bosses">Pinnacle</button>
+        <button class="tab" data-tab="hideout">Hideout</button>
       </nav>
 
       <div class="tab-body active" id="tab-combat">
@@ -105,6 +99,16 @@
 
       <div class="tab-body" id="tab-bosses">
         <div id="bossList"></div>
+      </div>
+
+      <div class="tab-body" id="tab-hideout">
+        <div id="hideoutSummary"></div>
+        <div class="section-head"><span>Permanent Upgrades</span></div>
+        <div id="upgradeList" class="upgrade-list"></div>
+        <div class="section-head">
+          <span>Unique Collection <b id="collectionCount"></b></span>
+        </div>
+        <div id="collectionList" class="collection-list"></div>
       </div>
     </section>
 
@@ -149,6 +153,30 @@
     <span id="statusLeft">Ready.</span>
     <span id="statusRight"></span>
   </footer>
+</div>
+
+<!-- ================= FULL-SCREEN PASSIVE TREE ================= -->
+<div id="treeScreen" class="tree-screen hidden">
+  <header class="tree-topbar">
+    <button class="btn" id="btnCloseTree">← Back to Game</button>
+    <div id="passiveHeader" class="tree-points"></div>
+    <div class="tree-controls">
+      <button class="btn tiny" id="btnTreeZoomOut">−</button>
+      <button class="btn tiny" id="btnTreeZoomIn">+</button>
+      <button class="btn tiny" id="btnTreeReset">Reset View</button>
+    </div>
+  </header>
+
+  <div class="tree-main">
+    <div id="treeWrap">
+      <svg id="tree" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="tree-hint">Drag to pan · Scroll to zoom · Esc to close</div>
+    </div>
+    <aside class="tree-side">
+      <div id="passiveInfo" class="passive-info">Hover a node for details. Click to allocate.</div>
+      <div id="ascendancyPanel" class="asc-panel"></div>
+    </aside>
+  </div>
 </div>
 
 <!-- ================= FLOATING TOOLTIP ================= -->

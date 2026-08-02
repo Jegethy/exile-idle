@@ -7,6 +7,7 @@
 
 import { BASE_BY_ID } from './data/bases.js';
 import { CLASS_BY_ID } from './data/classes.js';
+import { upgradeEffects } from './data/upgrades.js';
 import { itemBaseStats, applyItemMods } from './items.js';
 import { applyPassives } from './passives.js';
 import { clamp } from './util.js';
@@ -73,6 +74,12 @@ export function computeStats(state, mm = null) {
 
   // ---- 2. Passives -------------------------------------------------------
   const flags = applyPassives(state, bag);
+
+  // Permanent Hideout upgrades apply to every character in the save.
+  const up = upgradeEffects(state.upgrades);
+  bag.incLife += up.incLife;
+  bag.incES += up.incES;
+  bag.incDamage += up.incDamage;
 
   // ---- 3. Map modifiers --------------------------------------------------
   if (mm) {

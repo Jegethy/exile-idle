@@ -5,10 +5,11 @@ import { clamp, fmt } from './util.js';
 import { G, log, emit, grantXp, monsterXp, tierToLevel, tierToIlvl } from './state.js';
 import { computeStats, hitChance, armourReduction } from './stats.js';
 import { ARCHETYPES, MONSTER_RARITY, RARE_TITLES, BOSSES, BOSS_BY_ID, MAP_BOSS_TITLES } from './data/monsters.js';
-import { mapModifiers, monsterCount, recordCompletion, rollMapDrops } from './maps.js';
+import { mapModifiers, monsterCount, recordCompletion, rollMapDrops, atlasBonuses } from './maps.js';
 import { createItem, rollUnique } from './items.js';
 import { addItem, addCurrency, removeItem, spendCurrency } from './inventory.js';
 import { DROPPABLE } from './data/currency.js';
+import { upgradeEffects } from './data/upgrades.js';
 
 // --- Balance constants -----------------------------------------------------
 // Tier 1 is level-1 content and Tier 16 is roughly a finished character, so
@@ -425,7 +426,8 @@ function onKill(c, d, m) {
   s.stats.kills++;
   c.monster = null;
 
-  const xp = monsterXp(c.tier, m.xpMult, s.player.level) * (1 + c.mm.xp / 100);
+  const upXp = upgradeEffects(s.upgrades).xp;
+  const xp = monsterXp(c.tier, m.xpMult, s.player.level) * (1 + (c.mm.xp + upXp) / 100);
   c.rewards.xp += xp;
   const levels = grantXp(s, xp);
   if (levels > 0) {
@@ -444,7 +446,7 @@ function onKill(c, d, m) {
   }
 
   c.index++;
-  c.travelTimer = TRAVEL_TIME;
+  c.travelTimer = TRAVEL_TIME / (1 + upgradeEffects(s.upgrades).travel / 100);
   emit('combat');
 }
 
@@ -472,21 +474,26 @@ function onDeath(c, source) {
 function completeMap() {
   const s = G.state;
   const c = s.combat;
+  const up = upgradeEffects(s.upgrades);
   c.status = 'complete';
   s.stats.mapsRun++;
-  recordCompletion(c.tier);
+  const { firstClear, firstBonus } = recordCompletion(c.tier, c.map);
   // Clearing a map proves the build can handle one step further.
   s.atlas.safeTier = Math.max(s.atlas.safeTier ?? 1, c.tier + 1);
 
+  if (firstClear) log(`Atlas: Tier ${c.tier} completed for the first time. (+1% Quantity and Rarity)`, 'unique');
+  if (firstBonus) log(`Atlas: Tier ${c.tier} bonus objective complete! (+3% Quantity and Rarity)`, 'unique');
+
   // Map drops.
-  const drops = rollMapDrops(c.map, c.mm);
+  const drops = rollMapDrops(c.map, c.mm, up.mapDrops);
   for (const mapItem of drops) {
     if (addItem(mapItem) === 'added') c.rewards.maps++;
   }
+  if (c.rewards.maps < drops.length) log('Map stash is full — some maps were left behind.', 'danger');
 
   // Pinnacle fragments start appearing once the player is deep enough.
   if (c.tier >= 5) {
-    const chance = 0.10 + c.tier * 0.012 + c.mm.quant / 1200;
+    const chance = (0.10 + c.tier * 0.012 + c.mm.quant / 1200) * (1 + up.fragments / 100);
     if (rng.chance(Math.min(0.65, chance))) {
       const n = 1 + (rng.chance(0.2) ? 1 : 0);
       addCurrency('fragment', n);
@@ -553,11 +560,15 @@ function logRunSummary(c, outcome) {
 
 function rollLoot(c, d, m) {
   const s = G.state;
-  const quant = 1 + (c.mm.quant + d.quantity) / 100;
-  const rarityBonus = c.mm.rarity + d.rarity;
+  // Three stacking reward sources: the map's own mods, gear/passives, and the
+  // permanent Atlas + Hideout progression.
+  const up = upgradeEffects(s.upgrades);
+  const atlas = atlasBonuses(s);
+  const quant = 1 + (c.mm.quant + d.quantity + up.quantity + atlas.quant) / 100;
+  const rarityBonus = c.mm.rarity + d.rarity + up.rarity + atlas.rarity;
 
   // --- Currency ---
-  const curChance = 0.055 * m.dropMult * quant * (1 + c.mm.currency / 100);
+  const curChance = 0.055 * m.dropMult * quant * (1 + (c.mm.currency + up.currency) / 100);
   let curDrops = Math.floor(curChance);
   if (rng.chance(curChance - curDrops)) curDrops++;
   for (let i = 0; i < Math.min(curDrops, 6); i++) {
@@ -581,14 +592,19 @@ function rollLoot(c, d, m) {
     // Map bosses roll several items each, so their per-item rate has to stay
     // modest or every single map would hand out a unique.
     const uniqueBase = m.isBoss ? 2.5 : 0.5;
-    const uniqueCut = uniqueBase * (1 + rarityBonus / 250);
+    const uniqueCut = uniqueBase * (1 + rarityBonus / 250) * (1 + up.unique / 100);
     const rareCut = uniqueCut + 7 * (1 + rarityBonus / 100);
     const magicCut = rareCut + 30 * (1 + rarityBonus / 200);
 
     let item;
     if (roll < uniqueCut) {
       item = rollUnique(c.ilvl);
-      if (item) { s.stats.uniquesFound++; log(`${item.name} dropped!`, 'unique'); }
+      if (item) {
+        s.stats.uniquesFound++;
+        s.collection[item.uniqueId] = (s.collection[item.uniqueId] ?? 0) + 1;
+        const isNew = s.collection[item.uniqueId] === 1;
+        log(`${item.name} dropped!${isNew ? ' (new to your collection)' : ''}`, 'unique');
+      }
     }
     if (!item) {
       const rarity = roll < rareCut ? 'rare' : roll < magicCut ? 'magic' : 'normal';

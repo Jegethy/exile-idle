@@ -370,11 +370,19 @@ export function itemScore(item) {
   return Math.round((item.ilvl * 0.6 + modScore * 4) * rarityMult);
 }
 
-/** Drops a random unique appropriate to the item level, or null if none fit. */
+/**
+ * Drops a random unique appropriate to the item level, or null if none fit.
+ *
+ * Weighting is biased toward uniques whose own level requirement is near the
+ * map's item level. Without this, a Tier 16 map would roll the level-1 uniques
+ * just as often as its own, and no tier band would ever be the *right* place to
+ * hunt a specific item. Low-level uniques stay possible, just rarer.
+ */
 export function rollUnique(ilvl) {
   const pool = uniquesFor(ilvl);
   if (!pool.length) return null;
-  return createItem({ uniqueId: rng.weighted(pool, (u) => u.weight).id, ilvl });
+  const weightFor = (u) => u.weight / (1 + Math.max(0, ilvl - u.lvl) * 0.035);
+  return createItem({ uniqueId: rng.weighted(pool, weightFor).id, ilvl });
 }
 
 /** Corrupts an item — small chance of a bonus, small chance of a downgrade. */

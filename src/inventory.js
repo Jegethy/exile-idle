@@ -1,21 +1,22 @@
 // inventory.js — carrying, equipping and salvaging items.
 
-import { G, log, emit, INVENTORY_CAPACITY, MAP_CAPACITY } from './state.js';
+import { G, log, emit, inventoryCapacity, mapCapacity } from './state.js';
 import { rng } from './rng.js';
 import { BASE_BY_ID } from './data/bases.js';
 import { itemScore, RARITY } from './items.js';
 import { CURRENCIES, CURRENCY_VALUE } from './data/currency.js';
+import { UPGRADE_BY_ID, upgradeCost } from './data/upgrades.js';
 
 /** Where an item lives: gear goes to `inventory`, maps to `maps`. */
 function binFor(item) { return item.kind === 'map' ? 'maps' : 'inventory'; }
-function capacityFor(item) { return item.kind === 'map' ? MAP_CAPACITY : INVENTORY_CAPACITY; }
+function capacityFor(item) { return item.kind === 'map' ? mapCapacity() : inventoryCapacity(); }
 
 export function invCount() { return G.state.inventory.length; }
 export function mapCount() { return G.state.maps.length; }
 
 export function isFull(kind = 'gear') {
   const s = G.state;
-  return kind === 'map' ? s.maps.length >= MAP_CAPACITY : s.inventory.length >= INVENTORY_CAPACITY;
+  return kind === 'map' ? s.maps.length >= mapCapacity() : s.inventory.length >= inventoryCapacity();
 }
 
 /**
@@ -260,3 +261,32 @@ export function spendCurrency(id, n = 1) {
 }
 
 export function hasCurrency(id, n = 1) { return (G.state.stash[id] ?? 0) >= n; }
+
+// ---------------------------------------------------------------------------
+// Permanent upgrades
+// ---------------------------------------------------------------------------
+
+/**
+ * Buys the next rank of a Hideout upgrade.
+ * @returns {{ok: boolean, msg: string}}
+ */
+export function buyUpgrade(id) {
+  const s = G.state;
+  const def = UPGRADE_BY_ID[id];
+  if (!def) return { ok: false, msg: 'Unknown upgrade.' };
+
+  const rank = s.upgrades[id] ?? 0;
+  if (rank >= def.max) return { ok: false, msg: `${def.name} is already at maximum rank.` };
+
+  const cost = upgradeCost(id, rank);
+  if (!hasCurrency(cost.currency, cost.amount)) {
+    const c = CURRENCIES.find((x) => x.id === cost.currency);
+    return { ok: false, msg: `Needs ${cost.amount}x ${c?.name ?? cost.currency}.` };
+  }
+
+  spendCurrency(cost.currency, cost.amount);
+  s.upgrades[id] = rank + 1;
+  log(`${def.name} improved to rank ${rank + 1}.`, 'loot');
+  emit('upgrades'); emit('stash'); emit('stats');
+  return { ok: true, msg: `${def.name} is now rank ${rank + 1}.` };
+}

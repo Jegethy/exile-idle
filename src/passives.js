@@ -262,7 +262,11 @@ function buildTree() {
     const id = `key_${ks.arm}_${ks.seg}`;
     add({
       id, name: ks.name, kind: 'keystone',
-      x: p.x, y: p.y, stats: { ...ks.stats }, flags: { ...ks.flags }, desc: ks.desc, links: [],
+      x: p.x, y: p.y, stats: { ...ks.stats }, flags: { ...ks.flags }, desc: ks.desc,
+      // Keystones on opposite branches label above vs below, so neighbouring
+      // pairs like Zealot's Oath and Wicked Ward don't overprint each other.
+      labelAbove: ks.side < 0,
+      links: [],
     });
     link(`${ks.arm}_s${ks.seg}`, id);
   }

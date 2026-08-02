@@ -4,13 +4,14 @@
 // (health bars, timers) are refreshed from the main loop via tick().
 
 import {
-  G, on, emit, log, xpToNext, tierToLevel, INVENTORY_CAPACITY, MAP_CAPACITY, newCharacter,
+  G, on, emit, log, xpToNext, tierToLevel, tierToIlvl,
+  inventoryCapacity, mapCapacity, newCharacter,
 } from './state.js';
 import { fmt, fmtInt, fmtTime, signed, clamp, qs, qsa, el, escapeHtml } from './util.js';
 import { computeStats, ehp } from './stats.js';
 import { RARITY, itemBaseStats, itemMods, itemDescriptor } from './items.js';
 import { BASE_BY_ID, EQUIP_SLOTS, SLOTS } from './data/bases.js';
-import { UNIQUE_BY_ID } from './data/uniques.js';
+import { UNIQUE_BY_ID, UNIQUES } from './data/uniques.js';
 import { CURRENCIES, CURRENCY_BY_ID } from './data/currency.js';
 import {
   CLASSES, CLASS_BY_ID, ASCENDANCIES, ascendanciesFor,
@@ -18,13 +19,16 @@ import {
 } from './data/classes.js';
 import {
   addItem, equipItem, unequipItem, salvageItem, salvageAll, countSalvageable,
-  sortInventory, sortMaps, spendCurrency, hasCurrency, toggleLock, findItem,
+  sortInventory, sortMaps, spendCurrency, hasCurrency, toggleLock, findItem, buyUpgrade,
 } from './inventory.js';
 import { applyCurrency, canApply } from './currency.js';
-import { createMap, mapModLines, mapModifiers, mapDanger, monsterCount, grantStarterMap } from './maps.js';
+import {
+  createMap, mapModLines, mapModifiers, mapDanger, monsterCount, grantStarterMap, atlasBonuses,
+} from './maps.js';
 import { startMap, startBossFight, abandonMap, mapProgress, clearSpeed, refreshDerived } from './combat.js';
 import { BOSSES } from './data/monsters.js';
 import { describeStats } from './data/statlabels.js';
+import { UPGRADES, UPGRADE_BY_ID, upgradeCost, upgradeEffects } from './data/upgrades.js';
 import {
   TREE, TREE_RADIUS, START_IDS, nodeText, canAllocate, canRefund,
   pointSummary, ascendancySummary, treeIsFull, startFor,
@@ -69,7 +73,8 @@ export function initUI() {
   on('log', () => { renderLog(); });
   on('passives', () => { renderTree(); renderPassiveHeader(); renderStatSheet(); });
   on('saves', () => { renderSlots(); });
-  on('loaded', () => { ui.craftCurrency = null; renderAll(); });
+  on('upgrades', () => { renderUpgrades(); });
+  on('loaded', () => { ui.craftCurrency = null; closeTree(); renderAll(); });
 
   renderAll();
 }
@@ -90,6 +95,8 @@ export function renderAll() {
   renderInventory();
   renderCurrency();
   renderCraftPanel();
+  renderUpgrades();
+  renderCollection();
   renderSettings();
 }
 
@@ -118,8 +125,36 @@ function selectTab(nav, tabId) {
   const panel = nav.parentElement;
   qsa('.tab', nav).forEach((b) => b.classList.toggle('active', b.dataset.tab === tabId));
   qsa('.tab-body', panel).forEach((b) => b.classList.toggle('active', b.id === `tab-${tabId}`));
-  if (tabId === 'passives') requestAnimationFrame(renderTree);
+  // The tree needs the whole screen to be usable, so its tab is just a door.
+  if (tabId === 'passives') openTree();
+  if (tabId === 'hideout') { renderUpgrades(); renderCollection(); }
 }
+
+// ===========================================================================
+// Full-screen passive tree
+// ===========================================================================
+
+export function openTree() {
+  qs('#treeScreen').classList.remove('hidden');
+  document.body.classList.add('tree-open');
+  renderPassiveHeader();
+  // The SVG needs a laid-out container before it can size itself.
+  requestAnimationFrame(() => { renderTree(); applyTreeTransform(); });
+}
+
+export function closeTree() {
+  qs('#treeScreen').classList.add('hidden');
+  document.body.classList.remove('tree-open');
+  // Leave the left panel on a real tab rather than the tree's door.
+  const btn = qs('.tab[data-tab="character"]');
+  if (btn) {
+    qsa('.tab', btn.parentElement).forEach((b) => b.classList.toggle('active', b.dataset.tab === 'character'));
+    qsa('.tab-body', btn.parentElement.parentElement)
+      .forEach((b) => b.classList.toggle('active', b.id === 'tab-character'));
+  }
+}
+
+function treeIsOpen() { return !qs('#treeScreen').classList.contains('hidden'); }
 
 /** Programmatic tab switch by tab id. */
 function gotoTab(tabId) {
@@ -423,6 +458,8 @@ function wireTree() {
     ui.tree.x = 0; ui.tree.y = 0; ui.tree.scale = 1;
     applyTreeTransform();
   };
+  qs('#btnCloseTree').onclick = closeTree;
+  qs('#btnOpenTree').onclick = openTree;
 
   svg.addEventListener('click', (e) => {
     const g = e.target.closest('.tn');
@@ -439,11 +476,17 @@ function zoomTree(factor) {
   applyTreeTransform();
 }
 
+/** Zoom past this and notable names appear; below it only landmarks are named. */
+const LABEL_DETAIL_ZOOM = 1.35;
+
 function applyTreeTransform() {
   const g = qs('#treeG');
   if (!g) return;
   const { x, y, scale } = ui.tree;
   g.setAttribute('transform', `translate(${x} ${y}) scale(${scale})`);
+  // 30 notables sitting shoulder to shoulder makes their labels collide at
+  // fit-zoom, so only keystones and class starts are named until you zoom in.
+  qs('#tree').classList.toggle('detail', scale >= LABEL_DETAIL_ZOOM);
 }
 
 function renderTree() {
@@ -470,8 +513,9 @@ function renderTree() {
     }
 
     for (const node of Object.values(TREE)) {
+      const dy = node.kind === 'start' ? 58 : node.labelAbove ? -44 : 52;
       const label = node.kind === 'minor' ? '' :
-        `<text class="tn-l" x="${node.x.toFixed(1)}" y="${(node.y + (node.kind === 'start' ? 58 : 50)).toFixed(1)}">${escapeHtml(node.name)}</text>`;
+        `<text class="tn-l" x="${node.x.toFixed(1)}" y="${(node.y + dy).toFixed(1)}">${escapeHtml(node.name)}</text>`;
       parts.push(
         `<g class="tn ${node.kind}" data-id="${node.id}">` +
         `<circle class="tn-c" cx="${node.x.toFixed(1)}" cy="${node.y.toFixed(1)}"/>` +
@@ -725,7 +769,7 @@ function wireAtlasActions() {
   qs('#btnSortMaps').onclick = () => sortMaps();
   qs('#btnCraftMap').onclick = () => {
     if (!hasCurrency('alchemy', 1)) { setStatus('You need an Orb of Alchemy to craft a map.'); return; }
-    if (G.state.maps.length >= MAP_CAPACITY) { setStatus('Map stash is full.'); return; }
+    if (G.state.maps.length >= mapCapacity()) { setStatus('Map stash is full.'); return; }
     spendCurrency('alchemy', 1);
     const map = createMap({ tier: 1, rarity: 'rare' });
     addItem(map);
@@ -739,13 +783,19 @@ function renderAtlas() {
   const host = qs('#atlasSummary');
   const maxShown = Math.max(16, a.unlocked + 2);
 
+  const bonuses = atlasBonuses(s);
+
   let cells = '';
   for (let t = 1; t <= maxShown; t++) {
     const done = (a.completed[t] ?? 0) > 0;
+    const bonus = !!a.bonus?.[t];
     const locked = t > a.unlocked;
-    cells += `<div class="atlas-cell ${done ? 'done' : ''} ${locked ? 'locked' : ''}"
-      title="Tier ${t}${done ? ` — completed ${a.completed[t]}x` : ''}${locked ? ' — locked' : ''}">
-      ${t}${done ? `<small>${a.completed[t]}</small>` : ''}</div>`;
+    const title = `Tier ${t}`
+      + (done ? ` — cleared ${a.completed[t]}x` : ' — not yet cleared')
+      + (bonus ? ' — bonus objective complete' : done ? ' — clear a RARE map here for the bonus' : '')
+      + (locked ? ' — locked' : '');
+    cells += `<div class="atlas-cell ${done ? 'done' : ''} ${bonus ? 'bonus' : ''} ${locked ? 'locked' : ''}"
+      title="${escapeHtml(title)}">${t}${done ? `<small>${a.completed[t]}</small>` : ''}</div>`;
   }
 
   host.innerHTML = `
@@ -755,6 +805,14 @@ function renderAtlas() {
         <span class="map-meta">Highest T${a.highestTier} · Unlocked T${a.unlocked} · ${fmtInt(s.stats.mapsRun)} runs</span>
       </div>
       <div class="atlas-grid">${cells}</div>
+      <div class="atlas-objectives">
+        <span>Tiers cleared <b>${bonuses.cleared}</b></span>
+        <span>Bonus objectives <b class="gold">${bonuses.bonuses}</b></span>
+        <span>Atlas reward <b class="gold">+${bonuses.quant}% Quantity &amp; Rarity</b></span>
+      </div>
+      <p class="hint" style="margin-top:5px">Clearing a tier for the first time grants +1%
+        permanently. Clearing it again on a <b style="color:var(--r-rare)">Rare</b> map completes
+        its bonus objective for +3% more — a reason to revisit tiers you have outgrown.</p>
     </div>`;
   qs('#mapBadge').textContent = s.maps.length;
 }
@@ -859,6 +917,142 @@ function renderBosses() {
 }
 
 // ===========================================================================
+// Hideout: permanent upgrades and the unique collection log
+// ===========================================================================
+
+function renderHideoutSummary() {
+  const s = G.state;
+  const host = qs('#hideoutSummary');
+  if (!host) return;
+  const up = upgradeEffects(s.upgrades);
+  const atlas = atlasBonuses(s);
+  const ranks = Object.values(s.upgrades ?? {}).reduce((a, b) => a + b, 0);
+
+  host.innerHTML = `
+    <div class="map-banner">
+      <div class="map-banner-top">
+        <span class="map-title">Your Hideout</span>
+        <span class="map-meta">${ranks} upgrade rank${ranks === 1 ? '' : 's'} purchased</span>
+      </div>
+      <p class="hint" style="margin-top:6px">Upgrades are permanent and apply to every
+        character in this save. Low tiers you can clear in seconds are often the fastest
+        way to fund them.</p>
+      <div class="hideout-stats">
+        <span>Quantity <b>+${up.quantity + atlas.quant}%</b></span>
+        <span>Rarity <b>+${up.rarity + atlas.rarity}%</b></span>
+        <span>Currency <b>+${up.currency}%</b></span>
+        <span>Experience <b>+${up.xp}%</b></span>
+        <span>Map drops <b>+${up.mapDrops}%</b></span>
+        <span>Uniques <b>+${up.unique}%</b></span>
+      </div>
+    </div>`;
+}
+
+function renderUpgrades() {
+  const s = G.state;
+  const host = qs('#upgradeList');
+  if (!host) return;
+  renderHideoutSummary();
+
+  host.innerHTML = UPGRADES.map((u) => {
+    const rank = s.upgrades[u.id] ?? 0;
+    const maxed = rank >= u.max;
+    const cost = upgradeCost(u.id, rank);
+    const cur = cost ? CURRENCY_BY_ID[cost.currency] : null;
+    const have = cost ? (s.stash[cost.currency] ?? 0) : 0;
+    const afford = cost ? have >= cost.amount : false;
+    const now = u.effect(rank);
+    const next = maxed ? null : u.effect(rank + 1);
+    const key = Object.keys(now)[0];
+
+    return `<div class="upgrade ${maxed ? 'maxed' : afford ? 'afford' : ''}">
+      <div class="up-top">
+        <span class="up-name">${escapeHtml(u.name)}</span>
+        <span class="up-rank">${rank}/${u.max}</span>
+      </div>
+      <div class="up-desc">${escapeHtml(u.desc)}</div>
+      <div class="up-effect">
+        ${next
+    ? `<b>${fmt(now[key] ?? 0)} → ${fmt(next[key] ?? 0)}</b>${escapeHtml(u.unit)}`
+    : `<b>${fmt(now[key] ?? 0)}</b>${escapeHtml(u.unit)} <span class="up-next">MAX</span>`}
+      </div>
+      <div class="up-buy">
+        ${maxed ? '<span class="up-max">Fully upgraded</span>' : `
+          <button class="btn tiny ${afford ? 'primary' : ''}" data-buy="${u.id}" ${afford ? '' : 'disabled'}>
+            ${cost.amount}x ${escapeHtml(cur?.short ?? '')}
+          </button>
+          <span class="up-have ${afford ? '' : 'short'}">have ${fmtInt(have)}</span>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  host.onclick = (e) => {
+    const btn = e.target.closest('[data-buy]');
+    if (!btn || btn.disabled) return;
+    const res = buyUpgrade(btn.dataset.buy);
+    setStatus(res.msg);
+    renderUpgrades();
+    refreshDerived();
+  };
+  host.onmouseover = (e) => {
+    const card = e.target.closest('[data-buy]');
+    if (!card) return;
+    const u = UPGRADE_BY_ID[card.dataset.buy];
+    const cost = upgradeCost(u.id, G.state.upgrades[u.id] ?? 0);
+    showUpgradeTooltip(u, cost, e);
+  };
+  host.onmouseout = hideTooltip;
+  host.onmousemove = moveTooltip;
+}
+
+function showUpgradeTooltip(u, cost, event) {
+  const cur = CURRENCY_BY_ID[cost.currency];
+  const t = tip();
+  t.className = 'tooltip';
+  t.innerHTML = `
+    <div class="tt-name" style="color:var(--gold)">${escapeHtml(u.name)}</div>
+    <div class="tt-sep"></div>
+    <div class="tt-implicit">${escapeHtml(u.desc)}</div>
+    <div class="tt-line" style="margin-top:6px"><label>Cost</label>
+      <span>${cost.amount}x ${escapeHtml(cur?.name ?? '')}</span></div>
+    <div class="tt-line"><label>You have</label>
+      <span>${fmtInt(G.state.stash[cost.currency] ?? 0)}</span></div>`;
+  t.classList.remove('hidden');
+  moveTooltip(event);
+}
+
+/**
+ * Unique collection log. Unfound entries stay visible with their level
+ * requirement, which doubles as a hint about which tier band to farm — unique
+ * drop weighting favours items near the map's item level.
+ */
+function renderCollection() {
+  const s = G.state;
+  const host = qs('#collectionList');
+  if (!host) return;
+  const found = UNIQUES.filter((u) => (s.collection?.[u.id] ?? 0) > 0).length;
+  qs('#collectionCount').textContent = `${found}/${UNIQUES.length}`;
+
+  const sorted = UNIQUES.slice().sort((a, b) => a.lvl - b.lvl);
+  host.innerHTML = sorted.map((u) => {
+    const n = s.collection?.[u.id] ?? 0;
+    const tier = tierForItemLevel(u.lvl);
+    return `<div class="col-entry ${n ? 'found' : ''}" title="${escapeHtml(u.flavour ?? '')}">
+      <div class="col-name">${n ? escapeHtml(u.name) : '???'}</div>
+      <div class="col-meta">${n
+    ? `found ${n}×`
+    : `item level ${u.lvl} · around Tier ${tier}`}</div>
+    </div>`;
+  }).join('');
+}
+
+/** Rough map tier that produces a given item level — used as a farming hint. */
+function tierForItemLevel(ilvl) {
+  for (let t = 1; t <= 40; t++) if (tierToIlvl(t) >= ilvl) return t;
+  return 40;
+}
+
+// ===========================================================================
 // Equipment doll & inventory
 // ===========================================================================
 
@@ -946,7 +1140,7 @@ function renderDoll() {
 function renderInventory() {
   const s = G.state;
   const host = qs('#invGrid');
-  qs('#invCount').textContent = `${s.inventory.length}/${INVENTORY_CAPACITY}`;
+  qs('#invCount').textContent = `${s.inventory.length}/${inventoryCapacity()}`;
   renderSalvageBar();
 
   if (!s.inventory.length) {
@@ -1383,6 +1577,7 @@ function wireModals() {
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (ui.craftCurrency) { selectCurrency(null); return; }
+    if (treeIsOpen() && qs('#modalBackdrop').classList.contains('hidden')) { closeTree(); return; }
     closeModals();
   });
 

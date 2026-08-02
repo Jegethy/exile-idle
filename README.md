@@ -83,9 +83,42 @@ Map mods make monsters stronger *and* raise item quantity/rarity, so rolling a
 dangerous map is the core risk/reward decision. Chisels add quality; Vaal Orbs
 corrupt. Every map ends in a boss.
 
+Completed maps drop **more maps**, spread across one tier below, the same tier,
+and one tier above (30 / 45 / 25). A map returns about 2.3 maps on average, so a
+tier sustains itself once you can clear it, the downward flow builds a backlog to
+farm, and the upward flow feeds progression.
+
+**Atlas objectives** — Clearing a tier for the first time grants **+1% Quantity
+and Rarity permanently**. Clearing it again on a **Rare** map completes that
+tier's *bonus objective* for **+3% more**. Both stack across the whole Atlas and
+can only be earned once per tier, which is what makes revisiting outgrown tiers
+worth doing.
+
+**Hideout upgrades** — Twelve permanent, account-wide upgrades bought with
+currency: map drops, rarity, quantity, currency, uniques, experience, clear
+speed, stash space, and flat life/damage. Each costs a specific orb type, so the
+whole currency table stays useful. This is the game's long-term sink and the
+reason fast low tiers compete with slow high ones — a Tier 4 map you clear in
+twenty seconds can out-earn a Tier 12 you limp through.
+
+**Unique collection** — A log of every unique, with unfound entries showing the
+item level and rough tier to hunt them at. Unique drops are weighted toward
+items near the map's item level, so tier bands are genuinely different hunting
+grounds rather than interchangeable.
+
 **Saving** — Three localStorage slots, auto-save every 30 seconds, plus base64
 export/import and `.json` download/upload. Old saves are migrated forward field by
 field, so they survive updates.
+
+## Where the depth comes from
+
+The loop is deliberately layered so there is always something to aim at:
+
+| Horizon | Goal |
+|---|---|
+| Minutes | Clear a map, craft a drop, equip an upgrade |
+| Session | Finish Atlas bonus objectives, buy the next Hideout rank, hunt a specific unique |
+| Long term | Push tiers, kill pinnacle bosses, fill the collection, max the tree into mastery |
 
 ## Balance
 

@@ -77,6 +77,11 @@ export function deserialize(payload) {
  * we no longer recognise is dropped and refunded.
  */
 function migrate(state) {
+  // Notes are stashed on the state because log() writes to G.state, which is
+  // still null while a save is being deserialised. flushMigrationNotes() emits
+  // them once the state is actually installed.
+  const notes = [];
+
   if (!CLASS_BY_ID[state.player.class]) state.player.class = 'scion';
   if (!state.passives.ascendancy || typeof state.passives.ascendancy !== 'object') {
     state.passives.ascendancy = {};
@@ -89,8 +94,24 @@ function migrate(state) {
   }
   if (dropped) {
     state.passives.allocated = alloc;
-    log(`The passive tree has changed — ${dropped} point${dropped === 1 ? '' : 's'} refunded.`, 'sys');
+    notes.push(`The passive tree has changed — ${dropped} passive point${dropped === 1 ? '' : 's'} were refunded. Spend them in the Passives tab.`);
   }
+
+  // Non-enumerable so it never reaches JSON, but configurable so the later
+  // `delete` doesn't throw — ES modules run in strict mode.
+  if (notes.length) {
+    Object.defineProperty(state, '__notes', {
+      value: notes, enumerable: false, writable: true, configurable: true,
+    });
+  }
+}
+
+/** Emits any migration messages now that G.state is live. */
+function flushMigrationNotes() {
+  const notes = G.state?.__notes;
+  if (!notes) return;
+  for (const n of notes) log(n, 'danger');
+  delete G.state.__notes;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +142,7 @@ export function loadSlot(slot) {
     G.slot = slot;
     localStorage.setItem(SETTINGS_KEY, String(slot));
     emit('loaded');
+    flushMigrationNotes();
     return true;
   } catch (e) {
     log(`Could not load slot ${slot + 1}: ${e.message}`, 'danger');
@@ -187,6 +209,7 @@ export function importSave(text) {
   const state = deserialize(JSON.parse(json));
   G.state = state;
   emit('loaded');
+  flushMigrationNotes();
   return true;
 }
 

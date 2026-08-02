@@ -241,9 +241,34 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
    Passive tree
    ========================================================================== */
 
+/* ---- Full-screen tree overlay ----------------------------------------- */
+.tree-screen {
+  position:fixed; inset:0; z-index:850; display:flex; flex-direction:column;
+  background:radial-gradient(ellipse at center, #101018 0%, #050508 78%);
+}
+body.tree-open { overflow:hidden; }
+
+.tree-topbar {
+  flex:0 0 auto; display:flex; align-items:center; gap:14px;
+  padding:9px 14px; border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#15151b,#0c0c10);
+  box-shadow:0 2px 14px rgba(0,0,0,.6);
+}
+.tree-points { flex:1 1 auto; display:flex; align-items:center; gap:10px; }
+.tree-main { flex:1 1 auto; display:flex; min-height:0; }
+.tree-main #treeWrap { flex:1 1 auto; border:none; border-radius:0; }
+.tree-side {
+  flex:0 0 330px; display:flex; flex-direction:column; gap:8px;
+  padding:10px; overflow-y:auto; border-left:1px solid var(--line);
+  background:rgba(0,0,0,.35);
+}
+
+.tree-teaser { text-align:center; padding:34px 16px; }
+.tree-teaser h3 { color:var(--gold); letter-spacing:2px; margin-bottom:6px; }
+.tree-teaser .btn { margin-top:12px; }
+
 #passiveHeader {
-  display:flex; align-items:center; justify-content:space-between; gap:8px;
-  flex:0 0 auto; padding-bottom:8px; border-bottom:1px solid var(--line); margin-bottom:6px;
+  display:flex; align-items:center; gap:10px; flex:1 1 auto;
 }
 .points-pill {
   padding:4px 10px; border:1px solid var(--gold-dim); border-radius:12px;
@@ -254,7 +279,7 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 #treeWrap {
   position:relative; flex:1 1 auto; min-height:220px;
   background:radial-gradient(ellipse at center, #14141b 0%, #08080b 75%);
-  border:1px solid var(--line); border-radius:3px; overflow:hidden; cursor:grab;
+  overflow:hidden; cursor:grab;
 }
 #treeWrap.dragging { cursor:grabbing; }
 #tree { width:100%; height:100%; display:block; touch-action:none; }
@@ -282,7 +307,15 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 .tn.notable.on .tn-c { fill:#6b5320; }
 .tn.keystone .tn-c { fill:#1d1414; stroke:#6a4038; }
 .tn.keystone.on .tn-c { fill:#7a2f22; stroke:#e08a70; }
-.tn-l { font-size:26px; fill:var(--ink-dim); text-anchor:middle; pointer-events:none; user-select:none; }
+.tn-l {
+  font-size:24px; fill:var(--ink-dim); text-anchor:middle;
+  pointer-events:none; user-select:none;
+  paint-order:stroke; stroke:#08080b; stroke-width:5px; stroke-linejoin:round;
+}
+/* Notables are only named once zoomed in — see LABEL_DETAIL_ZOOM in ui.js. */
+.tn.notable .tn-l { display:none; }
+#tree.detail .tn.notable .tn-l { display:block; }
+.tn.keystone .tn-l { fill:#e0a08a; font-size:26px; }
 .tn.on .tn-l { fill:var(--gold); }
 
 .passive-info {
@@ -464,8 +497,54 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
   font-size:11px; color:var(--ink-faint); position:relative;
 }
 .atlas-cell.done { border-color:var(--gold-dim); color:var(--gold); background:rgba(200,170,110,.09); }
+.atlas-cell.bonus {
+  border-color:var(--r-rare); color:var(--r-rare);
+  background:rgba(255,255,119,.10); box-shadow:0 0 8px rgba(255,255,119,.18) inset;
+}
 .atlas-cell.locked { opacity:.32; }
 .atlas-cell small { position:absolute; bottom:1px; right:2px; font-size:8px; color:var(--ink-faint); }
+
+.atlas-objectives {
+  display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; padding-top:7px;
+  border-top:1px solid var(--line); font-size:11px; color:var(--ink-dim);
+}
+.atlas-objectives b { color:var(--ink); }
+.atlas-objectives b.gold { color:var(--gold); }
+
+/* ---- Hideout: upgrades & collection ------------------------------------ */
+.hideout-stats {
+  display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; padding-top:7px;
+  border-top:1px solid var(--line); font-size:11px; color:var(--ink-dim);
+}
+.hideout-stats b { color:var(--gold); }
+
+.upgrade-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:6px; }
+.upgrade {
+  padding:8px 10px; border:1px solid var(--line); border-left:3px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2);
+}
+.upgrade.afford { border-left-color:var(--gold); }
+.upgrade.maxed { border-left-color:var(--good); opacity:.75; }
+.up-top { display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
+.up-name { font-size:12px; color:var(--ink); }
+.up-rank { font-size:10px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
+.up-desc { font-size:10px; color:var(--ink-faint); line-height:1.4; margin:3px 0 5px; }
+.up-effect { font-size:11px; color:var(--gold); }
+.up-effect .up-next { color:var(--ink-faint); margin-left:5px; }
+.up-buy { display:flex; align-items:center; gap:6px; margin-top:6px; }
+.up-have { font-size:10px; color:var(--ink-faint); }
+.up-have.short { color:#a4574a; }
+.up-max { font-size:10px; color:var(--good); }
+
+.collection-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:5px; }
+.col-entry {
+  padding:6px 8px; border:1px solid var(--line); border-left:3px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2); opacity:.55;
+}
+.col-entry.found { opacity:1; border-left-color:var(--r-unique); }
+.col-name { font-size:11px; color:var(--ink-faint); }
+.col-entry.found .col-name { color:var(--r-unique); }
+.col-meta { font-size:9px; color:var(--ink-faint); margin-top:2px; }
 
 .map-list { display:flex; flex-direction:column; gap:4px; }
 .map-row {

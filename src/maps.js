@@ -113,39 +113,83 @@ export function mapDanger(map, mm) {
 // Atlas progression
 // ---------------------------------------------------------------------------
 
-/** Records a completion and unlocks the next tier. */
-export function recordCompletion(tier) {
+/**
+ * Records a completion and unlocks the next tier.
+ *
+ * Clearing a tier on a *Rare* map also ticks its "bonus objective", which is
+ * the mechanism that makes outgrown tiers worth revisiting: bonuses are
+ * permanent, stack across the whole Atlas, and can only be earned one per tier.
+ *
+ * @returns {{firstClear: boolean, firstBonus: boolean}}
+ */
+export function recordCompletion(tier, map) {
   const a = G.state.atlas;
+  const firstClear = !a.completed[tier];
   a.completed[tier] = (a.completed[tier] ?? 0) + 1;
   if (tier > a.highestTier) a.highestTier = tier;
   if (tier >= a.unlocked) a.unlocked = tier + 1;
   if (tier > G.state.stats.bestTier) G.state.stats.bestTier = tier;
+
+  let firstBonus = false;
+  if (map && map.rarity === 'rare' && !a.bonus[tier]) {
+    a.bonus[tier] = true;
+    firstBonus = true;
+  }
+  return { firstClear, firstBonus };
 }
 
+/** Permanent Atlas rewards: +1% quant/rarity per tier cleared, +3% per bonus. */
+export const ATLAS_CLEAR_BONUS = 1;
+export const ATLAS_OBJECTIVE_BONUS = 3;
+
+export function atlasBonuses(state = G.state) {
+  const a = state.atlas;
+  const cleared = Object.keys(a.completed ?? {}).length;
+  const bonuses = Object.keys(a.bonus ?? {}).length;
+  const amount = cleared * ATLAS_CLEAR_BONUS + bonuses * ATLAS_OBJECTIVE_BONUS;
+  return { cleared, bonuses, quant: amount, rarity: amount };
+}
+
+// Where dropped maps land relative to the map you just ran. Mirrors Path of
+// Exile: mostly sideways, often down, sometimes up. Same-tier weight is high
+// enough that a map roughly replaces itself, so a tier sustains once you can
+// clear it, while the downward flow builds a backlog for farming and the
+// upward flow feeds progression.
+const TIER_SPREAD = [
+  { delta: -1, weight: 30 },
+  { delta: 0, weight: 45 },
+  { delta: +1, weight: 25 },
+];
+
+/** Average maps returned per map completed, before quantity bonuses. */
+const BASE_MAP_DROPS = 2.2;
+
 /**
- * Maps dropped on completion. Higher quantity means more maps, and there's a
- * real chance of a tier upgrade — that's how the Atlas advances.
+ * Maps dropped on completion.
+ *
+ * Expected count is deliberately above 1: dropping a single map made every run
+ * feel like breaking even at best, and one bad roll stranded the player on the
+ * Atlas's free Tier 1. Item Quantity and the Cartographer's Eye upgrade both
+ * push it higher.
  */
-export function rollMapDrops(map, mm) {
+export function rollMapDrops(map, mm, bonusPct = 0) {
   const drops = [];
-  const quantMult = 1 + mm.quant / 100;
-  const expected = 0.85 * quantMult;
+  const expected = BASE_MAP_DROPS * (1 + (mm.quant / 100) * 0.55 + bonusPct / 100);
+
   let n = Math.floor(expected);
   if (rng.chance(expected - n)) n++;
-  n = Math.min(n, 5);
+  n = clamp(n, 1, 8);              // never zero — a run always feeds the next one
 
   for (let i = 0; i < n; i++) {
-    let tier = map.tier;
-    const roll = rng.float();
-    if (roll < 0.20 + mm.quant / 900) tier = map.tier + 1;
-    else if (roll < 0.30) tier = Math.max(1, map.tier - 1);
-    // Can't skip ahead of what the Atlas has unlocked by more than one step.
-    tier = clamp(tier, 1, G.state.atlas.unlocked + 1);
+    const spread = rng.weighted(TIER_SPREAD, (t) => t.weight);
+    // Can't leap past what the Atlas has unlocked; at Tier 1 a "down" roll has
+    // nowhere to go, so it becomes another map of the same tier.
+    const tier = clamp(map.tier + spread.delta, 1, G.state.atlas.unlocked + 1);
 
     let rarity = 'normal';
     const rr = rng.float() * 100;
-    if (rr < 4 + mm.rarity / 22) rarity = 'rare';
-    else if (rr < 26 + mm.rarity / 8) rarity = 'magic';
+    if (rr < 5 + mm.rarity / 20) rarity = 'rare';
+    else if (rr < 28 + mm.rarity / 8) rarity = 'magic';
 
     drops.push(createMap({ tier, rarity }));
   }
