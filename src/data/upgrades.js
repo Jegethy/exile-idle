@@ -57,11 +57,11 @@ export const UPGRADES = [
     effect: (r) => ({ quantity: r * 8 }),
   },
   {
-    id: 'archive', name: 'Arcane Archive', cost: 'gold',
+    id: 'archive', name: 'Gathering Crews', cost: 'gold',
     baseCost: 600, growth: 1.46, max: 20,
-    desc: 'Expeditions recover more crafting orbs.',
-    unit: '% increased Orb drops',
-    effect: (r) => ({ orbs: r * 10 }),
+    desc: 'Expeditions recover more crafting materials.',
+    unit: '% increased Material drops',
+    effect: (r) => ({ materials: r * 10 }),
   },
   {
     id: 'trainers', name: 'Training Yard', cost: 'gold',
@@ -121,7 +121,7 @@ export function upgradeCost(id, rank) {
 export function guildEffects(ranks = {}) {
   const out = {
     partySlots: 0, autoDispatch: 0, stamina: 0, vaultSlots: 0, gold: 0, rarity: 0, quantity: 0,
-    orbs: 0, xp: 0, recruitQuality: 0, healing: 0, incLife: 0, incArmour: 0,
+    materials: 0, xp: 0, recruitQuality: 0, healing: 0, incLife: 0, incArmour: 0,
     incDamage: 0, seals: 0,
   };
   for (const u of UPGRADES) {

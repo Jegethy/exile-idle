@@ -121,7 +121,7 @@ export const STEPS = [
     id: 'rewards',
     tab: 'expeditions', target: '#guildLog',
     title: 'The Returns',
-    body: 'Gold, equipment, crafting orbs and experience, split by whatever the dungeon '
+    body: 'Gold, equipment, crafting materials and experience, split by whatever the dungeon '
       + 'specialises in. Clearing the final wave pays a bonus chest on top.',
     advance: 'next',
   },
@@ -138,7 +138,7 @@ export const STEPS = [
   },
   {
     id: 'workshop',
-    tab: 'orbs', target: '#orbGrid',
+    tab: 'orbs', target: '#materialGrid',
     title: 'Materials and the Workshop',
     body: 'Eight families of material, three grades each. They come from salvage and from '
       + 'expeditions — and <b>where you send a party decides what you bring back</b>. The Dark '
@@ -253,6 +253,10 @@ export function tutorialTick() {
 
 function advance() {
   const step = STEPS[index];
+  // Single choke point for the wait invariant. Nothing — a stray timer, a
+  // click handler left over from the previous step, a double-fire — may push
+  // past a wait step until its condition has actually been met.
+  if (step?.advance === 'wait' && !waitReady) return;
   step?.onExit?.();
   if (index + 1 >= STEPS.length) { stopTutorial(false); return; }
   index++;
@@ -351,7 +355,7 @@ function attachClick(step) {
       || (live && live.contains(e.target));
     if (!hit) return;
     detachClick();
-    setTimeout(advance, 260);
+    setTimeout(() => advance(), 260);
   };
   document.addEventListener('click', clickHandler, false);
 }

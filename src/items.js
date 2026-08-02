@@ -19,7 +19,7 @@ export const RARITY = {
 export const AFFIX_CAPS = { normal: 0, magic: 1, rare: 3, unique: 0 };
 
 // ---------------------------------------------------------------------------
-// Implicit modifiers — determined by base type, rerollable with Blessed Orbs.
+// Implicit modifiers — determined by base type, rerolled by the Refine recipe.
 // ---------------------------------------------------------------------------
 
 export const IMPLICITS = [
@@ -97,7 +97,7 @@ export function rollAffix(def, ilvl) {
   return { defId: def.id, tierIndex, values };
 }
 
-/** Rerolls only the numbers of an existing affix (Divine Orb). */
+/** Rerolls only the numbers of an existing affix (the Refine recipe). */
 export function divineAffix(aff, ilvl) {
   const def = AFFIX_BY_ID[aff.defId];
   if (!def) return aff;

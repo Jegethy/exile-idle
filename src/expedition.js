@@ -226,7 +226,7 @@ function buildRun(opts) {
     elapsed: 0,
     flaskId: opts.flaskId ?? null,
     status: 'running',
-    rewards: { gold: 0, gear: 0, orbs: 0, xp: 0, uniques: 0, seals: 0 },
+    rewards: { gold: 0, gear: 0, materials: 0, xp: 0, uniques: 0, seals: 0 },
   };
 }
 
@@ -440,7 +440,7 @@ function onEnemyKilled(run, enemy) {
   const partyRarity = partyBonus(run, 'rarity');
   const partyGold = partyBonus(run, 'gold');
   const dungeon = run.dungeonId ? DUNGEON_BY_ID[run.dungeonId] : null;
-  const focus = dungeon?.rewards ?? { gold: 1, gear: 1, xp: 1, orbs: 1 };
+  const focus = dungeon?.rewards ?? { gold: 1, gear: 1, xp: 1, mats: 1 };
 
   // --- Gold ---
   const gold = Math.round(
@@ -472,7 +472,7 @@ function onEnemyKilled(run, enemy) {
   for (let k = 0; k < Math.min(n, 5); k++) dropGear(run, rarityBonus, enemy.isBoss);
 
   // --- Materials ---
-  let matChance = 0.30 * enemy.dropMult * (focus.mats ?? 1) * quant * (1 + gu.orbs / 100);
+  let matChance = 0.30 * enemy.dropMult * (focus.mats ?? 1) * quant * (1 + gu.materials / 100);
   let o = Math.floor(matChance);
   if (rng.chance(matChance - o)) o++;
   for (let k = 0; k < Math.min(o, 8); k++) dropMaterial(run);
@@ -496,7 +496,7 @@ function dropMaterial(run) {
   if (grade < 3 && rng.chance(0.08)) grade++;
   const mat = materialOf(family, grade);
   addMaterial(mat.id, 1);
-  run.rewards.orbs++;
+  run.rewards.materials++;
   if (grade >= 3 && rng.chance(0.3)) log(`${mat.name} recovered from ${run.name}.`, 'unique');
 }
 
@@ -578,7 +578,7 @@ function finishRun(run, success) {
   }
 
   const r = run.rewards;
-  log(`${name}: ${fmt(r.gold)} gold · ${r.gear} items · ${r.orbs} orbs · ${fmt(r.xp)} xp `
+  log(`${name}: ${fmt(r.gold)} gold · ${r.gear} items · ${r.materials} materials · ${fmt(r.xp)} xp `
     + `in ${run.elapsed.toFixed(0)}s.`, success ? 'loot' : 'danger');
 
   const i = s.expeditions.indexOf(run);
@@ -604,7 +604,7 @@ function grantClearBonus(run) {
   addGold(gold);
   run.rewards.gold += gold;
 
-  const mats = Math.max(2, Math.round((dungeon.rewards.mats ?? 1) * 3 * bonusMult * (1 + gu.orbs / 100)));
+  const mats = Math.max(2, Math.round((dungeon.rewards.mats ?? 1) * 3 * bonusMult * (1 + gu.materials / 100)));
   for (let i = 0; i < mats; i++) dropMaterial(run);
 
   const gearCount = Math.max(2, Math.round(dungeon.rewards.gear * 2.5 * bonusMult));
@@ -636,7 +636,7 @@ function grantRaidRewards(run) {
 
   addGold(def.reward.gold);
   run.rewards.gold += def.reward.gold;
-  for (let i = 0; i < def.reward.orbs; i++) dropMaterial(run);
+  for (let i = 0; i < def.reward.materials; i++) dropMaterial(run);
   if (rng.chance(def.reward.uniqueChance)) {
     const u = rollUnique(tierToIlvl(def.tier));
     if (u && addToVault(u) === 'added') {

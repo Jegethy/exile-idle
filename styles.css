@@ -1085,3 +1085,16 @@ body.splash-open { overflow:hidden; }
   margin-right:2px;
 }
 .flask-picker .btn small { color:var(--gold); margin-left:3px; }
+
+/* Material families need real width — the generic currency grid squeezed eight
+   of them onto one row and the counts spilled out of their boxes. */
+.material-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:6px; }
+.material-grid .mat-family { margin-bottom:0; }
+.material-grid .mf-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
+.material-grid .mat {
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  min-width:0; padding:4px 5px; overflow:hidden;
+}
+.material-grid .mat-n {
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}

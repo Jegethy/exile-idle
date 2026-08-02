@@ -54,11 +54,11 @@ export function initUI() {
   wireModals();
   wireVaultActions();
   wireLogFilters();
-  buildOrbGrid();
+  buildMaterialGrid();
 
   on('roster', () => { renderRoster(); renderParties(); renderDispatch(); renderEquipTarget(); });
   on('vault', () => { renderVault(); renderEquipTarget(); });
-  on('materials', () => { renderOrbs(); renderCraftPanel(); });
+  on('materials', () => { renderMaterials(); renderCraftPanel(); });
   on('guild', () => { renderGuildBar(); renderQuickStats(); renderHall(); renderDispatch(); renderRaids(); });
   on('upgrades', () => { renderHall(); renderQuickStats(); renderDispatch(); });
   on('sheets', () => { renderRoster(); renderParties(); });
@@ -82,7 +82,7 @@ export function renderAll() {
   renderCollection();
   renderEquipTarget();
   renderVault();
-  renderOrbs();
+  renderMaterials();
   renderCraftPanel();
   renderLog();
   renderSettings();
@@ -115,7 +115,7 @@ function selectTab(nav, tabId) {
   qsa('.tab-body', panel).forEach((b) => b.classList.toggle('active', b.id === `tab-${tabId}`));
   if (tabId === 'hall') { renderHall(); renderCollection(); }
   // Refresh on entry so affordability never shows stale after a run.
-  if (tabId === 'orbs') { renderOrbs(); renderCraftPanel(); }
+  if (tabId === 'orbs') { renderMaterials(); renderCraftPanel(); }
   if (tabId === 'parties') renderParties();
 }
 
@@ -556,7 +556,7 @@ function updateRunBars() {
     const st = qs(`[data-runstats="${run.id}"]`);
     if (st) {
       st.textContent = `${fmtTime(run.elapsed)} · ${fmt(run.rewards.gold)}g · `
-        + `${run.rewards.gear} items · ${run.rewards.orbs} orbs`;
+        + `${run.rewards.gear} items · ${run.rewards.materials} materials`;
     }
   }
 }
@@ -593,7 +593,7 @@ function renderDispatch() {
         <div class="dg-counter">${escapeHtml(d.counter)}</div>
         <div class="dg-rewards">
           ${rewardBar('Gold', d.rewards.gold)}${rewardBar('Gear', d.rewards.gear)}
-          ${rewardBar('XP', d.rewards.xp)}${rewardBar('Orbs', d.rewards.orbs)}
+          ${rewardBar('XP', d.rewards.xp)}${rewardBar('Mats', d.rewards.mats)}
         </div>
         <div class="dg-foot"><span class="hint">${wavesFor(d, tier)} waves · ~${Math.round(expectedDuration(d, tier))}s${
       cleared ? ` · cleared ${cleared}×` : ''}</span></div>
@@ -742,7 +742,7 @@ function renderHall() {
         <span>Gold <b>+${gu.gold}%</b></span>
         <span>Rarity <b>+${gu.rarity}%</b></span>
         <span>Quantity <b>+${gu.quantity}%</b></span>
-        <span>Orbs <b>+${gu.orbs}%</b></span>
+        <span>Materials <b>+${gu.materials}%</b></span>
         <span>Experience <b>+${gu.xp}%</b></span>
         <span>Charters <b>${1 + gu.partySlots}</b></span>
       </div>
@@ -815,7 +815,7 @@ function wireVaultActions() {
       const n = countSalvageable(f.test);
       if (!n) { setStatus(`No unlocked ${f.label} items in the vault.`); return; }
       confirmAction(`Salvage ${n} item${n === 1 ? '' : 's'}?`,
-        `All unlocked ${f.label} items in the vault become orbs and gold. `
+        `All unlocked ${f.label} items in the vault are broken down for materials and gold. `
         + 'Locked and Unique items are skipped, and worn gear is never touched.',
         () => salvageAll(f.test));
     };
@@ -970,8 +970,8 @@ function openItemMenu(uid) {
 // Workshop: materials, bench recipes and alchemy
 // ===========================================================================
 
-function buildOrbGrid() {
-  const host = qs('#orbGrid');
+function buildMaterialGrid() {
+  const host = qs('#materialGrid');
   host.onmouseover = (e) => {
     const cell = e.target.closest('[data-mat]');
     if (cell) showMaterialTooltip(MATERIAL_BY_ID[cell.dataset.mat], e);
@@ -981,9 +981,9 @@ function buildOrbGrid() {
 }
 
 /** Materials, grouped by family so the eight sources read at a glance. */
-function renderOrbs() {
+function renderMaterials() {
   const s = G.state;
-  const host = qs('#orbGrid');
+  const host = qs('#materialGrid');
   if (!host || !s) return;
   host.innerHTML = FAMILIES.map((f) => {
     const mats = familyMaterials(f.id);
@@ -1082,7 +1082,7 @@ function applyCraft(uid) {
   const res = craft(ui.craftRecipe, item);
   setStatus(res.msg);
   if (!res.ok) return;
-  renderVault(); renderOrbs(); renderCraftPanel();
+  renderVault(); renderMaterials(); renderCraftPanel();
 }
 
 function showMaterialTooltip(m, event) {
@@ -1189,19 +1189,6 @@ function compareHtml(item) {
     return `<div class="tt-line"><label>${label}</label>
       <span class="${diff > 0 ? 'tt-up' : 'tt-down'}">${signed(Math.round(diff))} (${fmt(b)})</span></div>`;
   }).join('')}</div>`;
-}
-
-function showOrbTooltip(c, event) {
-  if (!c) return;
-  const t = tip();
-  t.className = 'tooltip';
-  t.innerHTML = `<div class="tt-name" style="color:var(--r-currency)">${escapeHtml(c.name)}</div>
-    <div class="tt-sep"></div>
-    <div class="tt-implicit">${escapeHtml(c.desc)}</div>
-    <div class="tt-mod" style="margin-top:4px">${escapeHtml(c.use)}</div>
-    <div class="tt-hint">Stock: ${fmtInt(G.state.orbs[c.id] ?? 0)}</div>`;
-  t.classList.remove('hidden');
-  moveTooltip(event);
 }
 
 function moveTooltip(event) {
@@ -1387,9 +1374,9 @@ function renderSettings() {
   if (!host || !G.state) return;
   const s = G.state;
   host.innerHTML = `
-    ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items become orbs on pickup.')}
-    ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items become orbs on pickup.')}
-    ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items become orbs. Uniques are never auto-salvaged.')}
+    ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items are broken down for materials on pickup.')}
+    ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items are broken down for materials on pickup.')}
+    ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items are broken down for materials. Uniques are never auto-salvaged.')}
     <div class="setting-row">
       <div><div class="sl">Simulation speed</div><div class="sh">Higher is faster but coarser.</div></div>
       <select class="text-input" style="width:auto" id="setSpeed">
