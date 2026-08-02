@@ -7,6 +7,7 @@ import { tickAll, dispatch } from './expedition.js';
 import { restAll, startingRoster, createParty, assignToParty } from './heroes.js';
 import { rebuildSheets } from './stats.js';
 import { initUI, renderAll, tick as uiTick, openNewGuild } from './ui.js';
+import { startTutorial, shouldRunTutorial } from './tutorial.js';
 
 const AUTOSAVE_INTERVAL = 30;    // seconds
 const UI_INTERVAL = 0.1;
@@ -52,6 +53,8 @@ function boot() {
     openNewGuild(true);
   } else {
     log(`Welcome back to ${G.state.name}.`, 'sys');
+    // A guild that was mid-tutorial when it was closed picks up where it left off.
+    if (shouldRunTutorial(G.state)) setTimeout(() => startTutorial(), 400);
   }
 
   renderAll();
@@ -76,7 +79,9 @@ export function foundGuild(name) {
   Save.saveToSlot(G.slot, true);
   emit('loaded');
   log(`${name} opens its doors.`, 'sys');
-  log('Send your first company into the Deepmines from the Expeditions tab.', 'sys');
+  renderAll();
+  // Let the first render settle before measuring elements to highlight.
+  setTimeout(() => startTutorial(0), 350);
 }
 
 // ---------------------------------------------------------------------------

@@ -29,6 +29,7 @@ import {
 } from './heroes.js';
 import { dispatch, dispatchRaid, recall, runProgress } from './expedition.js';
 import * as Save from './save.js';
+import { tutorialTick } from './tutorial.js';
 
 /** Transient UI state — never persisted. */
 const ui = {
@@ -90,6 +91,7 @@ export function tick() {
   updateRunBars();
   updateStaminaBars();
   renderStatus();
+  tutorialTick();
 }
 
 // ===========================================================================

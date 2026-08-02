@@ -78,6 +78,10 @@ function migrate(state) {
     if (hero.stamina === undefined) hero.stamina = 100;
     if (!Array.isArray(hero.traits)) hero.traits = [];
   }
+  // A save that has already played is past the tutorial, whatever it says.
+  if (!state.tutorial) state.tutorial = { step: 0, done: true, skipped: false };
+  if (!state.tutorial.done && (state.stats?.runs ?? 0) > 0) state.tutorial.done = true;
+
   // Expeditions hold live combat state that balance changes can invalidate.
   if (state.expeditions?.length) {
     notes.push(`${state.expeditions.length} expedition(s) were recalled by the update.`);

@@ -33,6 +33,21 @@ Any static server works equally well (`python -m http.server`, `npx serve`, …)
 6. **Push tiers, then raid.** Raid Seals drop from Tier 4+ and open milestone
    bosses whose first kills permanently raise guild rewards.
 
+## Tutorial
+
+A new guild opens into a fourteen-step guided tour. It darkens the screen except
+for the element being explained, and the cut-out stays genuinely interactive —
+when it asks you to send your first expedition, you press the real button and it
+runs a real expedition.
+
+Steps advance in three ways: pressing **Continue**, clicking the highlighted
+element, or waiting on the game itself (the expedition step waits for your party
+to actually come home). Progress is saved, so closing the tab mid-tutorial picks
+up where you left off.
+
+**Skip Tutorial** is always available. It warns that finishing is advised and
+that it cannot be restarted, and only then takes the choice.
+
 ## Why the two axes matter
 
 Tier and dungeon are deliberately independent. Tier is *how hard*; dungeon is

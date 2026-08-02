@@ -76,6 +76,9 @@ export function createState(name = 'The Wayfarers') {
     upgrades: {},            // Guild Hall ranks
     collection: {},          // uniqueId -> count
 
+    // Guided first session; see tutorial.js. `skipped` is permanent.
+    tutorial: { step: 0, done: false, skipped: false },
+
     progress: {
       highestTier: 0,        // highest tier cleared
       cleared: {},           // `${dungeonId}:${tier}` -> completions
