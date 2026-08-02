@@ -254,11 +254,16 @@ export function tickCombat(dt) {
 
 function regenerate(c, d, dt) {
   const p = c.pool;
-  if (p.life < p.maxLife && d.regen > 0) {
-    p.life = Math.min(p.maxLife, p.life + d.regen * dt);
+  if (d.regen > 0) {
+    // Zealot's Oath redirects life regeneration into energy shield.
+    if (d.regenToES) {
+      if (p.es < p.maxES) p.es = Math.min(p.maxES, p.es + d.regen * dt);
+    } else if (p.life < p.maxLife) {
+      p.life = Math.min(p.maxLife, p.life + d.regen * dt);
+    }
   }
   if (p.esDelay > 0) p.esDelay -= dt;
-  else if (d.canRecharge && p.es < p.maxES) {
+  if ((p.esDelay <= 0 || d.flags.wickedWard) && d.canRecharge && p.es < p.maxES) {
     p.es = Math.min(p.maxES, p.es + d.esRechargeRate * dt);
   }
 }
@@ -302,19 +307,22 @@ function playerAttack(c, d) {
 
   const crit = rng.chance(d.critChance / 100);
   const critMult = crit ? d.critMulti / 100 : 1;
+  // Pain Attunement rewards playing on the edge.
+  const lowLife = d.flags.painAttunement && c.pool.life / Math.max(1, c.pool.maxLife) < 0.35;
+  const situational = lowLife ? 1.3 : 1;
 
   let total = 0;
   let physDealt = 0;
   for (const type of DAMAGE_TYPES) {
     const [lo, hi] = d.dmg[type];
     if (hi <= 0) continue;
-    let dmg = rng.range(lo, hi) * critMult;
+    let dmg = rng.range(lo, hi) * critMult * situational;
     if (type === 'phys') {
       dmg *= (1 - armourReduction(m.armour, dmg));
       physDealt += dmg;
     } else {
       const pen = type === 'chaos' ? 0 : (d.pen[type] ?? 0);
-      const res = clamp(m.res - pen, -60, 90);
+      const res = clamp(m.res - pen - d.resReduction, -60, 90);
       dmg *= (1 - res / 100);
     }
     total += dmg;
@@ -345,9 +353,14 @@ function monsterAttack(c, d) {
     if (rng.chance(0.10)) log(`${m.name} misses you.`, 'hit');
     return;
   }
+  // Glancing Blows trades a much higher block chance for partial mitigation.
+  let blockMult = 1;
   if (d.block > 0 && rng.chance(d.block / 100)) {
-    if (rng.chance(0.25)) log(`You block ${m.name}'s attack.`, 'hit');
-    return;
+    if (!d.flags.glancingBlows) {
+      if (rng.chance(0.25)) log(`You block ${m.name}'s attack.`, 'hit');
+      return;
+    }
+    blockMult = 0.4;
   }
 
   const crit = rng.chance(m.crit / 100);
@@ -377,7 +390,7 @@ function monsterAttack(c, d) {
       taken += raw * (1 - r / 100);
     }
   }
-  taken *= (1 + d.damageTaken / 100);
+  taken *= (1 + d.damageTaken / 100) * blockMult;
 
   applyDamage(c, d, taken, m);
 
@@ -561,7 +574,14 @@ function rollLoot(c, d, m) {
 
   for (let i = 0; i < Math.min(itemDrops, 5); i++) {
     const roll = rng.float() * 100;
-    const uniqueCut = 0.28 * (1 + rarityBonus / 100);
+    // Uniques are the headline drop: rare enough to stay exciting, common
+    // enough that a session actually produces some. Bosses roll far better
+    // odds than trash. Item rarity helps, but only gently — otherwise a
+    // high-rarity map turns uniques into the common case.
+    // Map bosses roll several items each, so their per-item rate has to stay
+    // modest or every single map would hand out a unique.
+    const uniqueBase = m.isBoss ? 2.5 : 0.5;
+    const uniqueCut = uniqueBase * (1 + rarityBonus / 250);
     const rareCut = uniqueCut + 7 * (1 + rarityBonus / 100);
     const magicCut = rareCut + 30 * (1 + rarityBonus / 200);
 

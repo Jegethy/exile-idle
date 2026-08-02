@@ -6,6 +6,7 @@
 // "increased" values are additive within their pool; "more" values multiply.
 
 import { BASE_BY_ID } from './data/bases.js';
+import { CLASS_BY_ID } from './data/classes.js';
 import { itemBaseStats, applyItemMods } from './items.js';
 import { applyPassives } from './passives.js';
 import { clamp } from './util.js';
@@ -23,7 +24,7 @@ export function emptyBag() {
     incDamage: 0, incPhys: 0, incFire: 0, incCold: 0, incLight: 0, incChaos: 0, incEle: 0,
     incAtkSpeed: 0, incCrit: 0, critMulti: 0, accuracy: 0, incAccuracy: 0,
     // more multipliers
-    moreDamage: 0, moreEle: 0, moreArmour: 0, moreEvasion: 0, moreArmourLess: 0,
+    moreDamage: 0, moreEle: 0, moreFire: 0, moreArmour: 0, moreEvasion: 0, moreArmourLess: 0,
     // life pools
     flatLife: 0, incLife: 0, moreLife: 0, flatMana: 0, incMana: 0,
     flatES: 0, incES: 0, esRecharge: 0,
@@ -80,11 +81,14 @@ export function computeStats(state, mm = null) {
   }
 
   // ---- 4. Attributes -----------------------------------------------------
+  // Class sets the starting spread; levels add a small flat amount to all
+  // three, and everything beyond that comes from the tree and gear.
   const lvl = p.level;
-  const baseAttr = 14 + Math.floor(lvl * 0.6);
-  const str = Math.round(baseAttr + bag.str);
-  const dex = Math.round(baseAttr + bag.dex);
-  const int = Math.round(baseAttr + bag.int);
+  const cls = CLASS_BY_ID[p.class] ?? CLASS_BY_ID.scion;
+  const perLevel = Math.floor(lvl * 0.4);
+  const str = Math.round(cls.attrs.str + perLevel + bag.str);
+  const dex = Math.round(cls.attrs.dex + perLevel + bag.dex);
+  const int = Math.round(cls.attrs.int + perLevel + bag.int);
 
   // Attributes grant their classic PoE side benefits.
   const strLife = str * 0.5;
@@ -99,6 +103,7 @@ export function computeStats(state, mm = null) {
 
   let es = (gearES + bag.flatES) * (1 + (bag.incES + intESInc) / 100);
   if (bag.noES) es = 0;
+  if (flags.bloodMagic) { life *= 1.25; es = 0; }
   if (flags.ci) { life = 1; es *= 1.8; }
   if (mm) es *= (1 - mm.pLessES / 100);
 
@@ -110,9 +115,11 @@ export function computeStats(state, mm = null) {
   let evasion = (55 + gearEvasion + bag.flatEvasion)
     * (1 + (bag.incEvasion + dexEvasionInc) / 100) * (1 + bag.moreEvasion / 100);
   if (mm) { armour *= (1 - mm.pLessArmour / 100); evasion *= (1 - mm.pLessEvade / 100); }
+  // Iron Reflexes folds the whole evasion pool into armour.
+  if (flags.ironReflexes) { armour += evasion; evasion = 0; }
   if (flags.cannotEvade) evasion = 0;
 
-  const block = clamp(bag.block, 0, 75);
+  const block = clamp(bag.block, 0, flags.glancingBlows ? 85 : 75);
 
   // ---- 7. Resistances ----------------------------------------------------
   const maxRes = Math.round(75 + bag.maxRes);
@@ -127,21 +134,25 @@ export function computeStats(state, mm = null) {
   // ---- 8. Offence --------------------------------------------------------
   const w = weapon ?? UNARMED;
   const noEle = !!bag.noEle;
+  // Avatar of Fire keeps only physical and fire damage.
+  const aof = !!flags.avatarOfFire;
 
   const incAll = bag.incDamage;
   const moreMult = (1 + bag.moreDamage / 100);
   const eleMore = (1 + bag.moreEle / 100);
+  const fireMore = eleMore * (1 + bag.moreFire / 100);
 
   const dmg = {
     phys: scaleRange(w.physMin + bag.addPhysMin, w.physMax + bag.addPhysMax,
       incAll + bag.incPhys, moreMult),
     fire: noEle ? [0, 0] : scaleRange(bag.addFireMin, bag.addFireMax,
-      incAll + bag.incFire + bag.incEle, moreMult * eleMore),
-    cold: noEle ? [0, 0] : scaleRange(bag.addColdMin, bag.addColdMax,
+      incAll + bag.incFire + bag.incEle, moreMult * fireMore),
+    cold: (noEle || aof) ? [0, 0] : scaleRange(bag.addColdMin, bag.addColdMax,
       incAll + bag.incCold + bag.incEle, moreMult * eleMore),
-    light: noEle ? [0, 0] : scaleRange(bag.addLightMin, bag.addLightMax,
+    light: (noEle || aof) ? [0, 0] : scaleRange(bag.addLightMin, bag.addLightMax,
       incAll + bag.incLight + bag.incEle, moreMult * eleMore),
-    chaos: scaleRange(bag.addChaosMin, bag.addChaosMax, incAll + bag.incChaos, moreMult),
+    chaos: aof ? [0, 0] : scaleRange(bag.addChaosMin, bag.addChaosMax,
+      incAll + bag.incChaos, moreMult),
   };
 
   let hitMin = 0; let hitMax = 0;
@@ -153,7 +164,7 @@ export function computeStats(state, mm = null) {
     ? 0
     : clamp(w.crit * (1 + bag.incCrit / 100), 0, 95);
   const critMulti = flags.eleOverload ? 100 : 150 + bag.critMulti;
-  const accuracy = flags.resoluteTechnique
+  const accuracy = (flags.resoluteTechnique || flags.alwaysHit)
     ? Infinity
     : (20 + lvl * 3 + dexAccuracy + bag.accuracy) * (1 + bag.incAccuracy / 100);
 
@@ -170,6 +181,8 @@ export function computeStats(state, mm = null) {
 
   const esRechargeRate = es * 0.20 * (1 + bag.esRecharge / 100);
   const canRecharge = !(mm && mm.pNoRecharge);
+  // Enemy resistance reduction from Occultist / Inquisitor style ascendancies.
+  const resReduction = flags.curseRes ?? 0;
 
   return {
     bag, flags,
@@ -179,7 +192,8 @@ export function computeStats(state, mm = null) {
     res,
     dmg, hitMin: Math.round(hitMin), hitMax: Math.round(hitMax), avgHit,
     aps, critChance, critMulti, accuracy, dps,
-    regen, leech, esRechargeRate, canRecharge,
+    regen, leech, esRechargeRate, canRecharge, resReduction,
+    regenToES: !!flags.zealotsOath,
     moveSpeed: bag.moveSpeed,
     rarity: bag.incRarity, quantity: bag.incQuant,
     reflect: bag.reflect, damageTaken: bag.damageTaken,

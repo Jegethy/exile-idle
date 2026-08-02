@@ -289,6 +289,38 @@ export function baseStatsFor(base, ilvl) {
   return out;
 }
 
+/**
+ * Human-readable category and sub-type for an item base. Without item icons,
+ * this is how a player tells a Dagger from a Bow, or an Evasion body armour
+ * from an Energy Shield one, at a glance in the inventory.
+ *
+ * @returns {{category: string, subtype: string}}
+ */
+export function baseDescriptor(base) {
+  if (!base) return { category: 'Unknown', subtype: '' };
+
+  if (base.slot === 'weapon') {
+    return {
+      category: base.hands === 2 ? 'Two-Handed Weapon' : 'One-Handed Weapon',
+      subtype: base.class,
+    };
+  }
+
+  if (base.slot === 'amulet' || base.slot === 'ring') {
+    return { category: 'Jewellery', subtype: base.class };
+  }
+
+  if (base.id === 'quiver') return { category: 'Offhand', subtype: 'Quiver' };
+
+  // Armour pieces: describe which defences the base actually provides.
+  const defs = [];
+  if (base.def?.ar) defs.push('Armour');
+  if (base.def?.ev) defs.push('Evasion');
+  if (base.def?.es) defs.push('Energy Shield');
+  const category = base.slot === 'offhand' ? 'Offhand' : base.class;
+  return { category, subtype: defs.length ? defs.join(' / ') : base.class };
+}
+
 /** Attribute requirement flavour text (cosmetic — not enforced). */
 export function reqAttrs(base, ilvl) {
   const attrs = ['str', 'dex', 'int'].filter((a) => base.tags.includes(a));

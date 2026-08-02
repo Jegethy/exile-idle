@@ -293,6 +293,86 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 .passive-info .mod { color:var(--r-magic); }
 .passive-info .ks { color:#e08a70; }
 
+/* Class start nodes: yours glows, the other six are dimmed origins. */
+.tn.start .tn-c { fill:#1a1a22; stroke:#4a4a58; }
+.tn.start.mine .tn-c { fill:#4a3a1c; stroke:var(--gold); filter:drop-shadow(0 0 10px rgba(200,170,110,.8)); }
+.tn.start.foreign { opacity:.4; }
+.tn.start.foreign .tn-l { fill:var(--ink-faint); }
+.tn.start.mine .tn-l { fill:var(--gold); font-weight:700; }
+
+/* ---- Ascendancy panel -------------------------------------------------- */
+.asc-panel { flex:0 0 auto; margin-top:6px; }
+.asc-locked {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:7px 10px; border:1px dashed var(--line-2); border-radius:3px;
+  font-size:12px; color:var(--ink-dim);
+}
+.asc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+.asc-name { color:#d88ae0; font-size:13px; letter-spacing:.5px; }
+.asc-nodes { display:grid; grid-template-columns:repeat(2,1fr); gap:4px; }
+.asc-node {
+  padding:6px 8px; border:1px solid var(--line); border-left:3px solid #4a2f52;
+  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
+}
+.asc-node:hover { background:var(--bg-3); }
+.asc-node.on { border-left-color:#d88ae0; background:rgba(216,138,224,.10); box-shadow:0 0 10px rgba(216,138,224,.12) inset; }
+.asc-node-name { font-size:11px; color:var(--ink); }
+.asc-node.on .asc-node-name { color:#d88ae0; }
+.asc-node-mods { font-size:9px; color:var(--ink-faint); line-height:1.4; margin-top:2px; }
+
+.asc-picker { display:flex; flex-direction:column; gap:8px; }
+.asc-card {
+  padding:10px 12px; border:1px solid var(--line-2); border-left:3px solid #6a3f78;
+  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
+}
+.asc-card:hover { border-left-color:#d88ae0; background:var(--bg-3); }
+.asc-card-name { color:#d88ae0; font-size:14px; margin-bottom:3px; }
+.asc-card-blurb { font-size:11px; color:var(--ink-dim); font-style:italic; margin-bottom:6px; }
+.asc-card-list { list-style:none; font-size:11px; color:var(--ink-faint); line-height:1.6; }
+.asc-card-list b { color:var(--r-magic); font-weight:600; }
+
+/* ---- Class picker ------------------------------------------------------ */
+.modal.wide { width:min(720px,94vw); }
+.class-picker { display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:6px; }
+.class-card {
+  padding:8px 6px; text-align:center; border:1px solid var(--line);
+  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
+}
+.class-card:hover { background:var(--bg-3); border-color:var(--line-2); }
+.class-card.selected { border-color:var(--gold); background:rgba(200,170,110,.12); box-shadow:0 0 12px rgba(200,170,110,.18); }
+.class-name { font-size:12px; letter-spacing:.5px; margin-bottom:4px; }
+.class-card.selected .class-name { color:var(--gold); }
+.class-attrs { display:flex; justify-content:center; gap:5px; font-size:10px; font-variant-numeric:tabular-nums; }
+.ca.str { color:#c95c4a; } .ca.dex { color:#6fbf5f; } .ca.int { color:#5f8fd0; }
+.c-str { color:#c95c4a; } .c-dex { color:#6fbf5f; } .c-int { color:#5f8fd0; }
+
+.class-detail {
+  margin-top:10px; padding:10px 12px; border:1px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2);
+}
+.cd-name { color:var(--gold); font-size:15px; letter-spacing:.5px; }
+.cd-blurb { font-size:12px; color:var(--ink-dim); line-height:1.5; margin:4px 0 8px; }
+.cd-attrs { display:flex; gap:16px; font-size:12px; margin-bottom:6px; }
+.cd-asc { font-size:11px; color:var(--ink-faint); }
+.cd-asc b { color:#d88ae0; font-weight:600; }
+
+/* ---- Item action menu -------------------------------------------------- */
+.menu-item {
+  padding:9px 11px; border:1px solid var(--line-2); border-left-width:3px;
+  border-radius:3px; background:var(--bg-2);
+}
+.menu-item.r-normal { border-left-color:var(--r-normal); }
+.menu-item.r-magic  { border-left-color:var(--r-magic); }
+.menu-item.r-rare   { border-left-color:var(--r-rare); }
+.menu-item.r-unique { border-left-color:var(--r-unique); }
+.menu-name { font-size:14px; }
+.menu-item.r-normal .menu-name { color:var(--r-normal); }
+.menu-item.r-magic  .menu-name { color:var(--r-magic); }
+.menu-item.r-rare   .menu-name { color:var(--r-rare); }
+.menu-item.r-unique .menu-name { color:var(--r-unique); }
+.menu-sub { font-size:11px; color:var(--ink-faint); margin-top:2px; }
+.menu-mods { margin-top:7px; font-size:11px; line-height:1.5; }
+
 /* ==========================================================================
    Combat
    ========================================================================== */
@@ -462,26 +542,40 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 .slot.r-rare   { border-color:#6a6a2a; } .slot.r-rare   .slot-name { color:var(--r-rare); }
 .slot.r-unique { border-color:#6a3a18; } .slot.r-unique .slot-name { color:var(--r-unique); }
 
-.inv-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+.salvage-bar {
+  display:flex; align-items:center; gap:5px; flex-wrap:wrap;
+  padding:6px 7px; margin-bottom:6px;
+  background:rgba(0,0,0,.25); border:1px solid var(--line); border-radius:3px;
+}
+.salvage-label { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--ink-faint); }
+.salvage-hint { flex:1 1 100%; font-size:10px; }
+
+/* Two columns of taller cells: with no item icons, each entry has to carry
+   its own name, rarity, item level, category and sub-type. */
+.inv-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:4px; }
 .inv-cell {
-  position:relative; min-height:44px; padding:4px 5px;
+  position:relative; min-height:56px; padding:5px 7px;
   border:1px solid var(--line); border-left-width:3px; border-radius:3px;
   background:var(--bg-2); cursor:pointer; transition:all .12s; overflow:hidden;
 }
 .inv-cell:hover { background:var(--bg-3); transform:translateY(-1px); }
+.inv-top { display:flex; align-items:baseline; justify-content:space-between; gap:5px; }
+.inv-type { font-size:9px; letter-spacing:.6px; text-transform:uppercase; color:var(--ink-dim); margin-top:2px; }
+.inv-sub { font-size:10px; color:var(--ink-faint); margin-top:1px; }
+.inv-marks { position:absolute; right:4px; bottom:3px; display:flex; gap:3px; font-size:9px; }
+.inv-marks .corrupt { color:#a4322a; }
 .inv-cell.r-normal { border-left-color:var(--r-normal); }
 .inv-cell.r-magic  { border-left-color:var(--r-magic); }
 .inv-cell.r-rare   { border-left-color:var(--r-rare); }
 .inv-cell.r-unique { border-left-color:var(--r-unique); }
 .inv-cell.craftable { outline:1px solid var(--gold); outline-offset:1px; }
 .inv-cell.not-craftable { opacity:.35; }
-.inv-name { font-size:10px; line-height:1.25; word-break:break-word; }
+.inv-name { font-size:11px; line-height:1.25; word-break:break-word; flex:1 1 auto; }
 .inv-cell.r-normal .inv-name { color:var(--r-normal); }
 .inv-cell.r-magic  .inv-name { color:var(--r-magic); }
 .inv-cell.r-rare   .inv-name { color:var(--r-rare); }
 .inv-cell.r-unique .inv-name { color:var(--r-unique); }
-.inv-ilvl { position:absolute; right:3px; bottom:2px; font-size:8px; color:var(--ink-faint); }
-.corrupt-mark { position:absolute; left:4px; bottom:2px; font-size:8px; color:#a4322a; }
+.inv-ilvl { flex:0 0 auto; font-size:9px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
 .empty-note { padding:18px 10px; text-align:center; color:var(--ink-faint); font-size:12px; }
 
 /* ==========================================================================

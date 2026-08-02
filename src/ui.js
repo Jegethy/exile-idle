@@ -3,22 +3,32 @@
 // Structural changes are event-driven (see state.on); fast-moving numbers
 // (health bars, timers) are refreshed from the main loop via tick().
 
-import { G, on, emit, log, xpToNext, INVENTORY_CAPACITY, MAP_CAPACITY, newCharacter } from './state.js';
+import {
+  G, on, emit, log, xpToNext, tierToLevel, INVENTORY_CAPACITY, MAP_CAPACITY, newCharacter,
+} from './state.js';
 import { fmt, fmtInt, fmtTime, signed, clamp, qs, qsa, el, escapeHtml } from './util.js';
 import { computeStats, ehp } from './stats.js';
-import { RARITY, itemBaseStats, itemMods } from './items.js';
+import { RARITY, itemBaseStats, itemMods, itemDescriptor } from './items.js';
 import { BASE_BY_ID, EQUIP_SLOTS, SLOTS } from './data/bases.js';
 import { UNIQUE_BY_ID } from './data/uniques.js';
 import { CURRENCIES, CURRENCY_BY_ID } from './data/currency.js';
 import {
-  addItem, equipItem, unequipItem, salvageItem, salvageAll, sortInventory, sortMaps,
-  spendCurrency, hasCurrency,
+  CLASSES, CLASS_BY_ID, ASCENDANCIES, ascendanciesFor,
+  ASCENDANCY_UNLOCK_LEVEL, startNodeFor,
+} from './data/classes.js';
+import {
+  addItem, equipItem, unequipItem, salvageItem, salvageAll, countSalvageable,
+  sortInventory, sortMaps, spendCurrency, hasCurrency, toggleLock, findItem,
 } from './inventory.js';
 import { applyCurrency, canApply } from './currency.js';
 import { createMap, mapModLines, mapModifiers, mapDanger, monsterCount, grantStarterMap } from './maps.js';
 import { startMap, startBossFight, abandonMap, mapProgress, clearSpeed, refreshDerived } from './combat.js';
 import { BOSSES } from './data/monsters.js';
-import { TREE, TREE_RADIUS, nodeText, canAllocate, canRefund, pointSummary, treeIsFull } from './passives.js';
+import { describeStats } from './data/statlabels.js';
+import {
+  TREE, TREE_RADIUS, START_IDS, nodeText, canAllocate, canRefund,
+  pointSummary, ascendancySummary, treeIsFull, startFor,
+} from './passives.js';
 import * as Save from './save.js';
 
 /** Transient UI state — never persisted. */
@@ -29,6 +39,8 @@ const ui = {
   tree: { x: 0, y: 0, scale: 1, dragging: false, lx: 0, ly: 0, built: false },
   logFilter: 'all',
   confirmCb: null,
+  newClass: 'marauder',
+  menuUid: null,
 };
 
 const R = (r) => RARITY[r]?.cls ?? 'r-normal';
@@ -274,12 +286,16 @@ function renderPassiveHeader() {
   const s = G.state;
   if (!s) return;
   const p = pointSummary(s);
+  const asc = ascendancySummary(s);
   const full = treeIsFull(s);
-  qs('#passiveBadge').textContent = p.available;
+  const cls = CLASS_BY_ID[s.player.class] ?? CLASS_BY_ID.scion;
+  qs('#passiveBadge').textContent = p.available + asc.available;
+
   qs('#passiveHeader').innerHTML = `
     <span class="points-pill ${p.available ? '' : 'none'}">${p.available} point${p.available === 1 ? '' : 's'} unspent</span>
-    <span class="hint">${p.spent} allocated${full ? ` · ${s.passives.mastery} mastery` : ''}</span>
+    <span class="hint">${escapeHtml(cls.name)} · ${p.spent} allocated${full ? ` · ${s.passives.mastery} mastery` : ''}</span>
     <button class="btn tiny" id="btnRefundAll">Refund All</button>`;
+
   qs('#btnRefundAll').onclick = () => confirmAction(
     'Refund all passives?',
     'Every allocated node and mastery point will be returned. This cannot be undone.',
@@ -290,6 +306,89 @@ function renderPassiveHeader() {
       log('All passive points refunded.', 'sys');
     },
   );
+  renderAscendancy();
+}
+
+/** The ascendancy strip beneath the tree: choose one, then allocate its nodes. */
+function renderAscendancy() {
+  const s = G.state;
+  const host = qs('#ascendancyPanel');
+  if (!host) return;
+  const locked = s.player.level < ASCENDANCY_UNLOCK_LEVEL;
+
+  if (locked) {
+    host.innerHTML = `<div class="asc-locked">Ascendancy unlocks at level ${ASCENDANCY_UNLOCK_LEVEL}
+      <span class="hint">(you are level ${s.player.level})</span></div>`;
+    return;
+  }
+
+  if (!s.player.ascendancy) {
+    host.innerHTML = `<div class="asc-locked">
+      <b style="color:var(--gold)">Ascendancy available</b>
+      <button class="btn tiny primary" id="btnPickAsc">Choose</button></div>`;
+    qs('#btnPickAsc').onclick = openAscendancyPicker;
+    return;
+  }
+
+  const asc = ASCENDANCIES[s.player.ascendancy];
+  const pts = ascendancySummary(s);
+  host.innerHTML = `
+    <div class="asc-head">
+      <span class="asc-name">${escapeHtml(asc.name)}</span>
+      <span class="points-pill ${pts.available ? '' : 'none'}">${pts.available} asc. point${pts.available === 1 ? '' : 's'}</span>
+    </div>
+    <div class="asc-nodes">${asc.nodes.map((n, i) => {
+    const on = !!s.passives.ascendancy[i];
+    const lines = [...(n.desc ? [n.desc] : []), ...describeAscStats(n.stats)];
+    return `<div class="asc-node ${on ? 'on' : ''}" data-asc="${i}"
+                 title="${escapeHtml(lines.join(' · '))}">
+      <div class="asc-node-name">${escapeHtml(n.name)}</div>
+      <div class="asc-node-mods">${lines.map((l) => escapeHtml(l)).join('<br>')}</div>
+    </div>`;
+  }).join('')}</div>`;
+
+  host.onclick = (e) => {
+    const node = e.target.closest('[data-asc]');
+    if (!node) return;
+    const i = Number(node.dataset.asc);
+    const alloc = s.passives.ascendancy;
+    if (alloc[i]) { delete alloc[i]; }
+    else {
+      if (ascendancySummary(s).available <= 0) { setStatus('No ascendancy points available.'); return; }
+      alloc[i] = true;
+    }
+    emit('passives'); refreshDerived();
+  };
+}
+
+function describeAscStats(stats) {
+  return describeStats(stats ?? {});
+}
+
+function openAscendancyPicker() {
+  const s = G.state;
+  const options = ascendanciesFor(s.player.class);
+  qs('#ascPicker').innerHTML = options.map((a) => `
+    <div class="asc-card" data-pick="${a.id}">
+      <div class="asc-card-name">${escapeHtml(a.name)}</div>
+      <div class="asc-card-blurb">${escapeHtml(a.blurb)}</div>
+      <ul class="asc-card-list">${a.nodes.map((n) =>
+    `<li><b>${escapeHtml(n.name)}</b> — ${escapeHtml(
+      [...(n.desc ? [n.desc] : []), ...describeAscStats(n.stats)].join(', '))}</li>`).join('')}</ul>
+    </div>`).join('');
+
+  qs('#ascPicker').onclick = (e) => {
+    const card = e.target.closest('[data-pick]');
+    if (!card) return;
+    const id = card.dataset.pick;
+    confirmAction(`Ascend as ${ASCENDANCIES[id].name}?`,
+      'This choice is permanent for this character.', () => {
+        s.player.ascendancy = id;
+        emit('passives'); refreshDerived();
+        log(`You ascend as ${ASCENDANCIES[id].name}.`, 'boss');
+      });
+  };
+  openModal('modalAscendancy');
 }
 
 function wireTree() {
@@ -385,18 +484,23 @@ function renderTree() {
     applyTreeTransform();
   }
 
-  // Refresh allocation classes.
+  // Refresh allocation classes. Only your own class's start counts as taken —
+  // the other six render as dimmed, unreachable origins.
   const alloc = s.passives.allocated;
+  const startId = startFor(s);
   for (const g of qsa('.tn', svg)) {
     const id = g.dataset.id;
-    const isOn = id === 'start' || !!alloc[id];
+    const isStart = START_IDS.has(id);
+    const isOn = id === startId || (!isStart && !!alloc[id]);
     g.classList.toggle('on', isOn);
-    g.classList.toggle('avail', !isOn && canAllocate(alloc, id));
+    g.classList.toggle('mine', id === startId);
+    g.classList.toggle('foreign', isStart && id !== startId);
+    g.classList.toggle('avail', !isOn && !isStart && canAllocate(alloc, id, startId));
   }
   for (const line of qsa('.tl', svg)) {
     const [a, b] = line.dataset.link.split('|');
-    const on = (a === 'start' || alloc[a]) && (b === 'start' || alloc[b]);
-    line.classList.toggle('on', on);
+    const live = (x) => x === startId || (!START_IDS.has(x) && alloc[x]);
+    line.classList.toggle('on', live(a) && live(b));
   }
 }
 
@@ -404,12 +508,25 @@ function showNodeInfo(id) {
   const node = TREE[id];
   if (!node) return;
   const s = G.state;
+  const startId = startFor(s);
+
+  if (START_IDS.has(id)) {
+    const cls = CLASS_BY_ID[node.classId];
+    qs('#passiveInfo').innerHTML =
+      `<h4>${escapeHtml(cls.name)} <span class="hint">· class start</span></h4>
+       <div class="mod">${escapeHtml(cls.blurb)}</div>
+       <div class="hint" style="margin-top:4px">${id === startId
+        ? 'This is where your tree begins.'
+        : 'Another class starts here. You cannot allocate from it.'}</div>`;
+    return;
+  }
+
   const allocated = !!s.passives.allocated[id];
   const lines = nodeText(node).map((t) =>
     `<div class="${node.kind === 'keystone' ? 'ks' : 'mod'}">${escapeHtml(t)}</div>`).join('');
   const action = allocated
-    ? (canRefund(s.passives.allocated, id) ? 'Click to refund' : 'Cannot refund — other nodes depend on it')
-    : (canAllocate(s.passives.allocated, id)
+    ? (canRefund(s.passives.allocated, id, startId) ? 'Click to refund' : 'Cannot refund — other nodes depend on it')
+    : (canAllocate(s.passives.allocated, id, startId)
       ? (pointSummary(s).available > 0 ? 'Click to allocate' : 'No points available')
       : 'Not connected to your tree');
   qs('#passiveInfo').innerHTML =
@@ -419,14 +536,15 @@ function showNodeInfo(id) {
 
 function onNodeClick(id) {
   const s = G.state;
-  if (id === 'start') return;
+  if (START_IDS.has(id)) return;
   const alloc = s.passives.allocated;
+  const startId = startFor(s);
 
   if (alloc[id]) {
-    if (!canRefund(alloc, id)) { setStatus('That node cannot be refunded without orphaning others.'); return; }
+    if (!canRefund(alloc, id, startId)) { setStatus('That node cannot be refunded without orphaning others.'); return; }
     delete alloc[id];
   } else {
-    if (!canAllocate(alloc, id)) { setStatus('That node is not connected to your tree.'); return; }
+    if (!canAllocate(alloc, id, startId)) { setStatus('That node is not connected to your tree.'); return; }
     if (pointSummary(s).available <= 0) { setStatus('No passive points available.'); return; }
     alloc[id] = true;
   }
@@ -744,16 +862,43 @@ function renderBosses() {
 // Equipment doll & inventory
 // ===========================================================================
 
+const SALVAGE_FILTERS = {
+  normal: { label: 'Normal', test: (i) => i.rarity === 'normal' },
+  magic: { label: 'Normal and Magic', test: (i) => i.rarity === 'normal' || i.rarity === 'magic' },
+  rare: {
+    label: 'Normal, Magic and Rare',
+    test: (i) => i.rarity === 'normal' || i.rarity === 'magic' || i.rarity === 'rare',
+  },
+};
+
 function wireGearActions() {
   qs('#btnSortInv').onclick = () => sortInventory();
-  qs('#btnSalvageNormal').onclick = () => confirmAction(
-    'Salvage all Normal items?', 'Every Normal item in your inventory will be broken down into currency.',
-    () => salvageAll((i) => i.rarity === 'normal'),
-  );
-  qs('#btnSalvageMagic').onclick = () => confirmAction(
-    'Salvage all Normal and Magic items?', 'Normal and Magic items will be broken down into currency.',
-    () => salvageAll((i) => i.rarity === 'normal' || i.rarity === 'magic'),
-  );
+
+  for (const [key, btn] of [['normal', '#btnSalvageNormal'], ['magic', '#btnSalvageMagic'], ['rare', '#btnSalvageRare']]) {
+    qs(btn).onclick = () => {
+      const f = SALVAGE_FILTERS[key];
+      const n = countSalvageable(f.test);
+      if (!n) { setStatus(`No unlocked ${f.label} items to salvage.`); return; }
+      confirmAction(
+        `Salvage ${n} item${n === 1 ? '' : 's'}?`,
+        `All unlocked ${f.label} items in your inventory will be broken down into currency. `
+        + 'Locked and Unique items are skipped.',
+        () => { salvageAll(f.test); refreshDerived(); },
+      );
+    };
+  }
+}
+
+/** Keeps the salvage buttons showing how much they would actually destroy. */
+function renderSalvageBar() {
+  for (const [key, sel] of [['normal', '#btnSalvageNormal'], ['magic', '#btnSalvageMagic'], ['rare', '#btnSalvageRare']]) {
+    const btn = qs(sel);
+    if (!btn) continue;
+    const n = countSalvageable(SALVAGE_FILTERS[key].test);
+    const base = key === 'normal' ? 'Normal' : key === 'magic' ? '+ Magic' : '+ Rare';
+    btn.textContent = n ? `${base} (${n})` : base;
+    btn.disabled = !n;
+  }
 }
 
 function renderDoll() {
@@ -783,9 +928,16 @@ function renderDoll() {
     if (ui.craftCurrency && s.equipment[slotId]) { applyCraft(s.equipment[slotId].uid); return; }
     if (s.equipment[slotId]) { unequipItem(slotId); hideTooltip(); }
   };
+  host.oncontextmenu = (e) => {
+    const cell = e.target.closest('[data-uid]');
+    if (!cell) return;
+    e.preventDefault();
+    hideTooltip();
+    openItemMenu(cell.dataset.uid);
+  };
   host.onmouseover = (e) => {
     const cell = e.target.closest('[data-uid]');
-    if (cell) showItemTooltip(s.equipment[cell.dataset.slot], e, null, 'Click to unequip');
+    if (cell) showItemTooltip(s.equipment[cell.dataset.slot], e, null, 'Click to unequip · Right-click for actions');
   };
   host.onmouseout = hideTooltip;
   host.onmousemove = moveTooltip;
@@ -795,19 +947,34 @@ function renderInventory() {
   const s = G.state;
   const host = qs('#invGrid');
   qs('#invCount').textContent = `${s.inventory.length}/${INVENTORY_CAPACITY}`;
+  renderSalvageBar();
 
   if (!s.inventory.length) {
     host.innerHTML = `<div class="empty-note" style="grid-column:1/-1">Your inventory is empty.</div>`;
     return;
   }
 
+  // Without item icons, every cell has to say what the thing actually is:
+  // name, rarity colour, item level, category and sub-type.
   host.innerHTML = s.inventory.map((item) => {
     const craft = ui.craftCurrency ? canApply(ui.craftCurrency, item) : null;
+    const d = itemDescriptor(item);
+    const bs = itemBaseStats(item);
+    const num = bs.dps ? `${fmt(bs.dps)} dps`
+      : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`,
+        bs.es && `${fmt(bs.es)} es`].filter(Boolean).join(' · ');
     return `<div class="inv-cell ${R(item.rarity)} ${craft ? (craft.ok ? 'craftable' : 'not-craftable') : ''}"
                  data-uid="${item.uid}">
-      <div class="inv-name">${escapeHtml(item.name)}</div>
-      <span class="inv-ilvl">${item.ilvl}</span>
-      ${item.corrupted ? '<span class="corrupt-mark">✦</span>' : ''}
+      <div class="inv-top">
+        <span class="inv-name">${escapeHtml(item.name)}</span>
+        <span class="inv-ilvl" title="Item level">i${item.ilvl}</span>
+      </div>
+      <div class="inv-type">${escapeHtml(d.category)}</div>
+      <div class="inv-sub">${escapeHtml(d.subtype)}${num ? ` · ${num}` : ''}</div>
+      <div class="inv-marks">
+        ${item.locked ? '<span class="mark lock" title="Locked — protected from bulk salvage">🔒</span>' : ''}
+        ${item.corrupted ? '<span class="mark corrupt" title="Corrupted">✦</span>' : ''}
+      </div>
     </div>`;
   }).join('');
 
@@ -819,16 +986,93 @@ function renderInventory() {
     const item = s.inventory.find((i) => i.uid === uid);
     if (!item) return;
     if (e.shiftKey) { salvageItem(item); hideTooltip(); }
+    else if (e.ctrlKey || e.metaKey) { toggleLock(uid); }
     else { equipItem(uid); hideTooltip(); }
+  };
+  // Right-click opens the full action menu — the discoverable path to salvage.
+  host.oncontextmenu = (e) => {
+    const cell = e.target.closest('[data-uid]');
+    if (!cell) return;
+    e.preventDefault();
+    hideTooltip();
+    openItemMenu(cell.dataset.uid);
   };
   host.onmouseover = (e) => {
     const cell = e.target.closest('[data-uid]');
     if (!cell) return;
     const item = s.inventory.find((i) => i.uid === cell.dataset.uid);
-    if (item) showItemTooltip(item, e, comparisonFor(item), 'Click to equip · Shift-click to salvage');
+    if (item) showItemTooltip(item, e, comparisonFor(item), 'Click to equip · Right-click for actions');
   };
   host.onmouseout = hideTooltip;
   host.onmousemove = moveTooltip;
+}
+
+/**
+ * Item action menu. Right-clicking any item opens this; it's the discoverable
+ * route to salvaging rares and uniques, which shift-click alone hid too well.
+ */
+function openItemMenu(uid) {
+  const item = findItem(uid);
+  if (!item) return;
+  ui.menuUid = uid;
+
+  const equipped = Object.values(G.state.equipment).some((x) => x && x.uid === uid);
+  const d = itemDescriptor(item);
+  const value = Object.entries(salvagePreview(item))
+    .map(([id, n]) => `${n}x ${CURRENCY_BY_ID[id]?.short ?? id}`).join(', ');
+
+  qs('#itemMenuTitle').textContent = item.name;
+  qs('#itemMenuBody').innerHTML = `
+    <div class="menu-item ${R(item.rarity)}">
+      <div class="menu-name">${escapeHtml(item.name)}</div>
+      <div class="menu-sub">${escapeHtml(d.category)} · ${escapeHtml(d.subtype)} · Item Level ${item.ilvl}
+        ${item.locked ? ' · 🔒 Locked' : ''}${item.corrupted ? ' · Corrupted' : ''}</div>
+      <div class="menu-mods">${itemMods(item).map((m) =>
+    `<div class="${m.kind === 'implicit' ? 'tt-implicit' : m.kind === 'unique' ? 'tt-unique-mod' : 'tt-mod'}">
+        ${escapeHtml(m.text)}${m.tier ? ` <span class="tier">T${m.tier}</span>` : ''}</div>`).join('')}</div>
+    </div>
+    <div class="row">
+      ${equipped
+    ? '<button class="btn" data-act="unequip">Unequip</button>'
+    : '<button class="btn primary" data-act="equip">Equip</button>'}
+      <button class="btn" data-act="lock">${item.locked ? 'Unlock' : 'Lock'}</button>
+      <button class="btn danger" data-act="salvage">Salvage${value ? ` → ${escapeHtml(value)}` : ''}</button>
+    </div>
+    <p class="hint" style="margin-top:8px">Shortcuts: click to equip · Shift-click to salvage ·
+      Ctrl-click to lock.</p>`;
+
+  qs('#itemMenuBody').onclick = (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'equip') { equipItem(uid); closeModals(); }
+    else if (act === 'unequip') {
+      const slot = Object.keys(G.state.equipment).find((k) => G.state.equipment[k]?.uid === uid);
+      if (slot) unequipItem(slot);
+      closeModals();
+    } else if (act === 'lock') { toggleLock(uid); openItemMenu(uid); }
+    else if (act === 'salvage') {
+      const doIt = () => { salvageItem(item); closeModals(); refreshDerived(); };
+      if (item.rarity === 'unique' || item.locked) {
+        confirmAction('Salvage this item?',
+          `${item.name} is ${item.locked ? 'locked' : 'a unique'}. Salvaging destroys it permanently.`, doIt);
+      } else doIt();
+    }
+  };
+  openModal('modalItem');
+}
+
+/**
+ * Rough preview of a salvage payout. Deliberately does not use the seeded RNG,
+ * so opening the menu can't shift the loot stream.
+ */
+function salvagePreview(item) {
+  const score = Math.round((item.ilvl * 0.6) * ({ normal: 1, magic: 2.2, rare: 4.5, unique: 9 }[item.rarity] ?? 1));
+  const chaos = score * 0.014;
+  if (chaos >= 1) return { chaos: Math.max(1, Math.round(chaos)) };
+  if (chaos >= 0.4) return { regal: 1 };
+  if (chaos >= 0.15) return { alchemy: 1 };
+  return { transmute: 1 };
 }
 
 /** The currently-equipped item this one would replace. */
@@ -971,9 +1215,10 @@ function itemTooltipHtml(item, compare, hint) {
   const mods = itemMods(item);
   const parts = [];
 
+  const desc = itemDescriptor(item);
   parts.push(`<div class="tt-name">${escapeHtml(item.name)}</div>`);
   if (item.rarity !== 'normal') parts.push(`<div class="tt-base">${escapeHtml(item.baseName ?? base?.class ?? '')}</div>`);
-  else parts.push(`<div class="tt-base">${escapeHtml(bs.class ?? '')}</div>`);
+  parts.push(`<div class="tt-base">${escapeHtml(desc.category)}${desc.subtype ? ` · ${escapeHtml(desc.subtype)}` : ''}</div>`);
 
   parts.push('<div class="tt-sep"></div>');
   if (bs.dps) {
@@ -1076,7 +1321,9 @@ function showMapTooltip(map, event) {
   moveTooltip(event);
 }
 
-function mapLevelOf(map) { return 66 + map.tier * 2; }
+// Uses the shared curve rather than a local copy — an earlier duplicate here
+// went stale and reported Tier 1 maps as monster level 68.
+function mapLevelOf(map) { return tierToLevel(map.tier); }
 
 function showCurrencyTooltip(c, event) {
   if (!c) return;
@@ -1117,8 +1364,15 @@ function openModal(id) {
 }
 
 function closeModals() {
+  // Character creation on a fresh save is not dismissable — there is no
+  // character behind it to return to.
+  if (isBlockingCreation()) return;
   qs('#modalBackdrop').classList.add('hidden');
   qsa('.modal').forEach((m) => m.classList.add('hidden'));
+}
+
+function isBlockingCreation() {
+  return G.paused && !qs('#modalNew').classList.contains('hidden');
 }
 
 function wireModals() {
@@ -1186,19 +1440,63 @@ function wireModals() {
   };
 
   // New character
+  qs('#classPicker').onclick = (e) => {
+    const card = e.target.closest('[data-class]');
+    if (!card) return;
+    ui.newClass = card.dataset.class;
+    renderClassPicker();
+  };
   qs('#btnCreateChar').onclick = () => {
     const name = (qs('#newName').value || 'Exile').trim().slice(0, 18);
-    G.state = newCharacter(name);
+    G.state = newCharacter(name, ui.newClass);
     addItem(grantStarterMap());
     Save.saveToSlot(G.slot, true);
+    G.paused = false;                 // the character now exists — start the world
     emit('loaded');
     closeModals();
-    log(`${name} arrives on the shore. Welcome to the Atlas.`, 'sys');
+    log(`${name} the ${CLASS_BY_ID[ui.newClass].name} arrives on the shore.`, 'sys');
+    log('Pick a map in the Atlas tab and press Run to begin.', 'sys');
   };
+  qs('#newName').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') qs('#btnCreateChar').click();
+  });
 }
 
-export function openNewCharacter() {
+function renderClassPicker() {
+  qs('#classPicker').innerHTML = CLASSES.map((c) => `
+    <div class="class-card ${ui.newClass === c.id ? 'selected' : ''}" data-class="${c.id}">
+      <div class="class-name">${escapeHtml(c.name)}</div>
+      <div class="class-attrs">
+        <span class="ca str">${c.attrs.str}</span>
+        <span class="ca dex">${c.attrs.dex}</span>
+        <span class="ca int">${c.attrs.int}</span>
+      </div>
+    </div>`).join('');
+
+  const c = CLASS_BY_ID[ui.newClass];
+  qs('#classDetail').innerHTML = `
+    <div class="cd-name">${escapeHtml(c.name)}</div>
+    <div class="cd-blurb">${escapeHtml(c.blurb)}</div>
+    <div class="cd-attrs">
+      <span><b class="c-str">${c.attrs.str}</b> Strength</span>
+      <span><b class="c-dex">${c.attrs.dex}</b> Dexterity</span>
+      <span><b class="c-int">${c.attrs.int}</b> Intelligence</span>
+    </div>
+    <div class="cd-asc">Ascendancies: ${c.ascendancies.map((a) =>
+    `<b>${escapeHtml(ASCENDANCIES[a].name)}</b>`).join(' · ')}</div>`;
+}
+
+/**
+ * Opens character creation. The world stays paused until "Begin" is pressed —
+ * from the player's point of view the character does not exist yet, so nothing
+ * should be running behind the dialog.
+ */
+export function openNewCharacter(isFirstRun = false) {
   qs('#newName').value = '';
+  ui.newClass = ui.newClass ?? 'marauder';
+  renderClassPicker();
+  // On first run there is nothing to go back to, so hide the dismiss button.
+  qs('#newCloseBtn').classList.toggle('hidden', isFirstRun);
   openModal('modalNew');
   setTimeout(() => qs('#newName').focus(), 50);
 }
@@ -1280,9 +1578,12 @@ function renderSettings() {
   if (!host) return;
   const s = G.state;
   host.innerHTML = `
-    ${toggleRow('autoRun', 'Auto-run maps', 'Automatically enter the best available map when idle.')}
+    ${toggleRow('autoRun', 'Auto-run maps',
+    'Off by default. When on, the highest safe map runs automatically once one finishes.')}
     ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items are converted to currency on pickup.')}
     ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items are converted to currency on pickup.')}
+    ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops',
+    'Rare items are converted to currency on pickup. Uniques are never auto-salvaged.')}
     <div class="setting-row">
       <div><div class="sl">Combat speed</div><div class="sh">Simulation multiplier. Higher is faster but coarser.</div></div>
       <select class="text-input" style="width:auto" id="setSpeed">
@@ -1311,16 +1612,13 @@ function renderSettings() {
       s.settings.logLimit = Number(t.value);
     }
   };
-  qs('#btnNewChar').onclick = () => { closeModals(); openNewCharacter(); };
+  qs('#btnNewChar').onclick = () => { closeModals(); G.paused = true; openNewCharacter(true); };
   qs('#btnWipe').onclick = () => confirmAction(
     'Delete this save?', `Slot ${G.slot + 1} will be erased and a new character created.`,
     () => {
       Save.deleteSlot(G.slot);
-      G.state = newCharacter('Exile');
-      addItem(grantStarterMap());
-      Save.saveToSlot(G.slot, true);
-      emit('loaded');
-      log('A new exile washes ashore.', 'sys');
+      G.paused = true;
+      openNewCharacter(true);
     },
   );
 }

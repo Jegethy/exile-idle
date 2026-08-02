@@ -32,8 +32,22 @@ export function addItem(item, opts = {}) {
   }
 
   if (s[bin].length >= capacityFor(item)) {
-    // Inventory pressure is a real decision — but never silently void a unique.
-    if (item.rarity === 'unique' || item.kind === 'map') return 'full';
+    if (item.kind === 'map') return 'full';
+
+    // A unique is the headline drop of an entire session — never throw one away
+    // for want of space. Break down the least valuable unlocked item instead.
+    if (item.rarity === 'unique') {
+      const victim = s.inventory
+        .filter((x) => x.rarity !== 'unique' && !x.locked)
+        .sort((a, b) => itemScore(a) - itemScore(b))[0];
+      if (!victim) return 'full';
+      salvageItem(victim, true);
+      s.inventory.push(item);
+      log(`Inventory full — salvaged ${victim.name} to make room for ${item.name}.`, 'unique');
+      emit('inventory');
+      return 'added';
+    }
+
     salvageItem(item, true);
     return 'salvaged-full';
   }
@@ -46,7 +60,17 @@ function shouldAutoSalvage(item) {
   const set = G.state.settings;
   if (item.rarity === 'normal' && set.autoSalvageNormal) return true;
   if (item.rarity === 'magic' && set.autoSalvageMagic) return true;
-  return false;
+  if (item.rarity === 'rare' && set.autoSalvageRare) return true;
+  return false;   // uniques are never auto-salvaged
+}
+
+/** Toggles the "keep this" flag that protects an item from bulk salvage. */
+export function toggleLock(uid) {
+  const item = findItem(uid);
+  if (!item) return false;
+  item.locked = !item.locked;
+  emit('inventory');
+  return item.locked;
 }
 
 export function removeItem(uid) {
@@ -171,13 +195,30 @@ export function salvageItem(item, quiet = false) {
   return gained;
 }
 
-/** Salvages everything matching a rarity filter. Returns the count destroyed. */
+/**
+ * Salvages everything matching a filter. Locked items are always skipped, so
+ * bulk-salvaging rares can't eat the piece you were saving.
+ */
 export function salvageAll(filter) {
   const s = G.state;
-  const doomed = s.inventory.filter(filter);
-  for (const item of doomed) salvageItem(item, true);
-  if (doomed.length) log(`Salvaged ${doomed.length} item${doomed.length === 1 ? '' : 's'}.`, 'loot');
+  const doomed = s.inventory.filter((i) => !i.locked && filter(i));
+  const gained = {};
+  for (const item of doomed) {
+    const got = salvageItem(item, true);
+    for (const [id, n] of Object.entries(got)) gained[id] = (gained[id] ?? 0) + n;
+  }
+  if (doomed.length) {
+    const parts = Object.entries(gained)
+      .sort((a, b) => b[1] - a[1]).slice(0, 4)
+      .map(([id, n]) => `${n}x ${CURRENCIES.find((c) => c.id === id)?.short ?? id}`).join(', ');
+    log(`Salvaged ${doomed.length} item${doomed.length === 1 ? '' : 's'} → ${parts}.`, 'loot');
+  }
   return doomed.length;
+}
+
+/** Count of inventory items a bulk-salvage filter would actually destroy. */
+export function countSalvageable(filter) {
+  return G.state.inventory.filter((i) => !i.locked && filter(i)).length;
 }
 
 // ---------------------------------------------------------------------------

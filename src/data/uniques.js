@@ -6,6 +6,34 @@
 const m = (r, text, apply, dec = 0) => ({ r, text, apply, dec });
 
 export const UNIQUES = [
+  // --- Low-level uniques, so Tier 1-3 maps can still drop one -------------
+  {
+    id: 'rustblade', name: 'The Rusted Oath', base: 'sword1h', lvl: 1, weight: 110,
+    flavour: 'It was sworn on a better blade than this.',
+    mods: [
+      m([30, 50], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      m([4, 8], (v) => `+${v} to Strength`, (b, v) => { b.str += v; }),
+      m([10, 18], (v) => `+${v} to maximum Life`, (b, v) => { b.flatLife += v; }),
+    ],
+  },
+  {
+    id: 'driftwoodcharm', name: 'Castaway\'s Charm', base: 'amulet', lvl: 1, weight: 105,
+    flavour: 'Carved on the voyage over. It is all he kept.',
+    mods: [
+      m([8, 14], (v) => `+${v}% to all Elemental Resistances`, (b, v) => { b.resFire += v; b.resCold += v; b.resLight += v; }),
+      m([12, 22], (v) => `+${v} to maximum Life`, (b, v) => { b.flatLife += v; }),
+      m([10, 18], (v) => `${v}% increased Rarity of Items found`, (b, v) => { b.incRarity += v; }),
+    ],
+  },
+  {
+    id: 'shorewalkers', name: 'Shorewalkers', base: 'boot_ev', lvl: 3, weight: 100,
+    flavour: 'The sand remembers every exile who made it inland.',
+    mods: [
+      m([15, 20], (v) => `${v}% increased Movement Speed`, (b, v) => { b.moveSpeed += v; }),
+      m([20, 40], (v) => `+${v} to Evasion Rating`, (b, v) => { b.flatEvasion += v; }),
+      m([1, 3], (v) => `Regenerate ${v} Life per second`, (b, v) => { b.lifeRegenFlat += v; }, 1),
+    ],
+  },
   {
     id: 'bramblejack', name: 'Bramblejack', base: 'body_ar', lvl: 8, weight: 100,
     flavour: 'The pain of the thorn is the price of the rose.',

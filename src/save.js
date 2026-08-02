@@ -3,6 +3,8 @@
 import { G, SAVE_VERSION, createState, log, emit } from './state.js';
 import { rng } from './rng.js';
 import { uidCounter, setUidFloor, defaults } from './util.js';
+import { TREE, START_IDS } from './passives.js';
+import { CLASS_BY_ID } from './data/classes.js';
 
 export const SLOT_COUNT = 3;
 const KEY = (slot) => `exileIdle.slot${slot}`;
@@ -56,6 +58,7 @@ export function deserialize(payload) {
   const fresh = createState(data.name ?? 'Exile');
   const state = defaults(data, fresh);
   state.version = SAVE_VERSION;
+  migrate(state);
 
   // A run in progress can't be trusted across a reload of balance data.
   if (state.combat && state.combat.status !== 'running') state.combat = null;
@@ -63,6 +66,31 @@ export function deserialize(payload) {
   if (payload.rng) rng.restore(payload.rng.seed, payload.rng.calls);
   if (payload.uidCounter) setUidFloor(payload.uidCounter);
   return state;
+}
+
+/**
+ * Brings an older save in line with the current data.
+ *
+ * The passive tree was rebuilt around per-class start nodes, so saves from
+ * before that carry allocated ids that no longer exist. Left alone they would
+ * still count as "spent" and silently strand the player's points, so any node
+ * we no longer recognise is dropped and refunded.
+ */
+function migrate(state) {
+  if (!CLASS_BY_ID[state.player.class]) state.player.class = 'scion';
+  if (!state.passives.ascendancy || typeof state.passives.ascendancy !== 'object') {
+    state.passives.ascendancy = {};
+  }
+
+  const alloc = state.passives.allocated ?? {};
+  let dropped = 0;
+  for (const id of Object.keys(alloc)) {
+    if (!TREE[id] || START_IDS.has(id)) { delete alloc[id]; dropped++; }
+  }
+  if (dropped) {
+    state.passives.allocated = alloc;
+    log(`The passive tree has changed — ${dropped} point${dropped === 1 ? '' : 's'} refunded.`, 'sys');
+  }
 }
 
 // ---------------------------------------------------------------------------

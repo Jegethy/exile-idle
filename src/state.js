@@ -55,7 +55,7 @@ export function tierToIlvl(tier) {
 // State construction
 // ---------------------------------------------------------------------------
 
-export function createState(name = 'Exile') {
+export function createState(name = 'Exile', classId = 'scion') {
   const stash = {};
   for (const c of CURRENCIES) stash[c.id] = 0;
   // Starting kit so the first map is survivable.
@@ -74,8 +74,8 @@ export function createState(name = 'Exile') {
     createdAt: Date.now(),
     playtime: 0,
 
-    player: { level: 1, xp: 0 },
-    passives: { allocated: {}, mastery: 0, bonusPoints: 0 },
+    player: { level: 1, xp: 0, class: classId, ascendancy: null },
+    passives: { allocated: {}, ascendancy: {}, mastery: 0, bonusPoints: 0 },
 
     equipment,
     inventory: [],
@@ -99,10 +99,12 @@ export function createState(name = 'Exile') {
     },
 
     settings: {
-      autoRun: true,          // chain into the next map automatically
+      // Off by default: choosing which map to run is the main decision the
+      // player makes, so it shouldn't be taken away from them up front.
+      autoRun: false,
       autoSalvageNormal: true,
       autoSalvageMagic: false,
-      autoEquipUpgrades: false,
+      autoSalvageRare: false,
       logLimit: 200,
       combatSpeed: 1,
     },
@@ -116,10 +118,18 @@ export function createState(name = 'Exile') {
  * A fresh character, kitted out well enough to survive Tier 1.
  * (The starter map is granted by game.js, which owns the maps module.)
  */
-export function newCharacter(name = 'Exile') {
-  const s = createState(name);
-  s.equipment.weapon = createItem({ baseId: 'sword1h', ilvl: 1, rarity: 'normal' });
-  s.equipment.body = createItem({ baseId: 'body_ar', ilvl: 1, rarity: 'normal' });
+export function newCharacter(name = 'Exile', classId = 'scion') {
+  const s = createState(name, classId);
+  // Starter kit matches the class's attribute leaning so it isn't dead weight.
+  const kit = {
+    marauder: ['axe1h', 'body_ar'], duelist: ['sword1h', 'body_arev'],
+    ranger: ['bow', 'body_ev'], shadow: ['dagger', 'body_ev'],
+    witch: ['wand', 'body_es'], templar: ['mace1h', 'body_ares'],
+    scion: ['sword1h', 'body_arev'],
+  }[classId] ?? ['sword1h', 'body_ar'];
+
+  s.equipment.weapon = createItem({ baseId: kit[0], ilvl: 1, rarity: 'normal' });
+  s.equipment.body = createItem({ baseId: kit[1], ilvl: 1, rarity: 'normal' });
   return s;
 }
 

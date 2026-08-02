@@ -69,6 +69,7 @@
           </div>
         </div>
         <div id="passiveInfo" class="passive-info">Hover a node for details. Click to allocate.</div>
+        <div id="ascendancyPanel" class="asc-panel"></div>
       </div>
     </section>
 
@@ -120,9 +121,14 @@
           <span>Inventory <b id="invCount">0/60</b></span>
           <div class="head-actions">
             <button class="btn tiny" id="btnSortInv">Sort</button>
-            <button class="btn tiny danger" id="btnSalvageNormal">Salvage Normal</button>
-            <button class="btn tiny danger" id="btnSalvageMagic">+Magic</button>
           </div>
+        </div>
+        <div class="salvage-bar">
+          <span class="salvage-label">Salvage:</span>
+          <button class="btn tiny danger" id="btnSalvageNormal">Normal</button>
+          <button class="btn tiny danger" id="btnSalvageMagic">+ Magic</button>
+          <button class="btn tiny danger" id="btnSalvageRare">+ Rare</button>
+          <span class="hint salvage-hint">Locked 🔒 and Unique items are never bulk-salvaged.</span>
         </div>
         <div id="invGrid" class="inv-grid"></div>
       </div>
@@ -175,13 +181,30 @@
     <div class="modal-body" id="settingsBody"></div>
   </div>
 
-  <div class="modal hidden" id="modalNew">
-    <header><h2>New Character</h2><button class="btn tiny modal-close">✕</button></header>
+  <div class="modal wide hidden" id="modalNew">
+    <header><h2>New Character</h2><button class="btn tiny modal-close" id="newCloseBtn">✕</button></header>
     <div class="modal-body">
-      <p class="hint">Name your exile. You will start with a Tier 1 map and a handful of orbs.</p>
+      <p class="hint">Choose a class. It sets your starting attributes, where you begin on the
+        passive tree, and which ascendancies you may specialise into at level 20.</p>
+      <div id="classPicker" class="class-picker"></div>
+      <div id="classDetail" class="class-detail"></div>
+      <div class="section-head"><span>Name</span></div>
       <input type="text" id="newName" class="text-input" maxlength="18" placeholder="Exile">
       <div class="row"><button class="btn primary" id="btnCreateChar">Begin</button></div>
     </div>
+  </div>
+
+  <div class="modal hidden" id="modalAscendancy">
+    <header><h2>Choose an Ascendancy</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body">
+      <p class="hint">This choice is permanent. Ascendancy points are granted at levels 20, 40, 60 and 80.</p>
+      <div id="ascPicker" class="asc-picker"></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="modalItem">
+    <header><h2 id="itemMenuTitle">Item</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body" id="itemMenuBody"></div>
   </div>
 
   <div class="modal hidden" id="modalConfirm">

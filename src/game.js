@@ -34,28 +34,28 @@ function boot() {
     rng.seed(Date.now() >>> 0);
   }
 
+  // A brand-new save has no character yet, so the world stays frozen — and
+  // unsaved — until the player has picked a class and a name.
+  G.paused = fresh;
+
   refreshDerived();
   initUI();
 
   if (fresh) {
-    addItem(grantStarterMap());
-    log('You wash ashore, and the Atlas opens before you.', 'sys');
-    log('Run your first map from the Atlas tab, then spend passive points as you level.', 'sys');
-    Save.saveToSlot(G.slot, true);
-    openNewCharacter();
+    openNewCharacter(true);
   } else {
     log(`Welcome back, ${G.state.name}.`, 'sys');
+    ensureNotStuck();
   }
 
-  ensureNotStuck();
   renderAll();
 
   last = performance.now();
   requestAnimationFrame(loop);
 
-  window.addEventListener('beforeunload', () => Save.saveToSlot(G.slot, true));
+  window.addEventListener('beforeunload', () => { if (!G.paused) Save.saveToSlot(G.slot, true); });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) Save.saveToSlot(G.slot, true);
+    if (document.hidden) { if (!G.paused) Save.saveToSlot(G.slot, true); }
     else last = performance.now();       // don't bank hidden time as one huge step
   });
 }

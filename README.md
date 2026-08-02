@@ -19,25 +19,45 @@ Any static server works equally well (`python -m http.server`, `npx serve`, etc.
 
 ## The loop
 
-1. **Run a map** from the Atlas. Combat is automatic and tick-based — your clear
-   speed, DPS and defensive layers do the work.
-2. **Loot drops**: gear, currency orbs, and more maps (sometimes a tier higher).
-3. **Craft** the gear with orbs, **equip** upgrades, **spend** passive points.
-4. **Push tiers.** Each tier is meaningfully harder and richer than the last.
-5. At Tier 5+, **Pinnacle Fragments** drop. Four of them summon a boss with a
+1. **Pick a map** from the Atlas and press Run. Which map you run is the main
+   decision you make — auto-run exists but is **off by default**.
+2. Combat is automatic and tick-based; clear speed, DPS and defensive layers do
+   the work.
+3. **Loot drops**: gear, currency orbs, uniques, and more maps (sometimes a
+   tier higher).
+4. **Craft** the gear with orbs, **equip** upgrades, **spend** passive points.
+5. **Push tiers.** Each tier is meaningfully harder and richer than the last.
+6. At Tier 5+, **Pinnacle Fragments** drop. Four of them summon a boss with a
    guaranteed unique-weighted loot table.
 
 ## Systems
 
+**Classes** — Seven of them: Marauder, Duelist, Ranger, Shadow, Witch, Templar
+and Scion. Your class sets your starting attributes, where you begin on the
+passive tree, and which three ascendancies you may specialise into. At level 20
+you choose an **ascendancy** (19 in total, four nodes each); ascendancy points
+are granted at levels 20, 40, 60 and 80.
+
 **Characters** — Strength, Dexterity and Intelligence feed life, evasion, energy
 shield, accuracy and mana. Levels are uncapped; XP scales exponentially.
 
-**Passive tree** — Six themed arms of travel nodes, notables and keystones radiating
-from a start node, with adjacency-based allocation and connectivity-checked refunds.
-Keystones are genuine build decisions: Chaos Inoculation sets life to 1 and multiplies
-energy shield; Resolute Technique trades all critical strikes for guaranteed hits and
-30% more damage. Once the tree is full, further points become **mastery** points,
-which scale forever — this is what keeps uber tiers reachable.
+**Passive tree** — 206 nodes laid out as a wheel. Each of the six outer classes
+owns an arm travelling inward through five segments toward the Scion at the
+centre; attribute clusters fill the gaps between arms. Minor nodes grant
+Strength, Dexterity or Intelligence, notables gate each segment, and 13
+keystones hang off short branches. Allocation is adjacency-based and seeded from
+*your* class's start node; refunds are connectivity-checked so you can't orphan
+your tree.
+
+Keystones are genuine build decisions — Chaos Inoculation sets life to 1 and
+multiplies energy shield, Resolute Technique trades all critical strikes for
+guaranteed hits and 30% more damage, Iron Reflexes converts evasion to armour,
+Blood Magic trades energy shield for life, Glancing Blows buys block chance at
+the cost of partial mitigation, and Pain Attunement only pays out while you are
+nearly dead.
+
+Once the tree is full, further points become **mastery** points, which scale
+forever — this is what keeps uber tiers reachable.
 
 **Itemisation** — Nine equipment slots and 29 base types whose numbers derive from
 item level, so bases keep improving indefinitely. Four rarities:
@@ -95,13 +115,27 @@ src/
   ui.js             all rendering and interaction
   rng.js            seeded PRNG (saves reproduce their loot stream)
   util.js           formatting and DOM helpers
-  data/             bases, affixes, uniques, currency, monsters, map mods
+  data/             bases, affixes, uniques, currency, monsters, map mods, classes
 ```
+
+## Inventory and salvage
+
+There are no item icons, so every inventory entry states what it actually is:
+name in its rarity colour, item level, category (Boots, One-Handed Weapon,
+Jewellery…) and sub-type — the weapon class for weapons, and the defences a
+piece of armour actually provides (Armour / Evasion / Energy Shield).
+
+Anything can be salvaged into currency, including rares and uniques.
+**Right-click** any item for a menu with Equip, Lock and Salvage (with a preview
+of the payout). Bulk-salvage buttons sit above the inventory and show how many
+items they would destroy; **locked** 🔒 and **unique** items are never
+bulk-salvaged, and salvaging a unique asks for confirmation.
 
 ## Controls
 
-- **Click** an inventory item to equip it; **Shift-click** to salvage it.
-- **Click** an equipped item to unequip.
+- **Click** an inventory item to equip it; **click** an equipped item to unequip.
+- **Right-click** any item for the full action menu.
+- **Shift-click** to salvage, **Ctrl-click** to lock.
 - **Hover** anything for a full tooltip with a stat comparison against your gear.
 - Passive tree: **drag** to pan, **scroll** to zoom, **click** a node to allocate
   or refund.

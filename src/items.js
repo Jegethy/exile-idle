@@ -3,7 +3,7 @@
 import { rng } from './rng.js';
 import { uid, clamp } from './util.js';
 import {
-  BASE_BY_ID, BASES, baseNameFor, baseStatsFor, reqAttrs, slotAccepts,
+  BASE_BY_ID, BASES, baseNameFor, baseStatsFor, reqAttrs, slotAccepts, baseDescriptor,
 } from './data/bases.js';
 import { AFFIX_BY_ID, eligibleAffixes, availableTiers, tierNumber } from './data/affixes.js';
 import { UNIQUE_BY_ID, uniquesFor } from './data/uniques.js';
@@ -351,6 +351,11 @@ export function applyItemMods(item, bag) {
     if (!def || LOCAL_IDS.has(def.id)) continue;
     def.apply(bag, a.values);
   }
+}
+
+/** Category / sub-type descriptor for inventory and tooltip display. */
+export function itemDescriptor(item) {
+  return baseDescriptor(BASE_BY_ID[item.baseId]);
 }
 
 /** Rough desirability score, used for auto-sorting and salvage payouts. */
