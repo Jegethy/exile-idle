@@ -30,6 +30,7 @@ import {
 import { dispatch, dispatchRaid, recall, runProgress } from './expedition.js';
 import * as Save from './save.js';
 import { tutorialTick } from './tutorial.js';
+import { returnToTitle } from './splash.js';
 
 /** Transient UI state — never persisted. */
 const ui = {
@@ -1154,13 +1155,8 @@ function openModal(id) {
 }
 
 function closeModals() {
-  if (isBlockingCreation()) return;
   qs('#modalBackdrop').classList.add('hidden');
   qsa('.modal').forEach((m) => m.classList.add('hidden'));
-}
-
-function isBlockingCreation() {
-  return G.paused && !qs('#modalNew').classList.contains('hidden');
 }
 
 function wireModals() {
@@ -1205,22 +1201,11 @@ function wireModals() {
     if (cb) cb();
   };
 
-  qs('#btnCreateGuild').onclick = async () => {
-    const name = (qs('#newName').value || 'The Wayfarers').trim().slice(0, 24);
-    const { foundGuild } = await import('./game.js');
-    foundGuild(name);
+  qs('#btnTitle').onclick = () => {
+    Save.saveToSlot(G.slot, true);
     closeModals();
+    returnToTitle();
   };
-  qs('#newName').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') qs('#btnCreateGuild').click();
-  });
-}
-
-export function openNewGuild(isFirstRun = false) {
-  qs('#newName').value = '';
-  qs('#newCloseBtn').classList.toggle('hidden', isFirstRun);
-  openModal('modalNew');
-  setTimeout(() => qs('#newName').focus(), 50);
 }
 
 function confirmAction(title, text, cb) {
@@ -1320,12 +1305,15 @@ function renderSettings() {
     else if (t.id === 'setLog') s.settings.logLimit = Number(t.value);
   };
   qs('#btnWipe').onclick = () => confirmAction(
-    'Delete this guild?', `Slot ${G.slot + 1} will be erased and a new guild founded.`,
+    'Delete this guild?',
+    `Slot ${G.slot + 1} will be erased permanently and you will be returned to the title screen. `
+    + 'Export a copy first if you might want it back.',
     () => {
       Save.deleteSlot(G.slot);
       G.state = createState();
       G.paused = true;
-      openNewGuild(true);
+      closeModals();
+      returnToTitle();
     },
   );
 }

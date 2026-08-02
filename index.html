@@ -139,18 +139,94 @@
 
 <div id="tooltip" class="tooltip hidden"></div>
 
+<!-- ================= TITLE SCREEN ================= -->
+<div id="splash" class="splash hidden">
+  <svg class="splash-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#12131c"/>
+        <stop offset="45%" stop-color="#191a26"/>
+        <stop offset="100%" stop-color="#07070b"/>
+      </linearGradient>
+      <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#d8c79a" stop-opacity=".30"/>
+        <stop offset="100%" stop-color="#d8c79a" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="ridgeFar" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2c2e45"/><stop offset="100%" stop-color="#1b1d2e"/>
+      </linearGradient>
+      <linearGradient id="ridgeMid" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1e2033"/><stop offset="100%" stop-color="#101120"/>
+      </linearGradient>
+    </defs>
+
+    <rect width="1600" height="900" fill="url(#sky)"/>
+    <circle cx="1180" cy="250" r="300" fill="url(#moonGlow)"/>
+    <circle cx="1180" cy="250" r="76" fill="#ded2ad" opacity=".68"/>
+    <circle cx="1155" cy="232" r="13" fill="#bfb391" opacity=".40"/>
+    <circle cx="1201" cy="278" r="9" fill="#bfb391" opacity=".32"/>
+    <g fill="#cfc9b8">
+      <circle cx="180" cy="120" r="1.6" opacity=".7"/><circle cx="420" cy="80" r="1.2" opacity=".5"/>
+      <circle cx="700" cy="150" r="1.5" opacity=".6"/><circle cx="920" cy="70" r="1.1" opacity=".45"/>
+      <circle cx="1420" cy="130" r="1.7" opacity=".65"/><circle cx="300" cy="230" r="1.2" opacity=".4"/>
+      <circle cx="1520" cy="320" r="1.3" opacity=".5"/><circle cx="60" cy="300" r="1.4" opacity=".45"/>
+    </g>
+
+    <path d="M0 620 L210 470 L360 560 L520 430 L700 590 L860 500 L1010 600 L1180 470 L1380 580 L1600 460 L1600 900 L0 900 Z"
+          fill="url(#ridgeFar)"/>
+    <path d="M0 720 L180 620 L340 700 L470 630 L640 730 L820 640 L980 720 L1160 620 L1330 710 L1600 630 L1600 900 L0 900 Z"
+          fill="url(#ridgeMid)"/>
+
+    <!-- The guild keep, scaled and dropped onto the ridgeline -->
+    <g transform="translate(57,240) scale(0.62)" fill="#0a0b12">
+      <rect x="228" y="486" width="120" height="240"/>
+      <rect x="206" y="466" width="24" height="34"/><rect x="252" y="452" width="22" height="48"/>
+      <rect x="300" y="452" width="22" height="48"/><rect x="346" y="466" width="24" height="34"/>
+      <rect x="150" y="580" width="80" height="146"/>
+      <rect x="346" y="560" width="96" height="166"/>
+      <path d="M262 430 L286 396 L310 430 Z"/>
+    </g>
+    <g transform="translate(57,240) scale(0.62)" fill="#d8a24a" opacity=".9">
+      <rect x="252" y="536" width="14" height="20" rx="6"/>
+      <rect x="308" y="536" width="14" height="20" rx="6"/>
+      <rect x="274" y="600" width="14" height="22" rx="6"/>
+      <rect x="176" y="622" width="12" height="18" rx="5"/>
+      <rect x="380" y="606" width="12" height="18" rx="5"/>
+    </g>
+    <rect width="1600" height="900" fill="#05050a" opacity=".34"/>
+  </svg>
+
+  <div class="splash-inner">
+    <svg class="splash-crest" viewBox="0 0 120 134" aria-hidden="true">
+      <defs>
+        <linearGradient id="crestFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#e3c98d"/><stop offset="100%" stop-color="#9c7f45"/>
+        </linearGradient>
+      </defs>
+      <path class="crest-shield" d="M60 5 L112 22 V64 C112 95 89 118 60 129 C31 118 8 95 8 64 V22 Z"/>
+      <path class="crest-field" d="M60 16 L102 30 V64 C102 89 83 108 60 118 C37 108 18 89 18 64 V30 Z"/>
+      <g class="crest-swords">
+        <path d="M36 104 L82 46"/>
+        <path d="M84 104 L38 46"/>
+        <path d="M70 52 L86 66"/>
+        <path d="M50 52 L34 66"/>
+      </g>
+      <circle class="crest-stud" cx="34" cy="107" r="4"/>
+      <circle class="crest-stud" cx="86" cy="107" r="4"/>
+      <path class="crest-chevron" d="M40 38 L60 26 L80 38"/>
+    </svg>
+
+    <h1 class="splash-word">IDLE<em>GUILD</em></h1>
+    <p class="splash-tag">Recruit heroes. Send parties. Never swing a sword yourself.</p>
+
+    <div id="splashBody" class="splash-body"></div>
+  </div>
+
+  <div class="splash-foot">Vanilla HTML, CSS and ES modules — no dependencies.</div>
+</div>
+
 <!-- ================= MODALS ================= -->
 <div class="modal-backdrop hidden" id="modalBackdrop">
-
-  <div class="modal hidden" id="modalNew">
-    <header><h2>Found a Guild</h2><button class="btn tiny modal-close" id="newCloseBtn">✕</button></header>
-    <div class="modal-body">
-      <p class="hint">Name your guild. You will start with three heroes, a party and a
-        little gold — enough to run the Deepmines and start building from there.</p>
-      <input type="text" id="newName" class="text-input" maxlength="24" placeholder="The Wayfarers">
-      <div class="row"><button class="btn primary" id="btnCreateGuild">Open for Business</button></div>
-    </div>
-  </div>
 
   <div class="modal wide hidden" id="modalHero">
     <header><h2 id="heroModalTitle">Hero</h2><button class="btn tiny modal-close">✕</button></header>
@@ -178,6 +254,10 @@
         <button class="btn" id="btnDownload">Download .json</button>
         <label class="btn file-btn">Upload .json<input type="file" id="fileInput" accept=".json,application/json" hidden></label>
       </div>
+      <div class="section-head"><span>Title Screen</span></div>
+      <p class="hint">Return to the title screen to switch guilds or start another one.
+        Your current guild is saved first.</p>
+      <div class="row"><button class="btn" id="btnTitle">Return to Title Screen</button></div>
     </div>
   </div>
 

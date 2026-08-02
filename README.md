@@ -33,6 +33,23 @@ Any static server works equally well (`python -m http.server`, `npx serve`, …)
 6. **Push tiers, then raid.** Raid Seals drop from Tier 4+ and open milestone
    bosses whose first kills permanently raise guild rewards.
 
+## Title screen and saves
+
+The game always opens on a title screen — nothing loads automatically.
+
+A brand-new player skips the slot list entirely and goes straight to naming
+their first guild, which lands in slot 1. A returning player gets all three
+slots, each showing the guild name, level, roster size, highest tier, playtime
+and when it was last saved. From there you can **Continue** any guild, **Found
+a Guild** in an empty slot, or **Delete** one.
+
+Deleting names the guild being destroyed and states what will be lost before it
+does anything, and is the only irreversible action on the screen. Deleting your
+last save drops back to the naming form, so the screen is never empty.
+
+**Return to Title Screen** in the in-game Saves menu saves the current guild and
+comes back here, so you can run several guilds without reloading the page.
+
 ## Tutorial
 
 A new guild opens into a fourteen-step guided tour. It darkens the screen except
