@@ -7,8 +7,12 @@
 // really does press the button the tutorial is pointing at.
 //
 // Steps are declarative. A step advances when the player clicks its target
-// (`advance: 'click'`), when a game condition becomes true (`'wait'`), or when
-// they press Continue (`'next'`).
+// (`advance: 'click'`) or when they press Continue (`'next'`).
+//
+// `advance: 'wait'` does NOT advance on its own. The condition only *unlocks*
+// the Continue button, so the player still decides when to move on. Auto-
+// advancing on a condition tied reading time to however long the game took,
+// which meant a fast expedition skipped the text out from under the player.
 
 import { G, log, emit } from './state.js';
 import { qs, qsa, escapeHtml } from './util.js';
@@ -16,6 +20,7 @@ import { qs, qsa, escapeHtml } from './util.js';
 let active = false;
 let index = 0;
 let clickHandler = null;
+let waitReady = false;
 
 /** Steps run in order. `target` is a CSS selector resolved when the step opens. */
 export const STEPS = [
@@ -103,8 +108,14 @@ export const STEPS = [
       + '<br><br><i>This first run is running at five times normal speed so you are not kept '
       + 'waiting. Later expeditions take their own time.</i>',
     advance: 'wait',
+    waitLabel: 'Waiting for the party…',
+    readyTarget: '#guildLog',
     waitFor: () => G.state.expeditions.length === 0
       && (G.state.stats.runs + G.state.stats.runsFailed) > 0,
+    readyBody: () => (G.state.stats.runs > 0
+      ? '<b>They made it back.</b> Take your time — the tutorial waits for you.'
+      : '<b>They were driven out.</b> A failed run keeps whatever was already looted but '
+        + 'earns no completion chest. Nobody is lost permanently.'),
   },
   {
     id: 'rewards',
@@ -208,7 +219,21 @@ export function tutorialTick() {
   const step = STEPS[index];
   if (!step) return;
   reposition();
-  if (step.advance === 'wait' && step.waitFor && step.waitFor()) advance();
+
+  if (step.advance === 'wait' && !waitReady && step.waitFor?.()) {
+    waitReady = true;
+    const next = qs('#tutNext');
+    if (next) {
+      next.disabled = false;
+      next.textContent = 'Continue';
+      next.classList.add('ready');
+    }
+    if (step.readyBody) {
+      const body = qs('#tutBody');
+      if (body) body.innerHTML += `<div class="tut-ready-note">${step.readyBody()}</div>`;
+      reposition();
+    }
+  }
 }
 
 function advance() {
@@ -246,7 +271,11 @@ function buildOverlay() {
       </div>`;
     document.body.appendChild(root);
     qs('#tutSkip').onclick = confirmSkip;
-    qs('#tutNext').onclick = () => { if (STEPS[index]?.advance === 'next') advance(); };
+    qs('#tutNext').onclick = () => {
+      const step = STEPS[index];
+      if (!step) return;
+      if (step.advance === 'next' || (step.advance === 'wait' && waitReady)) advance();
+    };
     window.addEventListener('resize', reposition);
   }
   root.classList.remove('hidden');
@@ -266,9 +295,18 @@ function openStep(i) {
   qs('#tutBody').innerHTML = step.body;
 
   const next = qs('#tutNext');
+  waitReady = false;
+  next.classList.remove('ready');
   if (step.advance === 'next') {
     next.classList.remove('hidden');
+    next.disabled = false;
     next.textContent = i + 1 >= STEPS.length ? 'Finish' : 'Continue';
+  } else if (step.advance === 'wait') {
+    // Present but inert until the game catches up, so the player can see that
+    // moving on is their call rather than wondering if it is stuck.
+    next.classList.remove('hidden');
+    next.disabled = true;
+    next.textContent = step.waitLabel ?? 'Waiting…';
   } else {
     next.classList.add('hidden');
   }
@@ -310,8 +348,12 @@ function detachClick() {
 }
 
 function resolveTarget(step) {
-  if (!step?.target) return null;
-  return qs(step.target);
+  if (!step) return null;
+  // A wait step can point somewhere else once its condition resolves — the
+  // expedition panel empties out on completion, so the spotlight follows the
+  // outcome into the log instead of framing an empty box.
+  const sel = (waitReady && step.readyTarget) ? step.readyTarget : step.target;
+  return sel ? qs(sel) : null;
 }
 
 // ---------------------------------------------------------------------------
