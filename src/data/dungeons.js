@@ -11,7 +11,7 @@
 
 export const DUNGEONS = [
   {
-    id: 'mines', name: 'The Deepmines', focus: 'Gold', icon: 'pick',
+    id: 'mines', name: 'The Deepmines', focus: 'Gold', category: 'gold', icon: 'pick',
     blurb: 'Collapsed shafts worked by things that no longer need air. The seams are still rich.',
     counter: 'Enemies are heavily armoured — physical weapons struggle here.',
     rewards: { gold: 2.40, gear: 0.55, xp: 0.75, mats: 1.10 },
@@ -20,7 +20,7 @@ export const DUNGEONS = [
     waves: 8,
   },
   {
-    id: 'crypt', name: 'The Sunken Crypt', focus: 'Equipment', icon: 'skull',
+    id: 'crypt', name: 'The Sunken Crypt', focus: 'Equipment', category: 'gear', icon: 'skull',
     blurb: 'Flooded burial vaults. Whatever was interred here was buried with its wealth.',
     counter: 'The dead hit hard and endure — bring sustain.',
     rewards: { gold: 0.60, gear: 2.20, xp: 0.85, mats: 0.90 },
@@ -29,7 +29,7 @@ export const DUNGEONS = [
     waves: 9,
   },
   {
-    id: 'arena', name: 'The Proving Arena', focus: 'Experience', icon: 'banner',
+    id: 'arena', name: 'The Proving Arena', focus: 'Experience', category: 'xp', icon: 'banner',
     blurb: 'A sanctioned blood sport. The crowd pays poorly; the lessons are worth more.',
     counter: 'Opponents are fast and aggressive — a Tank earns their keep.',
     rewards: { gold: 0.70, gear: 0.70, xp: 2.40, mats: 0.70 },
@@ -38,7 +38,7 @@ export const DUNGEONS = [
     waves: 10,
   },
   {
-    id: 'vault', name: 'The Arcane Vault', focus: 'Essence', icon: 'orb',
+    id: 'vault', name: 'The Arcane Vault', focus: 'Essence', category: 'materials', icon: 'orb',
     blurb: 'A repository of bound magic. The wards were never meant to be argued with.',
     counter: 'Wardens carry heavy elemental resistance — physical damage cuts deeper.',
     rewards: { gold: 0.85, gear: 0.80, xp: 0.70, mats: 2.10 },
@@ -49,7 +49,7 @@ export const DUNGEONS = [
 
   // ---- Gathering runs. Poor for gear and gold, unmatched for materials. ----
   {
-    id: 'forest', name: 'The Dark Forest', focus: 'Wood & Herbs', icon: 'tree',
+    id: 'forest', name: 'The Dark Forest', focus: 'Wood & Herbs', category: 'materials', icon: 'tree',
     blurb: 'Old growth that closed over the road a long time ago. Things nest in it now.',
     counter: 'Fast, evasive quarry — accuracy matters more than armour here.',
     rewards: { gold: 0.55, gear: 0.45, xp: 0.80, mats: 2.60 },
@@ -58,7 +58,7 @@ export const DUNGEONS = [
     waves: 8,
   },
   {
-    id: 'marches', name: 'The Wild Marches', focus: 'Leather & Bone', icon: 'hide',
+    id: 'marches', name: 'The Wild Marches', focus: 'Leather & Bone', category: 'materials', icon: 'hide',
     blurb: 'Open hunting country. Everything out here has hide worth taking, and knows it.',
     counter: 'Heavy brutes that hit hard but slowly — a Tank holds them easily.',
     rewards: { gold: 0.60, gear: 0.50, xp: 0.85, mats: 2.50 },
@@ -67,7 +67,7 @@ export const DUNGEONS = [
     waves: 8,
   },
   {
-    id: 'hollow', name: 'Silkmoth Hollow', focus: 'Cloth & Herbs', icon: 'silk',
+    id: 'hollow', name: 'Silkmoth Hollow', focus: 'Cloth & Herbs', category: 'materials', icon: 'silk',
     blurb: 'A gorge hung with cocoons the size of carts. The weaving never stops.',
     counter: 'Swarming attackers with weak individual hits — sustain beats armour.',
     rewards: { gold: 0.55, gear: 0.50, xp: 0.75, mats: 2.55 },
@@ -78,6 +78,24 @@ export const DUNGEONS = [
 ];
 
 export const DUNGEON_BY_ID = Object.fromEntries(DUNGEONS.map((d) => [d.id, d]));
+
+/**
+ * Dispatch-screen filters. Grouping by what a run pays out keeps the list
+ * navigable as destinations are added — a player hunting leather should not
+ * have to scan past every gold and experience run to find it.
+ */
+export const DUNGEON_CATEGORIES = [
+  { id: 'all', name: 'All' },
+  { id: 'gold', name: 'Gold' },
+  { id: 'gear', name: 'Equipment' },
+  { id: 'xp', name: 'Experience' },
+  { id: 'materials', name: 'Materials' },
+];
+
+/** Dungeons in a category. `all` returns everything. */
+export function dungeonsIn(category) {
+  return category === 'all' ? DUNGEONS : DUNGEONS.filter((d) => d.category === category);
+}
 
 // ---------------------------------------------------------------------------
 // Raids

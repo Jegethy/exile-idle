@@ -15,7 +15,8 @@ import { MATERIALS, MATERIAL_BY_ID, FAMILIES, familyMaterials } from './data/mat
 import { RECIPES, FLASKS, flaskCost } from './data/recipes.js';
 import { CLASS_BY_ID, RARITY_BY_ID } from './data/heroclasses.js';
 import {
-  DUNGEONS, DUNGEON_BY_ID, RAIDS, staminaCost, expectedDuration, tierToLevel, wavesFor,
+  DUNGEONS, DUNGEON_BY_ID, DUNGEON_CATEGORIES, dungeonsIn, RAIDS,
+  staminaCost, expectedDuration, tierToLevel, wavesFor,
 } from './data/dungeons.js';
 import { UPGRADES, upgradeCost, guildEffects } from './data/upgrades.js';
 import {
@@ -38,6 +39,7 @@ const ui = {
   craftRecipe: null,
   equipTarget: null,     // heroUid the vault is currently gearing
   dispatchTier: 1,
+  dungeonFilter: 'all',
   logFilter: 'all',
   confirmCb: null,
 };
@@ -571,6 +573,7 @@ function renderDispatch() {
   const tier = ui.dispatchTier;
   const free = partySlots() - s.expeditions.length;
   const idleParties = s.parties.filter((p) => !s.expeditions.some((e) => e.partyId === p.id));
+  const shown = dungeonsIn(ui.dungeonFilter);
 
   host.innerHTML = `
     <div class="dispatch-bar">
@@ -582,7 +585,12 @@ function renderDispatch() {
       <span class="hint">${free} charter${free === 1 ? '' : 's'} free</span>
       ${autoDispatchControl()}
     </div>
-    <div class="dungeon-grid">${DUNGEONS.map((d) => {
+    <div class="dungeon-filters">${DUNGEON_CATEGORIES.map((c) => {
+    const n = dungeonsIn(c.id).length;
+    return `<button class="btn tiny ${ui.dungeonFilter === c.id ? 'active' : ''}"
+        data-dfilter="${c.id}">${escapeHtml(c.name)} <span class="df-n">${n}</span></button>`;
+  }).join('')}</div>
+    <div class="dungeon-grid">${shown.map((d) => {
     const cleared = s.progress.cleared[`${d.id}:${tier}`] ?? 0;
     return `<div class="dungeon ${cleared ? 'cleared' : ''}">
         <div class="dg-top">
@@ -607,8 +615,14 @@ function renderDispatch() {
       }).join('')
       : '<span class="hint">All parties are busy.</span>'}</div>
       </div>`;
-  }).join('')}</div>`;
+  }).join('')}${shown.length ? '' : '<div class="empty-note">Nothing in this category yet.</div>'}</div>`;
 
+  host.querySelector('.dungeon-filters').onclick = (e) => {
+    const b = e.target.closest('[data-dfilter]');
+    if (!b) return;
+    ui.dungeonFilter = b.dataset.dfilter;
+    renderDispatch();
+  };
   const toggle = qs('#autoRedeployToggle');
   if (toggle) {
     toggle.onchange = () => {
