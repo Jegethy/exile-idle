@@ -3,7 +3,7 @@
 import { G, log, emit, vaultCapacity, addGold, spendGold } from './state.js';
 import { rng } from './rng.js';
 import { itemScore, RARITY } from './items.js';
-import { MATERIALS, MATERIAL_BY_ID, materialOf, gradeForIlvl, salvageFamilies } from './data/materials.js';
+import { MATERIAL_BY_ID, materialOf, gradeForIlvl, salvageFamilies } from './data/materials.js';
 import { BASE_BY_ID } from './data/bases.js';
 import { UPGRADE_BY_ID, upgradeCost } from './data/upgrades.js';
 import { refreshSheets } from './sheets.js';

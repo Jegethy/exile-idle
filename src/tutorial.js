@@ -15,7 +15,7 @@
 // which meant a fast expedition skipped the text out from under the player.
 
 import { G, log, emit } from './state.js';
-import { qs, qsa, escapeHtml } from './util.js';
+import { qs, qsa } from './util.js';
 
 let active = false;
 let index = 0;

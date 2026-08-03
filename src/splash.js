@@ -4,8 +4,8 @@
 // returning player picks which guild to run and a new one is walked straight
 // into naming their first.
 
-import { G, log } from './state.js';
-import { fmt, fmtInt, fmtTime, fmtAgo, qs, qsa, escapeHtml } from './util.js';
+import { log } from './state.js';
+import { fmtInt, fmtTime, fmtAgo, qs, qsa, escapeHtml } from './util.js';
 import * as Save from './save.js';
 
 let onStart = null;      // (slot) => void      — continue an existing guild

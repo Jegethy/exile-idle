@@ -204,7 +204,12 @@ src/
   game.js           boot, main loop, auto-save
   state.js          guild state, XP/gold curves, event bus
   heroes.js         roster, recruitment, stamina, parties, equipping
-  expedition.js     party-vs-wave combat, loot, run resolution
+  expedition.js     starting, recalling and reporting on expeditions
+  expedition/
+    balance.js      tier curves the other three scale against
+    enemies.js      building what a party fights
+    combat.js       the tick: waves, hero turns, enemy turns
+    rewards.js      the haul, and what happens to it at the end
   stats.js          class + level + traits + gear -> hero stat sheet
   items.js          item generation, affix rolling, naming
   inventory.js      guild vault, salvage, Guild Hall purchases

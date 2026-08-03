@@ -1,7 +1,7 @@
 // heroes.js — the roster: recruitment, levelling, stamina and equipment.
 
 import { rng } from './rng.js';
-import { uid, clamp } from './util.js';
+import { uid } from './util.js';
 import { G, log, emit, xpToNext, recruitCost, spendGold } from './state.js';
 import {
   HERO_CLASSES, CLASS_BY_ID, HERO_RARITIES, RARITY_BY_ID, FIRST_NAMES, EPITHETS,
