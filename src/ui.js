@@ -1285,7 +1285,7 @@ function wireModals() {
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (ui.craftRecipe) { selectOrb(null); return; }
+    if (ui.craftRecipe) { selectRecipe(null); return; }
     closeModals();
   });
 

@@ -376,6 +376,15 @@ function resolveTarget(step) {
   return qs(step.target);
 }
 
+/**
+ * The element the current step is pointing at, or null. Exported so a test can
+ * drive a 'click' step the way a player would, without hard-coding each step's
+ * selector into the suite.
+ */
+export function currentStepTarget() {
+  return active ? resolveTarget(STEPS[index]) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Positioning
 // ---------------------------------------------------------------------------

@@ -1,0 +1,13 @@
+{
+  "name": "idle-guild",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A guild-master idle RPG: recruit heroes, gear them from a shared vault, and run parties through dungeons.",
+  "scripts": {
+    "start": "node serve.js",
+    "test": "node tests/run.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
