@@ -12,7 +12,7 @@
 //           is why a melee class is always a front-row class.
 //   school  how this class's damage arrives, for enemies that resist one kind.
 
-import { selfBuff, dotFromHit, partyHot, announce, all } from '../expedition/abilities.js';
+import { selfBuff, dotFromHit, partyHot, announce, all } from '../expedition/reactions.js';
 import { applyEffect } from '../expedition/effects.js';
 
 /**

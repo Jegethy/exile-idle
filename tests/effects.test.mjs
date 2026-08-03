@@ -157,8 +157,10 @@ export default async function run(browser) {
       const c = run_.combatants[0];
       const sheet = G.sheets[c.uid];
       let depths = [];
-      // A reaction that always repeats would spin forever without the guard.
-      c.reactions = { hit: [{ key: 'r', run: (ctx) => { depths.push(ctx.depth); combat.repeatSwing(ctx); } }] };
+      // A reaction that always asks to repeat would spin forever if the swing
+      // did not enforce the limit itself.
+      c.reactions = { hit: [{ key: 'r', run: (ctx) => { depths.push(ctx.depth); ctx.repeat = true; } }] };
+      run_.enemies[0].life = 1e9;        // keep it alive so repeats can chain
       combat.swing(run_, c, sheet, run_.enemies[0], 0);
       return { max: Math.max(...depths), cap: combat.MAX_REPEAT_DEPTH, calls: depths.length };
     });

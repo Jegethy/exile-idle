@@ -1,9 +1,30 @@
 // data/uniques.js — hand-crafted unique items.
 //
 // Uniques keep a fixed mod list with rolled ranges, so two copies of the same
-// unique still differ. `lvl` gates them out of low-tier drop pools.
+// unique still differ. `lvl` gates them out of low-tier drop pools, and every
+// number scales with the level the item drops at — one Rusted Oath covers tier
+// one and tier sixteen rather than needing a version for each.
+//
+// Three things separate a unique from a rare:
+//   power       a multiplier on the base's own numbers, so a unique sword is a
+//               better sword before its modifiers are counted at all.
+//   mods        the fixed modifier list, rolled within hand-authored ranges.
+//   reactions   what it *does* — hooks into the combat effects layer, which is
+//               the difference between a unique and a differently coloured
+//               stat stick.
+//
+// Effects are written as percentages wherever possible so they stay relevant
+// at every item level without needing per-tier versions.
+
+import {
+  selfBuff, dotFromHit, announce, all, repeatAttack,
+} from '../expedition/reactions.js';
+import { applyEffect } from '../expedition/effects.js';
 
 const m = (r, text, apply, dec = 0) => ({ r, text, apply, dec });
+
+/** A modifier line that exists to describe a reaction rather than grant a stat. */
+const says = (text) => m([0, 0], () => text, () => {});
 
 export const UNIQUES = [
   // --- Low-level uniques, so Tier 1-3 maps can still drop one -------------
@@ -193,6 +214,147 @@ export const UNIQUES = [
       m([25, 35], (v) => `+${v}% to Cold Resistance`, (b, v) => { b.resCold += v; }),
       m([3, 5], (v) => `+${v}% to all maximum Resistances`, (b, v) => { b.maxRes += v; }),
     ],
+  },
+
+  // --- Uniques that do something ------------------------------------------
+  // Each of these is built around a reaction rather than a stat line. The stat
+  // lines are deliberately modest: the effect is the reason to wear it.
+  {
+    id: 'heartseeker', name: 'Heartseeker', base: 'dagger', lvl: 8, weight: 70,
+    power: 1.35,
+    flavour: 'It knows the way in.',
+    mods: [
+      m([40, 60], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      m([15, 25], (v) => `${v}% increased Critical Strike Chance`, (b, v) => { b.incCrit += v; }),
+      says('5% chance on hit to restore the wielder to full life'),
+    ],
+    reactions: [{
+      trigger: 'hit', key: 'heartseeker', chance: 0.05,
+      run: all(
+        (ctx) => { ctx.self.life = ctx.self.maxLife; },
+        announce((ctx) => `${ctx.self.name} is made whole by Heartseeker.`, 1, 'unique'),
+      ),
+    }],
+  },
+  {
+    id: 'twinstrike', name: 'Twinstrike', base: 'sword1h', lvl: 14, weight: 55,
+    power: 1.20,
+    flavour: 'Once for the wound. Once for the memory of it.',
+    mods: [
+      m([30, 45], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      m([8, 14], (v) => `${v}% increased Attack Speed`, (b, v) => { b.incAtkSpeed += v; }),
+      says('15% chance for an attack to strike twice'),
+    ],
+    reactions: [{
+      trigger: 'hit', key: 'twinstrike', chance: 0.15,
+      run: repeatAttack(),
+    }],
+  },
+  {
+    id: 'lastresort', name: 'Last Resort', base: 'amulet', lvl: 18, weight: 50,
+    power: 1.0,
+    flavour: 'Worn by those who expect the worst and intend to survive it.',
+    mods: [
+      m([25, 40], (v) => `+${v} to maximum Life`, (b, v) => { b.flatLife += v; }),
+      says('When an ally falls below half life, deal 50% more damage for 3s'),
+    ],
+    reactions: [{
+      trigger: 'allyLow', key: 'lastresort', cooldown: 10,
+      run: all(
+        selfBuff('lastresort', 'Last Resort', { incDamage: 50 }, 3),
+        announce((ctx) => `${ctx.self.name} fights harder as ${ctx.target.name} falters.`, 0.5),
+      ),
+    }],
+  },
+  {
+    id: 'emberbrand', name: 'Emberbrand', base: 'wand', lvl: 22, weight: 55,
+    power: 1.30,
+    flavour: 'The burn outlasts the spell.',
+    mods: [
+      m([30, 45], (v) => `${v}% increased Fire Damage`, (b, v) => { b.incFire += v; }),
+      m([20, 30], (v) => `Adds ${Math.round(v * 0.4)} to ${v} Fire Damage`,
+        (b, v) => { b.addFireMin += Math.round(v * 0.4); b.addFireMax += v; }),
+      says('Hits burn the target for a further 20% of the damage over 3s'),
+    ],
+    reactions: [{
+      trigger: 'hit', key: 'emberbrand',
+      run: dotFromHit('emberbrand', 'Emberbrand', 0.2, 3),
+    }],
+  },
+  {
+    id: 'rendingedge', name: 'Rending Edge', base: 'axe1h', lvl: 26, weight: 50,
+    power: 1.25,
+    flavour: 'The cut is the smallest part of it.',
+    mods: [
+      m([45, 65], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      says('Attacks cause bleeding for 2% of the target\'s maximum life per '
+        + 'second for 5s, up to three times the damage of the hit'),
+    ],
+    reactions: [{
+      trigger: 'hit', key: 'rendingedge',
+      run: (ctx) => {
+        if (!ctx.target) return;
+        // Percentage-of-life bleeds scale alarmingly against high-life bosses,
+        // so the total is capped against the hit that applied it.
+        const byLife = ctx.target.maxLife * 0.02;
+        const cap = (ctx.amount * 3) / 5;
+        applyEffect(ctx.target, {
+          id: 'bleed', name: 'Bleeding', duration: 5,
+          dps: Math.min(byLife, cap), source: ctx.self.uid,
+        });
+      },
+    }],
+  },
+  {
+    id: 'quickening', name: 'The Quickening', base: 'glove_ev', lvl: 30, weight: 50,
+    power: 1.25,
+    flavour: 'Faster than thought, and about as considered.',
+    mods: [
+      m([30, 50], (v) => `+${v} to Evasion Rating`, (b, v) => { b.flatEvasion += v; }),
+      says('10% chance on hit to gain 25% attack speed for 5s'),
+    ],
+    reactions: [{
+      trigger: 'hit', key: 'quickening', chance: 0.10,
+      run: selfBuff('quickening', 'Quickened', { incAtkSpeed: 25 }, 5),
+    }],
+  },
+  {
+    id: 'wardstone', name: 'Wardstone', base: 'shield_str', lvl: 34, weight: 45,
+    power: 1.20,
+    flavour: 'Every blow turned teaches it the next one.',
+    mods: [
+      m([60, 90], (v) => `${v}% increased Armour`, (b, v) => { b.localIncArmour += v; }),
+      says('Blocking a blow has a 10% chance to grant 30% spell block for 5s'),
+    ],
+    reactions: [{
+      trigger: 'block', key: 'wardstone', chance: 0.10,
+      run: (ctx) => {
+        if (ctx.kind !== 'melee') return;
+        selfBuff('wardstone', 'Wardstone', { blockSpell: 30 }, 5)(ctx);
+      },
+    }],
+  },
+  {
+    id: 'benediction', name: 'Benediction', base: 'staff', lvl: 38, weight: 45,
+    power: 1.15,
+    flavour: 'Mercy, spread thin, still covers everyone.',
+    mods: [
+      m([25, 40], (v) => `${v}% increased Healing`, (b, v) => { b.incHeal += v; }),
+      says('Healing radiates, mending the rest of the party for 25% of it over 3s'),
+    ],
+    reactions: [{
+      trigger: 'heal', key: 'benediction',
+      run: (ctx) => {
+        if (!ctx.amount) return;
+        for (const ally of ctx.run.combatants) {
+          if (ally.down || ally === ctx.target) continue;
+          applyEffect(ally, {
+            id: 'benediction', name: 'Benediction', duration: 3,
+            hps: (ctx.amount * 0.25) / 3, source: ctx.self.uid,
+          });
+        }
+      },
+    }],
   },
 ];
 

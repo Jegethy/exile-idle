@@ -259,7 +259,7 @@ export function swing(run, c, sheet, target, depth) {
   target.life -= total;
   if (sheet.leech > 0 && physDealt > 0) healHero(c, physDealt * sheet.leech / 100);
 
-  const ctx = { run, self: c, sheet, target, amount: total, depth };
+  const ctx = { run, self: c, sheet, target, amount: total, depth, repeat: false };
   fireTrigger('hit', ctx);
   if (crit) fireTrigger('crit', ctx);
 
@@ -269,15 +269,18 @@ export function swing(run, c, sheet, target, depth) {
   if (target.life <= 0) {
     fireTrigger('kill', { run, self: c, target });
     onEnemyKilled(run, target);
+    return;
+  }
+
+  // A reaction may ask for the attack to land again. The limit lives here
+  // rather than in the item, so two sources of it cannot chain forever.
+  if (ctx.repeat && depth < MAX_REPEAT_DEPTH) {
+    swing(run, c, sheet, target, depth + 1);
   }
 }
 
-/** Repeats an attack, refusing to recurse past a shallow depth. */
+/** How many times a single attack may be repeated by an effect. */
 export const MAX_REPEAT_DEPTH = 2;
-export function repeatSwing(ctx) {
-  if ((ctx.depth ?? 0) >= MAX_REPEAT_DEPTH) return;
-  swing(ctx.run, ctx.self, ctx.sheet, ctx.target, (ctx.depth ?? 0) + 1);
-}
 
 function enemyAct(run, e) {
   const alive = run.combatants.filter((c) => !c.down);

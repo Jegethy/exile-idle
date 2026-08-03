@@ -257,6 +257,16 @@ export function itemBaseStats(item) {
   const s = baseStatsFor(base, item.ilvl);
   const q = 1 + (item.quality ?? 0) / 100;
 
+  // A unique is a better piece of steel than a rare of the same level, before
+  // any of its modifiers are counted. `power` defaults to a modest lift so an
+  // unspecified unique is never a downgrade on its own base.
+  if (item.rarity === 'unique') {
+    const power = UNIQUE_BY_ID[item.uniqueId]?.power ?? 1.25;
+    for (const k of ['physMin', 'physMax', 'armour', 'evasion', 'es']) {
+      if (s[k]) s[k] = Math.round(s[k] * power);
+    }
+  }
+
   // Local "increased" mods apply to the base numbers, PoE-style.
   const local = { phys: 0, armour: 0, evasion: 0, es: 0 };
   for (const a of item.affixes) {
