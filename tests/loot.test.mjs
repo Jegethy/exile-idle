@@ -44,16 +44,22 @@ async function fresh(browser, name) {
      * suite flaky.
      */
     window.__launch = () => {
-      for (const h of G.state.heroes) { h.stamina = 100; h.level = 60; }
-      refreshSheets();
-      dispatch(G.state.parties[0].id, 'mines', 8);
-      const run = G.state.expeditions[0];
-      if (!run) return null;
-      for (let i = 0; i < 2000 && G.state.expeditions.length; i++) {
-        tickAll(0.1);
-        if (run.haul.gold > 0) break;
+      // Retried, because a single attempt can end early on an unlucky wave and
+      // report "gathered nothing" when the mechanism is fine.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        while (G.state.expeditions.length) G.state.expeditions.pop();
+        for (const h of G.state.heroes) { h.stamina = 100; h.level = 60; }
+        refreshSheets();
+        dispatch(G.state.parties[0].id, 'mines', 8);
+        const run = G.state.expeditions[0];
+        if (!run) continue;
+        for (let i = 0; i < 3000 && G.state.expeditions.length; i++) {
+          tickAll(0.1);
+          if (run.haul.gold > 0) break;
+        }
+        if (G.state.expeditions.length && run.haul.gold > 0) return run;
       }
-      return G.state.expeditions.length ? run : null;
+      return null;
     };
   });
   return { page, errors };

@@ -247,3 +247,62 @@ export function buyUpgrade(id) {
   emit('upgrades'); emit('guild'); refreshSheets();
   return { ok: true, msg: `${def.name} is now rank ${rank + 1}.` };
 }
+
+// ---------------------------------------------------------------------------
+// Browsing the vault
+// ---------------------------------------------------------------------------
+
+/** Slot groups offered as vault filters, in doll order. */
+export const VAULT_FILTERS = [
+  { id: 'all', name: 'All', slots: null },
+  { id: 'weapon', name: 'Weapons', slots: ['weapon'] },
+  { id: 'offhand', name: 'Offhand', slots: ['offhand'] },
+  { id: 'armour', name: 'Armour', slots: ['helmet', 'body', 'gloves', 'boots'] },
+  { id: 'jewellery', name: 'Jewellery', slots: ['amulet', 'ring'] },
+];
+
+/** How a vault listing may be ordered. */
+export const VAULT_SORTS = [
+  { id: 'power', name: 'Power' },
+  { id: 'ilvl', name: 'Item level' },
+  { id: 'rarity', name: 'Rarity' },
+  { id: 'slot', name: 'Slot' },
+  { id: 'name', name: 'Name' },
+];
+
+/**
+ * The vault as the player has asked to see it. Never mutates the stored order:
+ * sorting a view is not the same as reorganising the vault, and the Sort button
+ * still exists for that.
+ */
+export function vaultView({ filter = 'all', sort = 'power', baseType = 'all' } = {}) {
+  const def = VAULT_FILTERS.find((f) => f.id === filter) ?? VAULT_FILTERS[0];
+  let out = G.state.vault.slice();
+
+  if (def.slots) out = out.filter((i) => def.slots.includes(i.slot));
+  if (baseType !== 'all') out = out.filter((i) => BASE_BY_ID[i.baseId]?.class === baseType);
+
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  const cmp = {
+    power: (a, b) => itemScore(b) - itemScore(a),
+    ilvl: (a, b) => b.ilvl - a.ilvl || itemScore(b) - itemScore(a),
+    rarity: (a, b) => (RARITY[b.rarity]?.order ?? 0) - (RARITY[a.rarity]?.order ?? 0)
+      || itemScore(b) - itemScore(a),
+    slot: (a, b) => a.slot.localeCompare(b.slot) || itemScore(b) - itemScore(a),
+    name: byName,
+  }[sort] ?? byName;
+
+  return out.sort(cmp);
+}
+
+/** Base types present in the vault for a given filter, for the sub-filter row. */
+export function baseTypesIn(filter = 'all') {
+  const def = VAULT_FILTERS.find((f) => f.id === filter) ?? VAULT_FILTERS[0];
+  const seen = new Set();
+  for (const item of G.state.vault) {
+    if (def.slots && !def.slots.includes(item.slot)) continue;
+    const cls = BASE_BY_ID[item.baseId]?.class;
+    if (cls) seen.add(cls);
+  }
+  return [...seen].sort();
+}

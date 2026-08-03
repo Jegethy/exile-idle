@@ -39,8 +39,8 @@ export default async function run(browser) {
     const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
       const { rewindClockForTest } = await import('./src/game.js');
-      G.state.settings.autoRedeploy = true;
       G.state.upgrades.autoDispatch = 1;
+      for (const p of G.state.parties) p.autoRedeploy = true;
       const t0 = performance.now();
       rewindClockForTest(12 * 3600);        // twelve hours
       return { ms: performance.now() - t0, playtime: G.state.playtime };
@@ -72,7 +72,7 @@ export default async function run(browser) {
       const out = {};
       for (const [label, unlocked] of [['locked', 0], ['unlocked', 1]]) {
         G.state.upgrades.autoDispatch = unlocked;
-        G.state.settings.autoRedeploy = true;
+        G.state.parties[0].autoRedeploy = true;
         G.state.parties[0].lastRun = { dungeonId: 'mines', tier: 1 };
         for (const h of G.state.heroes) h.stamina = 100;
         // Pretend the save is an hour old.

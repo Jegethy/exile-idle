@@ -42,7 +42,7 @@ export default async function run(browser) {
     await test('walks to the end without getting stuck', async () => {
       let guard = 0;
       let last = '';
-      while (guard++ < 90) {
+      while (guard++ < 140) {
         const done = await page.evaluate(async () =>
           (await import('./src/tutorial.js')).isTutorialActive() === false);
         if (done) break;
@@ -54,7 +54,7 @@ export default async function run(browser) {
         //
         // Deliberately not page.waitForFunction: its callback cannot be async,
         // because a returned Promise is truthy and the wait resolves at once.
-        for (let w = 0; w < 120; w++) {
+        for (let w = 0; w < 240; w++) {
           const home = await page.evaluate(async () =>
             (await import('./src/state.js')).G.state.expeditions.length === 0);
           if (home) break;

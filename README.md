@@ -216,6 +216,17 @@ how the game plays more than any stat.
 **Raids** — Five milestone bosses gated by tier and Raid Seals. Pure stat checks
 with guaranteed payouts; every first kill permanently raises guild rewards.
 
+**The vault** — Filter by slot and by base type, sort by power, item level,
+rarity, slot or name, and every item is marked with who it would improve and by
+how much. The score is weighted by what the hero's role actually wants, so a
+heavy shield reads as a large upgrade for a Guardian and a small one for a
+Wizard. Sorting the view never reorganises the vault itself.
+
+**Time** — The game keeps running in a background tab, and picks up where it
+left off after being closed. Offline progress is capped at twelve hours and
+requires Standing Orders with a party set to auto-redeploy, since a party with
+nobody telling it what to do next has nothing to get on with.
+
 **Saving** — Three localStorage slots, auto-save every 30 seconds, plus base64
 export/import and `.json` download/upload.
 

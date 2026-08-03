@@ -1241,3 +1241,23 @@ body.splash-open { overflow:hidden; }
   cursor:not-allowed;
 }
 .slot.blocked::after { content:attr(data-label); }
+
+/* ---- Vault browsing ---------------------------------------------------- */
+.vault-controls { display:flex; flex-direction:column; gap:4px; margin-bottom:7px; }
+.vc-row { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+.vc-row.sub { opacity:.85; }
+.vc-label { font-size:9px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); }
+.vc-count { margin-left:auto; font-size:10px; color:var(--ink-faint); }
+
+/* An item that would improve somebody, which is the only question that
+   matters when eighty of them look alike. */
+.inv-cell.upgrade { border-color:rgba(111,191,95,.45); }
+.inv-up {
+  font-size:9px; font-weight:600; color:#6fbf5f;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+
+/* Auto-redeploy lives on each party card; this is the Expeditions tab telling
+   you how many are running themselves. */
+.auto-box .auto-count { font-size:10px; color:var(--ink-faint); }
+.auto-box.on .auto-count { color:var(--gold); }

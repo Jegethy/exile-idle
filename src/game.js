@@ -116,7 +116,8 @@ function runOfflineProgress() {
   if (away < 60) return;                      // not worth mentioning
 
   const gu = guildEffects(s.upgrades);
-  if (!gu.autoDispatch || !s.settings.autoRedeploy) {
+  const anyAuto = s.parties.some((p) => p.autoRedeploy && p.lastRun);
+  if (!gu.autoDispatch || !anyAuto) {
     log(`The guild stood idle for ${fmtAway(away)} — buy Standing Orders and leave `
       + 'auto-redeploy on to keep parties working while you are away.', 'sys');
     return;
@@ -270,23 +271,19 @@ function handleRedeploy(dt) {
   // Gated behind the Standing Orders unlock so the opening expeditions are
   // dispatched by hand and the player learns what the choice is for.
   if (!guildEffects(s.upgrades).autoDispatch) return;
-  if (!s.settings.autoRedeploy) return;
   redeployTimer += dt;
   if (redeployTimer < REDEPLOY_DELAY) return;
   redeployTimer = 0;
 
-  // Longest-waiting first. With fewer charters than parties this is what
-  // makes them take turns instead of the first in the list holding the only
-  // charter forever.
-  const waiting = s.parties
-    .filter((p) => p.lastRun && p.autoRedeploy !== false)
-    .filter((p) => !s.expeditions.some((e) => e.partyId === p.id))
-    .sort((a, b) => (a.returnedAt ?? 0) - (b.returnedAt ?? 0));
-
-  for (const party of waiting) {
-    const res = dispatch(party.id, party.lastRun.dungeonId, party.lastRun.tier);
-    // Out of charters or stamina: stop rather than churning through the rest.
-    if (!res.ok) break;
+  // Each party that asked to keep going is tried on its own terms. No
+  // rotation: a party with the toggle on runs until it runs out of stamina,
+  // and one without it sits still however long it waits. If two parties both
+  // want to go and there is only one charter, that is a charter problem, not
+  // something to solve by taking turns behind the player's back.
+  for (const party of s.parties) {
+    if (!party.autoRedeploy || !party.lastRun) continue;
+    if (s.expeditions.some((e) => e.partyId === party.id)) continue;
+    dispatch(party.id, party.lastRun.dungeonId, party.lastRun.tier);
   }
 }
 

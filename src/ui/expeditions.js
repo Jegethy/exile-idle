@@ -178,16 +178,6 @@ export function renderDispatch() {
     ui.dungeonFilter = b.dataset.dfilter;
     renderDispatch();
   };
-  const toggle = qs('#autoRedeployToggle');
-  if (toggle) {
-    toggle.onchange = () => {
-      s.settings.autoRedeploy = toggle.checked;
-      setStatus(toggle.checked
-        ? 'Auto-redeploy on — idle parties will re-run their last expedition.'
-        : 'Auto-redeploy off.');
-      renderDispatch();
-    };
-  }
   qs('#tierDown').onclick = () => { ui.dispatchTier = Math.max(1, tier - 1); renderDispatch(); };
   qs('#tierUp').onclick = () => { ui.dispatchTier = Math.min(maxTier, tier + 1); renderDispatch(); };
   host.querySelector('.dungeon-grid').onclick = (e) => {
@@ -216,11 +206,16 @@ function autoDispatchControl() {
       <span class="auto-lock">🔒 Guild Hall</span>
     </div>`;
   }
-  const on = !!s.settings.autoRedeploy;
-  return `<div class="auto-box ${on ? 'on' : ''}" id="autoDispatchBox"
-               title="Idle parties re-run their last expedition automatically">
+  // Auto-redeploy belongs to each party, not to the guild: the switch lives on
+  // the party card. This is a status line so the Expeditions tab still says
+  // whether anything is running itself, and where to change it.
+  const auto = s.parties.filter((p) => p.autoRedeploy).length;
+  return `<div class="auto-box ${auto ? 'on' : ''}" id="autoDispatchBox"
+               title="Each party decides for itself, on the Parties tab.">
     <span class="al">Auto-redeploy</span>
-    <label class="switch small"><input type="checkbox" id="autoRedeployToggle" ${on ? 'checked' : ''}><i></i></label>
+    <span class="auto-count">${auto
+    ? `${auto} part${auto === 1 ? 'y' : 'ies'}`
+    : 'set per party'}</span>
   </div>`;
 }
 

@@ -224,13 +224,11 @@ export function createParty(name) {
   const s = G.state;
   const party = {
     id: uid('p'), name: name || `Party ${s.parties.length + 1}`, members: [],
-    // Whether this party re-runs its last expedition on its own. Per party
-    // rather than global: with fewer charters than parties, one global switch
-    // meant whichever party came first in the list took the free charter every
-    // time and the others never went out at all.
-    autoRedeploy: true,
-    // When it last came home, so the queue can be fair rather than ordered by
-    // whenever the party happened to be created.
+    // Whether this party re-runs its last expedition on its own, chosen per
+    // party and off until asked for. A single global switch sent every party
+    // that had ever been anywhere, which is not what "auto-redeploy this one"
+    // means.
+    autoRedeploy: false,
     returnedAt: 0,
   };
   s.parties.push(party);

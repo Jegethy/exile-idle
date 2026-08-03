@@ -7,11 +7,13 @@ import {
   canDualWield, equipOnHero, heroById, isDeployed, unequipFromHero,
 } from '../heroes.js';
 import {
-  countSalvageable, findItem, salvageAll, salvageItem, sortVault, toggleLock, wearerOf,
+  VAULT_FILTERS, VAULT_SORTS, baseTypesIn, countSalvageable, findItem, salvageAll,
+  salvageItem, sortVault, toggleLock, vaultView, wearerOf,
 } from '../inventory.js';
 import { itemBaseStats, itemDescriptor, itemMods } from '../items.js';
 import { G, on, vaultCapacity } from '../state.js';
-import { escapeHtml, fmt, qs } from '../util.js';
+import { bestUpgrade, upgradeFor } from '../stats.js';
+import { el, escapeHtml, fmt, qs } from '../util.js';
 import { closeModals, confirmAction, openModal } from './modals.js';
 import { setStatus } from './shell.js';
 import { R, ui } from './state.js';
@@ -69,18 +71,38 @@ export function renderVault() {
   }
 
   const hero = ui.equipTarget ? heroById(ui.equipTarget) : null;
-  host.innerHTML = s.vault.map((item) => {
+  const shown = vaultView({
+    filter: ui.vaultFilter, sort: ui.vaultSort, baseType: ui.vaultBaseType,
+  });
+
+  renderVaultControls(shown.length);
+
+  if (!shown.length) {
+    host.innerHTML = '<div class="empty-note" style="grid-column:1/-1">'
+      + 'Nothing here matches that filter.</div>';
+    return;
+  }
+
+  host.innerHTML = shown.map((item) => {
     const legal = ui.craftRecipe ? canAfford(ui.craftRecipe, item) : null;
     const d = itemDescriptor(item);
     const bs = itemBaseStats(item);
     const num = bs.dps ? `${fmt(bs.dps)} dps`
       : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`, bs.es && `${fmt(bs.es)} es`]
         .filter(Boolean).join(' · ');
-    return `<div class="inv-cell ${R(item.rarity)} ${legal ? (legal.ok ? 'craftable' : 'not-craftable') : ''}"
-                 data-uid="${item.uid}">
+    // Who, if anyone, this would improve — the single most useful thing a
+    // vault full of similar-looking items can tell you.
+    const up = hero
+      ? { hero, delta: upgradeFor(hero, item, s.upgrades).delta }
+      : bestUpgrade(s.heroes.filter((h) => !isDeployed(h)), item, s.upgrades);
+    const isUp = up && up.delta > 0.01;
+    return `<div class="inv-cell ${R(item.rarity)} ${legal ? (legal.ok ? 'craftable' : 'not-craftable') : ''}
+                 ${isUp ? 'upgrade' : ''}" data-uid="${item.uid}">
       <div class="inv-top">
         <span class="inv-name">${escapeHtml(item.name)}</span>
-        <span class="inv-ilvl" title="Item level">i${item.ilvl}</span>
+        ${isUp ? `<span class="inv-up" title="An upgrade for ${escapeHtml(up.hero.name)}: `
+      + `${(up.delta * 100).toFixed(0)}% better for their role">▲${(up.delta * 100).toFixed(0)}%</span>`
+      : `<span class="inv-ilvl" title="Item level">i${item.ilvl}</span>`}
       </div>
       <div class="inv-type">${escapeHtml(d.category)}</div>
       <div class="inv-sub">${escapeHtml(d.subtype)}${num ? ` · ${num}` : ''}</div>
@@ -149,6 +171,45 @@ function equipFromVault(hero, itemUid) {
 function equipMsg(hero, itemUid) {
   const ok = equipOnHero(hero.uid, itemUid);
   return ok ? '' : `${hero.name} cannot equip that.`;
+}
+
+/**
+ * Filter, base-type and sort controls. A vault of eighty similar items is
+ * unusable without them, and the base-type row only lists what is actually
+ * present so it never offers an empty choice.
+ */
+function renderVaultControls(count) {
+  let host = qs('#vaultControls');
+  if (!host) {
+    host = el('div', 'vault-controls');
+    host.id = 'vaultControls';
+    qs('#vaultGrid').before(host);
+  }
+  const types = baseTypesIn(ui.vaultFilter);
+  host.innerHTML = `
+    <div class="vc-row">${VAULT_FILTERS.map((f) => `<button class="btn tiny
+      ${ui.vaultFilter === f.id ? 'active' : ''}" data-vfilter="${f.id}">${f.name}</button>`).join('')}
+      <span class="vc-count">${count} shown</span>
+    </div>
+    ${types.length > 1 ? `<div class="vc-row sub">
+      <button class="btn tiny ${ui.vaultBaseType === 'all' ? 'active' : ''}" data-vtype="all">Any type</button>
+      ${types.map((t) => `<button class="btn tiny ${ui.vaultBaseType === t ? 'active' : ''}"
+        data-vtype="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
+    </div>` : ''}
+    <div class="vc-row sub">
+      <span class="vc-label">Sort</span>
+      ${VAULT_SORTS.map((o) => `<button class="btn tiny ${ui.vaultSort === o.id ? 'active' : ''}"
+        data-vsort="${o.id}">${o.name}</button>`).join('')}
+    </div>`;
+
+  host.onclick = (e) => {
+    const f = e.target.closest('[data-vfilter]');
+    if (f) { ui.vaultFilter = f.dataset.vfilter; ui.vaultBaseType = 'all'; renderVault(); return; }
+    const t = e.target.closest('[data-vtype]');
+    if (t) { ui.vaultBaseType = t.dataset.vtype; renderVault(); return; }
+    const o = e.target.closest('[data-vsort]');
+    if (o) { ui.vaultSort = o.dataset.vsort; renderVault(); }
+  };
 }
 
 function renderSalvageBar() {

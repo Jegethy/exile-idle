@@ -12,6 +12,9 @@ export const ui = {
   dispatchTier: 1,
   dungeonFilter: 'all',
   logFilter: 'all',
+  vaultFilter: 'all',
+  vaultBaseType: 'all',
+  vaultSort: 'power',
   confirmCb: null,
 };
 

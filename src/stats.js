@@ -225,3 +225,58 @@ export function armourReduction(armour, hit) {
   if (armour <= 0 || hit <= 0) return 0;
   return clamp(armour / (armour + 5 * hit), 0, 0.90);
 }
+
+/**
+ * How much better or worse an item would make a hero, as a single number.
+ *
+ * Compares the hero's sheet with and without the item in place. Weighted
+ * toward what the hero's role actually needs: a tank does not care about the
+ * damage on a helmet nearly as much as a damage class does, and telling them
+ * otherwise is what makes an upgrade marker useless.
+ *
+ * @returns {{delta: number, before: object, after: object, slot: string}}
+ */
+export function upgradeFor(hero, item, upgrades = {}, slotOverride = null) {
+  const slot = slotOverride ?? (item.slot === 'ring'
+    ? (!hero.equipment.ring1 ? 'ring1' : 'ring2')
+    : item.slot);
+
+  const before = heroStats(hero, upgrades);
+  const saved = hero.equipment[slot];
+  hero.equipment[slot] = item;
+  let after;
+  try { after = heroStats(hero, upgrades); } finally { hero.equipment[slot] = saved; }
+
+  const w = ROLE_WEIGHTS[before.role] ?? ROLE_WEIGHTS.DPS;
+  const score = (sheet) => sheet.dps * w.dps
+    + sheet.life * w.life
+    + sheet.armour * w.armour
+    + sheet.evasion * w.evasion
+    + sheet.es * w.es
+    + sheet.healPower * w.heal
+    + (sheet.blockMelee + sheet.blockSpell) * w.block;
+
+  const a = score(before);
+  const b = score(after);
+  return { delta: a > 0 ? (b - a) / a : 0, before, after, slot };
+}
+
+/** What each role is actually shopping for. */
+const ROLE_WEIGHTS = {
+  Tank: { dps: 0.15, life: 1.0, armour: 0.8, evasion: 0.3, es: 0.6, heal: 0, block: 12 },
+  Healer: { dps: 0.2, life: 0.7, armour: 0.3, evasion: 0.2, es: 0.3, heal: 3.0, block: 2 },
+  DPS: { dps: 1.0, life: 0.25, armour: 0.1, evasion: 0.15, es: 0.1, heal: 0, block: 1 },
+};
+
+/**
+ * The best upgrade this item represents across the roster.
+ * @returns {{hero: object, delta: number} | null}
+ */
+export function bestUpgrade(heroes, item, upgrades = {}) {
+  let best = null;
+  for (const hero of heroes) {
+    const { delta } = upgradeFor(hero, item, upgrades);
+    if (!best || delta > best.delta) best = { hero, delta };
+  }
+  return best;
+}
