@@ -34,13 +34,14 @@ export default async function run(browser) {
       const { equipOnHero, unequipFromHero } = await import('./src/heroes.js');
       const { addToVault } = await import('./src/inventory.js');
       const hero = G.state.heroes[0];
+      const base = { melee: G.sheets[hero.uid].blockMelee, spell: G.sheets[hero.uid].blockSpell };
       const out = {};
       for (const id of ['shield_str', 'shield_int']) {
         const sh = createItem({ ilvl: 68, rarity: 'normal', baseId: id });
         addToVault(sh, { noAutoSalvage: true });
         equipOnHero(hero.uid, sh.uid);
         const s = G.sheets[hero.uid];
-        out[id] = { melee: s.blockMelee, spell: s.blockSpell };
+        out[id] = { melee: s.blockMelee - base.melee, spell: s.blockSpell - base.spell };
         unequipFromHero(hero.uid, 'offhand');
       }
       return out;
@@ -107,24 +108,34 @@ export default async function run(browser) {
       const { createItem, itemBaseStats, itemMods } = await import('./src/items.js');
       const { equipOnHero } = await import('./src/heroes.js');
       const { addToVault } = await import('./src/inventory.js');
+      const { recall } = await import('./src/expedition.js');
+      const { refreshSheets } = await import('./src/sheets.js');
+      // The previous check leaves a party in the field and writes directly to
+      // the sheet cache; a deployed hero cannot equip anything.
+      while (G.state.expeditions.length) recall(G.state.expeditions[0].id);
+      refreshSheets();
       const hero = G.state.heroes[0];
+      // Classes now grant block of their own, so measure what the item adds
+      // rather than the total on the wearer.
+      const before = { melee: G.sheets[hero.uid].blockMelee, spell: G.sheets[hero.uid].blockSpell };
       const bw = createItem({ ilvl: 70, rarity: 'unique', uniqueId: 'bulwark' });
       const bs = itemBaseStats(bw);
       addToVault(bw, { noAutoSalvage: true });
       equipOnHero(hero.uid, bw.uid);
       const s = G.sheets[hero.uid];
       return {
-        name: bw.name, melee: s.blockMelee, spell: s.blockSpell,
+        name: bw.name,
+        melee: s.blockMelee - before.melee, spell: s.blockSpell - before.spell,
         ar: bs.armour ?? 0, ev: bs.evasion ?? 0, es: bs.es ?? 0,
         mods: itemMods(bw).map((m) => m.text),
       };
     });
-    eq(r.melee, 30, 'Bulwark melee block');
-    eq(r.spell, 30, 'Bulwark spell block');
+    eq(r.melee, 30, 'melee block granted by the Bulwark');
+    eq(r.spell, 30, 'spell block granted by the Bulwark');
     eq(r.ar + r.ev + r.es, 0, 'Bulwark should grant no defences');
     ok(!r.mods.some((m) => /Resistance|Life|Strength/i.test(m)),
       `Bulwark rolled an extra stat: ${r.mods.join('; ')}`);
-    return `${r.name} — ${r.mods.length} mods, no base stats`;
+    return `${r.name} — +${r.melee}/${r.spell}% block, no base stats`;
   });
 
   await test('no page errors', () => clean(errors));

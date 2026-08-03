@@ -128,7 +128,8 @@ export function showHeroTooltip(hero, event) {
   t.className = `tooltip ${info.rarity.cls}`;
   t.innerHTML = `
     <div class="tt-name">${escapeHtml(hero.name)}</div>
-    <div class="tt-base">${info.rarity.name} ${escapeHtml(info.cls.name)} · ${info.cls.role} · Level ${hero.level}</div>
+    <div class="tt-base">${info.rarity.name} ${escapeHtml(info.cls.name)} · ${info.cls.role} · Level ${hero.level}
+      <span class="row-tag ${info.cls.row ?? 'front'}">${info.cls.row ?? 'front'} line</span></div>
     <div class="tt-sep"></div>
     ${line('Damage / sec', fmt(sheet.dps))}
     ${line('Life', fmt(sheet.life))}
@@ -141,6 +142,8 @@ export function showHeroTooltip(hero, event) {
     ${sheet.blockSpell > 0 ? line('Block (spell)', `${sheet.blockSpell}%`) : ''}
     ${line('Threat', `${sheet.threat.toFixed(1)}×`)}
     ${line('Resistances', `${sheet.res.fire.value}/${sheet.res.cold.value}/${sheet.res.light.value}/${sheet.res.chaos.value}`)}
+    ${info.cls.ability ? `<div class="tt-ability"><b>${escapeHtml(info.cls.ability.name)}</b> —
+      ${escapeHtml(info.cls.ability.desc)}</div>` : ''}
     ${info.traits.length ? '<div class="tt-sep"></div>' : ''}
     ${info.traits.map((tr) => `<div class="tt-mod">${escapeHtml(tr.name)} — ${escapeHtml(tr.desc)}</div>`).join('')}
     <div class="tt-hint">Click for equipment and party assignment</div>`;

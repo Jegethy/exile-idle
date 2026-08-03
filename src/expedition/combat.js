@@ -157,6 +157,26 @@ export function healHero(c, amount) {
   return healed;
 }
 
+/**
+ * Who this enemy can attack. Melee enemies are confined to the front row while
+ * anyone is still standing in it; spellcasters and mixed attackers reach the
+ * whole party. This is what makes a party of archers the answer to a melee
+ * boss, and what makes losing your front line a cascade rather than a setback.
+ */
+export function reachableTo(enemy, alive) {
+  if (enemy.attack !== 'melee') return alive;
+  const front = alive.filter((c) => c.row === 'front');
+  return front.length ? front : alive;
+}
+
+/**
+ * Who this hero can attack. A melee hero standing at the back cannot reach the
+ * enemy line at all, which is why row follows from class rather than choice.
+ */
+export function canReachEnemies(c) {
+  return c.reach !== 'melee' || c.row === 'front';
+}
+
 function spawnWave(run) {
   run.wave++;
   const profile = run.profile ?? {};
@@ -198,6 +218,7 @@ function heroAct(run, c, sheet) {
 
   const target = run.enemies[0];
   if (!target) return;
+  if (!canReachEnemies(c)) return;
 
   if (!rng.chance(hitChance(sheet.accuracy, target.evasion))) {
     if (rng.chance(0.05)) log(`${c.name} misses ${target.name}.`, 'hit');
@@ -262,8 +283,11 @@ function enemyAct(run, e) {
   const alive = run.combatants.filter((c) => !c.down);
   if (!alive.length) return;
 
-  // Threat weighting is what makes a Tank a Tank.
-  const target = rng.weighted(alive, (c) => (G.sheets[c.uid]?.threat ?? 1));
+  // Reach decides who can be touched; threat decides who among them is picked.
+  // A melee attacker is held at the front line until the front line is gone,
+  // at which point there is nothing between it and the back row.
+  const reachable = reachableTo(e, alive);
+  const target = rng.weighted(reachable, (c) => (G.sheets[c.uid]?.threat ?? 1));
   const sheet = G.sheets[target.uid];
   if (!sheet) return;
 
@@ -294,6 +318,9 @@ function enemyAct(run, e) {
     else taken += raw * (1 - (sheet.res[type]?.value ?? 0) / 100);
   }
   taken *= (1 + (sheet.damageTaken + modFrom(target, 'damageTaken')) / 100);
+  // A class's standing against this kind of attack. Warriors take less from a
+  // blade and more from a spell; Paladins the other way about.
+  taken *= (1 - (sheet.schoolResist?.[incoming] ?? 0) / 100);
 
   fireTrigger('takeHit', { run, self: target, target: e, amount: taken, kind: incoming });
   damageHero(run, target, taken);

@@ -3,7 +3,7 @@
 import { G, SAVE_VERSION, createState, log, emit, vaultCapacity } from './state.js';
 import { rng } from './rng.js';
 import { uidCounter, setUidFloor, defaults } from './util.js';
-import { CLASS_BY_ID } from './data/heroclasses.js';
+import { CLASS_BY_ID, RETIRED_CLASSES } from './data/heroclasses.js';
 
 export const SLOT_COUNT = 3;
 const KEY = (slot) => `idleGuild.slot${slot}`;
@@ -73,11 +73,22 @@ export function deserialize(payload) {
 function migrate(state) {
   const notes = [];
 
+  const reclassed = {};
   for (const hero of state.heroes ?? []) {
-    if (!CLASS_BY_ID[hero.classId]) hero.classId = 'berserker';
+    // The class rework retired three archetypes. Move those heroes to the
+    // nearest survivor so an existing roster keeps its shape.
+    if (RETIRED_CLASSES[hero.classId]) {
+      reclassed[hero.classId] = (reclassed[hero.classId] ?? 0) + 1;
+      hero.classId = RETIRED_CLASSES[hero.classId];
+    }
+    if (!CLASS_BY_ID[hero.classId]) hero.classId = 'rogue';
     if (hero.stamina === undefined) hero.stamina = 100;
     if (!Array.isArray(hero.traits)) hero.traits = [];
   }
+  for (const [from, n] of Object.entries(reclassed)) {
+    notes.push(`${n} ${from}${n === 1 ? '' : 's'} became ${RETIRED_CLASSES[from]}s in the class rework.`);
+  }
+
   // A save that has already played is past the tutorial, whatever it says.
   if (!state.tutorial) state.tutorial = { step: 0, done: true, skipped: false };
   if (!state.tutorial.done && (state.stats?.runs ?? 0) > 0) state.tutorial.done = true;

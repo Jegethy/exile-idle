@@ -100,8 +100,11 @@ export function heroStats(hero, upgrades = {}) {
   const es = bag.noES ? 0 : (gearES + bag.flatES) * (1 + bag.incES / 100);
   const armour = (baseArmour + gearArmour + bag.flatArmour) * (1 + bag.incArmour / 100);
   const evasion = (baseEvasion + gearEvasion + bag.flatEvasion) * (1 + bag.incEvasion / 100);
-  const blockMelee = clamp(bag.block + bag.blockMelee, 0, BLOCK_CAP);
-  const blockSpell = clamp(bag.block + bag.blockSpell, 0, BLOCK_CAP);
+  // A class brings its own block on top of whatever shield is carried: a
+  // Warrior turns blades aside by training, not only by equipment.
+  const classBlock = cls.block ?? {};
+  const blockMelee = clamp(bag.block + bag.blockMelee + (classBlock.melee ?? 0), 0, BLOCK_CAP);
+  const blockSpell = clamp(bag.block + bag.blockSpell + (classBlock.spell ?? 0), 0, BLOCK_CAP);
 
   // ---- 5. Resistances ----------------------------------------------------
   const maxRes = Math.round(75 + bag.maxRes);
@@ -161,6 +164,13 @@ export function heroStats(hero, upgrades = {}) {
     life: Math.round(life), es: Math.round(es),
     armour: Math.round(armour), evasion: Math.round(evasion),
     blockMelee, blockSpell,
+    // How much more or less this class suffers from each kind of attack, as a
+    // percentage reduction. Named apart from `res` above, which is elemental.
+    // A Warrior shrugs off a blade and burns; a Paladin is the reverse.
+    schoolResist: { melee: cls.resist?.melee ?? 0, spell: cls.resist?.spell ?? 0 },
+    school: cls.school ?? 'melee',
+    row: cls.row ?? 'front',
+    reach: cls.reach ?? 'melee',
     res, dmg, hitMin: Math.round(hitMin), hitMax: Math.round(hitMax), avgHit,
     aps, critChance, critMulti, accuracy, dps,
     healPower, regen, leech: bag.lifeLeech,

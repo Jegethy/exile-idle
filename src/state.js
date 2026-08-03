@@ -98,6 +98,9 @@ export function createState(name = 'The Wayfarers') {
       autoSalvageNormal: true,
       autoSalvageMagic: false,
       autoSalvageRare: false,
+      // Composition warnings are advice, not rules — an over-geared party
+      // farming old content does not need a tank, and should not be nagged.
+      hideCompWarnings: false,
       logLimit: 200,
       speed: 1,
     },

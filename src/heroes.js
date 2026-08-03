@@ -293,9 +293,11 @@ export function heroInfo(hero) {
  * is the difference between a first expedition that works and one that stalls.
  */
 export function startingRoster() {
+  // One of each role, so a new guild starts with a party that works: someone
+  // to hold the line, someone to kill things, someone to keep them standing.
   const roster = [
     rollHero({ classId: 'guardian', rarity: 'common' }),
-    rollHero({ classId: 'berserker', rarity: 'common' }),
+    rollHero({ classId: 'rogue', rarity: 'common' }),
     rollHero({ classId: 'cleric', rarity: 'common' }),
   ];
   for (const hero of roster) {

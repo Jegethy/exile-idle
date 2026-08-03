@@ -137,6 +137,8 @@ export function renderSettings() {
     ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items are broken down for materials on pickup.')}
     ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items are broken down for materials on pickup.')}
     ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items are broken down for materials. Uniques are never auto-salvaged.')}
+    ${toggleRow('hideCompWarnings', 'Hide party composition warnings',
+    'Stops the no-tank and no-healer notices. Party makeup is never enforced.')}
     <div class="setting-row">
       <div><div class="sl">Simulation speed</div><div class="sh">Higher is faster but coarser.</div></div>
       <select class="text-input" style="width:auto" id="setSpeed">

@@ -610,9 +610,7 @@ b.gold { color:var(--gold); }
   text-transform:uppercase; border:1px solid;
 }
 .role-tank   { color:#d0a24a; border-color:#5a4620; background:rgba(208,162,74,.10); }
-.role-melee  { color:#d0644a; border-color:#5a2c20; background:rgba(208,100,74,.10); }
-.role-ranged { color:#6fbf5f; border-color:#2c5a24; background:rgba(111,191,95,.10); }
-.role-caster { color:#5f9fd0; border-color:#204a5a; background:rgba(95,159,208,.10); }
+.role-dps    { color:#d0644a; border-color:#5a2c20; background:rgba(208,100,74,.10); }
 .role-healer { color:#c98ae0; border-color:#4a2c5a; background:rgba(201,138,224,.10); }
 
 .tag {
@@ -1161,3 +1159,16 @@ body.splash-open { overflow:hidden; }
 }
 .atk-tag.spell { color:#9a7fd0; border-color:rgba(154,127,208,.4); }
 .atk-tag.mixed { color:var(--gold); border-color:rgba(200,170,110,.4); }
+
+/* Where a hero stands, and what their class does on its own. */
+.row-tag {
+  display:inline-block; margin-left:5px; padding:0 4px; border-radius:2px;
+  font-size:8px; text-transform:uppercase; letter-spacing:.06em; vertical-align:middle;
+  border:1px solid var(--line-2); color:var(--ink-faint);
+}
+.row-tag.front { color:#d0a24a; border-color:rgba(208,162,74,.35); }
+.tt-ability {
+  margin-top:6px; padding-top:6px; border-top:1px solid var(--line);
+  font-size:10px; line-height:1.45;
+}
+.tt-ability b { color:var(--gold); }

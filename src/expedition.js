@@ -22,6 +22,7 @@ import {
   partyById, partyMembers, canDispatch, staminaCostFor,
 } from './heroes.js';
 
+import { CLASS_BY_ID } from './data/heroclasses.js';
 import { makeRaidBoss } from './expedition/enemies.js';
 import { bindReactions } from './expedition/effects.js';
 import { reactionsFor } from './expedition/abilities.js';
@@ -115,8 +116,14 @@ function buildRun(opts) {
   const combatants = opts.members.map((hero) => {
     const sheet = G.sheets[hero.uid] ?? heroStats(hero, G.state.upgrades);
     const maxLife = Math.round(sheet.life * lifeMult);
+    const cls = CLASS_BY_ID[hero.classId];
     const c = {
       uid: hero.uid, name: hero.name, classId: hero.classId, role: sheet.role,
+      // Where a hero stands follows from what they do: anyone who fights hand
+      // to hand has to be within reach of the thing they are hitting, and
+      // being within reach cuts both ways.
+      row: cls?.row ?? 'front',
+      reach: cls?.reach ?? 'melee',
       life: maxLife, maxLife,
       es: sheet.es, maxES: sheet.es,
       timer: rng.range(0.1, 0.6), down: false,

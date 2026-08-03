@@ -50,8 +50,10 @@ export function renderParties() {
       <div class="party-roles">
         ${roles.length ? roles.map((r) => `<span class="role role-${r.toLowerCase()}">${r}</span>`).join('')
     : '<span class="hint">Empty — assign heroes from the Roster.</span>'}
-        ${roles.length && !roles.includes('Tank') ? '<span class="warn">no tank</span>' : ''}
-        ${roles.length && !roles.includes('Healer') ? '<span class="warn">no healer</span>' : ''}
+        ${roles.length && !roles.includes('Tank') && !G.state.settings.hideCompWarnings
+    ? '<span class="warn" title="Nothing will hold the front line. Fine for content you outgear.">no tank</span>' : ''}
+        ${roles.length && !roles.includes('Healer') && !G.state.settings.hideCompWarnings
+    ? '<span class="warn" title="Nobody will mend the party. Fine for content you outgear.">no healer</span>' : ''}
       </div>
       <div class="party-members">${members.map((h) => `<span class="pm ${RARITY_BY_ID[h.rarity].cls}"
         data-hero="${h.uid}">${escapeHtml(h.name)} <small>Lv${h.level}</small></span>`).join('')}</div>
