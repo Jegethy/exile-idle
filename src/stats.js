@@ -55,7 +55,7 @@ export function heroStats(hero, upgrades = {}) {
   const gu = guildEffects(upgrades);
 
   // ---- 1. Gear -----------------------------------------------------------
-  let weapon = null;
+  let weapon = null; let offhandWeapon = null;
   let gearArmour = 0; let gearEvasion = 0; let gearES = 0;
   for (const slot of Object.keys(hero.equipment)) {
     const item = hero.equipment[slot];
@@ -63,6 +63,7 @@ export function heroStats(hero, upgrades = {}) {
     const base = BASE_BY_ID[item.baseId];
     const bs = itemBaseStats(item);
     if (base?.slot === 'weapon' && slot === 'weapon') weapon = bs;
+    if (base?.slot === 'weapon' && slot === 'offhand') offhandWeapon = bs;
     if (bs.block) {
       bag.blockMelee += bs.block.melee ?? 0;
       bag.blockSpell += bs.block.spell ?? 0;
@@ -118,6 +119,12 @@ export function heroStats(hero, upgrades = {}) {
 
   // ---- 6. Offence --------------------------------------------------------
   const w = weapon ?? UNARMED;
+  // A second weapon adds a share of its own damage and a little attack speed,
+  // so two blades beat one without simply doubling the hero. Only a class that
+  // can dual wield ever has one here — anyone else's offhand is a shield.
+  const off = offhandWeapon;
+  const OFFHAND_DAMAGE = 0.45;
+  const OFFHAND_SPEED = 12;
   const noEle = !!bag.noEle;
   // Class damage multiplier scales the weapon itself, so a Sorcerer with a
   // staff and a Berserker with an axe both benefit from their archetype.
@@ -127,7 +134,9 @@ export function heroStats(hero, upgrades = {}) {
   const eleMore = 1 + bag.moreEle / 100;
 
   const dmg = {
-    phys: range((w.physMin + bag.addPhysMin) * classDmg, (w.physMax + bag.addPhysMax) * classDmg,
+    phys: range(
+      (w.physMin + (off ? off.physMin * OFFHAND_DAMAGE : 0) + bag.addPhysMin) * classDmg,
+      (w.physMax + (off ? off.physMax * OFFHAND_DAMAGE : 0) + bag.addPhysMax) * classDmg,
       incAll + bag.incPhys, moreMult),
     fire: noEle ? [0, 0] : range(bag.addFireMin * classDmg, bag.addFireMax * classDmg,
       incAll + bag.incFire + bag.incEle, moreMult * eleMore * (1 + bag.moreFire / 100)),
@@ -143,7 +152,7 @@ export function heroStats(hero, upgrades = {}) {
   for (const k of Object.keys(dmg)) { hitMin += dmg[k][0]; hitMax += dmg[k][1]; }
   const avgHit = (hitMin + hitMax) / 2;
 
-  const aps = w.aps * m.aps * (1 + bag.incAtkSpeed / 100);
+  const aps = w.aps * m.aps * (1 + (bag.incAtkSpeed + (off ? OFFHAND_SPEED : 0)) / 100);
   const critChance = clamp(w.crit * (1 + bag.incCrit / 100), 0, 95);
   const critMulti = 150 + bag.critMulti;
   const accuracy = (25 + lvl * 6 + bag.accuracy) * (1 + bag.incAccuracy / 100);
@@ -172,7 +181,7 @@ export function heroStats(hero, upgrades = {}) {
     row: cls.row ?? 'front',
     reach: cls.reach ?? 'melee',
     res, dmg, hitMin: Math.round(hitMin), hitMax: Math.round(hitMax), avgHit,
-    aps, critChance, critMulti, accuracy, dps,
+    aps, critChance, critMulti, accuracy, dps, dualWielding: !!off,
     healPower, regen, leech: bag.lifeLeech,
     threat: m.threat,
     rarity: bag.incRarity, quantity: bag.incQuant,

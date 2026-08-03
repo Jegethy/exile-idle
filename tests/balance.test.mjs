@@ -275,8 +275,12 @@ export default async function run() {
   });
 
   await test('tanks are not the same tank', async () => {
-    const w = trial(['warrior', 'cleric', 'rogue', 'archer', 'wizard'], PRESSURE, TRIALS, 'mines', BEHIND);
-    const p = trial(['paladin', 'cleric', 'rogue', 'archer', 'wizard'], PRESSURE, TRIALS, 'mines', BEHIND);
+    // The Wild Marches, not the Deepmines: at 62/38 the Deepmines sits almost
+    // exactly on the crossover where the Warrior's melee bonus and the
+    // Paladin's spell bonus cancel out, so it is the one dungeon where the two
+    // are meant to look alike.
+    const w = trial(['warrior', 'cleric', 'rogue', 'archer', 'wizard'], PRESSURE, TRIALS, 'marches', BEHIND);
+    const p = trial(['paladin', 'cleric', 'rogue', 'archer', 'wizard'], PRESSURE, TRIALS, 'marches', BEHIND);
     const a = w.takenBy('warrior');
     const b = p.takenBy('paladin');
     const diff = Math.abs(a - b) / Math.max(a, b);

@@ -1231,3 +1231,13 @@ body.splash-open { overflow:hidden; }
   font-size:10px; color:var(--ink-dim); cursor:pointer;
 }
 .party-auto input { accent-color:var(--gold-dim); }
+
+/* An offhand shut by a two-handed weapon: visibly unavailable, not inviting. */
+.slot.blocked {
+  opacity:.35;
+  border-style:dashed;
+  background:repeating-linear-gradient(135deg,
+    transparent, transparent 5px, rgba(255,255,255,.03) 5px, rgba(255,255,255,.03) 10px);
+  cursor:not-allowed;
+}
+.slot.blocked::after { content:attr(data-label); }

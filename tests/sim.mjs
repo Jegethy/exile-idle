@@ -39,8 +39,12 @@ function equipFor(hero, ilvl) {
   const offhand = prefers.find((id) => BASE_BY_ID[id]?.slot === 'offhand');
 
   hero.equipment.weapon = createItem({ baseId: weapon, ilvl, rarity: 'rare' });
-  if (offhand && BASE_BY_ID[weapon]?.hands !== 2) {
-    hero.equipment.offhand = createItem({ baseId: offhand, ilvl, rarity: 'rare' });
+  if (BASE_BY_ID[weapon]?.hands !== 2) {
+    // A dual wielder takes a second weapon rather than a shield, which is how
+    // the class is actually played — measuring it with an empty offhand would
+    // understate it.
+    const second = cls.dualWield ? weapon : offhand;
+    if (second) hero.equipment.offhand = createItem({ baseId: second, ilvl, rarity: 'rare' });
   }
   const armour = {
     helmet: 'helm_ar', body: 'body_arev', gloves: 'glove_ar', boots: 'boot_ev',

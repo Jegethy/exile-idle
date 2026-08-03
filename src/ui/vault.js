@@ -1,8 +1,11 @@
 // vault — The shared gear vault: browsing, equipping, locking and salvaging.
 
 import { canAfford, craft } from '../crafting.js';
+import { BASE_BY_ID } from '../data/bases.js';
 import { CLASS_BY_ID } from '../data/heroclasses.js';
-import { equipOnHero, heroById, isDeployed, unequipFromHero } from '../heroes.js';
+import {
+  canDualWield, equipOnHero, heroById, isDeployed, unequipFromHero,
+} from '../heroes.js';
 import {
   countSalvageable, findItem, salvageAll, salvageItem, sortVault, toggleLock, wearerOf,
 } from '../inventory.js';
@@ -93,7 +96,7 @@ export function renderVault() {
     if (!cell) return;
     const uid = cell.dataset.uid;
     if (ui.craftRecipe) { applyCraft(uid); return; }
-    if (hero) { equipOnHero(hero.uid, uid); hideTooltip(); return; }
+    if (hero) { equipFromVault(hero, uid); hideTooltip(); return; }
     const item = findItem(uid);
     if (!item) return;
     if (e.shiftKey) { salvageItem(item); hideTooltip(); }
@@ -118,6 +121,34 @@ export function renderVault() {
   };
   host.onmouseout = hideTooltip;
   host.onmousemove = moveTooltip;
+}
+
+/**
+ * Equips a vault item, asking first when it would cost the hero their
+ * two-handed weapon. Silently unequipping something the player spent gold on
+ * is the kind of thing that is only noticed later.
+ */
+function equipFromVault(hero, itemUid) {
+  const item = findItem(itemUid);
+  if (!item) return;
+  const base = BASE_BY_ID[item.baseId];
+  const held = hero.equipment.weapon ? BASE_BY_ID[hero.equipment.weapon.baseId] : null;
+  const wouldDisplace = held?.hands === 2
+    && (base?.slot === 'offhand' || (base?.slot === 'weapon' && base.hands !== 2 && canDualWield(hero)));
+
+  if (!wouldDisplace) { setStatus(equipMsg(hero, itemUid)); return; }
+
+  confirmAction(
+    'Put down the two-handed weapon?',
+    `${hero.name} is holding ${hero.equipment.weapon.name} in both hands. Equipping `
+    + `${item.name} means unequipping it — it goes back to the vault.`,
+    () => setStatus(equipMsg(hero, itemUid)),
+  );
+}
+
+function equipMsg(hero, itemUid) {
+  const ok = equipOnHero(hero.uid, itemUid);
+  return ok ? '' : `${hero.name} cannot equip that.`;
 }
 
 function renderSalvageBar() {

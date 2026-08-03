@@ -1,6 +1,6 @@
 // roster — The roster list and the hero sheet behind it.
 
-import { EQUIP_SLOTS, SLOTS } from '../data/bases.js';
+import { BASE_BY_ID, EQUIP_SLOTS, SLOTS } from '../data/bases.js';
 import { RARITY_BY_ID } from '../data/heroclasses.js';
 import {
   BASE_STAMINA, assignToParty, boardCosts, dismiss, heroById, heroInfo, isDeployed,
@@ -177,6 +177,9 @@ export function openHeroModal(heroUid) {
   const sheet = G.sheets[hero.uid] ?? heroStats(hero, G.state.upgrades);
   const out = isDeployed(hero);
 
+  const mainBase = hero.equipment.weapon ? BASE_BY_ID[hero.equipment.weapon.baseId] : null;
+  const twoHanded = mainBase?.hands === 2;
+
   qs('#heroModalTitle').textContent = hero.name;
   qs('#heroModalBody').innerHTML = `
     <div class="hm-head ${info.rarity.cls}">
@@ -208,6 +211,12 @@ export function openHeroModal(heroUid) {
     <div class="doll" id="heroDoll">${EQUIP_SLOTS.map((slotId) => {
     const item = hero.equipment[slotId];
     const label = SLOTS.find((x) => x.id === slotId)?.label ?? slotId;
+    // A two-handed weapon occupies both hands, so the offhand is shown shut
+    // rather than merely empty — an empty slot reads as "put something here".
+    if (!item && slotId === 'offhand' && twoHanded) {
+      return `<div class="slot blocked" style="grid-area:${slotId}" data-slot="${slotId}"
+        data-label="Both hands" title="A two-handed weapon leaves no hand free."></div>`;
+    }
     if (!item) return `<div class="slot empty" style="grid-area:${slotId}" data-slot="${slotId}" data-label="${label}"></div>`;
     const bs = itemBaseStats(item);
     const sub = bs.dps ? `${fmt(bs.dps)} dps`

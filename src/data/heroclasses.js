@@ -180,6 +180,10 @@ export const HERO_CLASSES = [
   {
     id: 'rogue', name: 'Rogue', role: 'DPS', icon: 'dagger',
     row: 'front', reach: 'melee', school: 'melee',
+    // The only class that fights with a weapon in each hand. The offhand
+    // adds a share of its own damage rather than all of it, so two daggers
+    // beat one but do not simply double the Rogue.
+    dualWield: true,
     blurb: 'Opens a fight far ahead of anyone else and fades as it drags on. Wants short, decisive waves.',
     mult: { life: 0.95, armour: 0.65, evasion: 1.30, damage: 1.25, aps: 1.20, heal: 0, threat: 1.1 },
     prefers: ['dagger', 'sword1h', 'axe1h'],

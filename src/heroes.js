@@ -307,7 +307,34 @@ export function canDispatch(party, cost) {
 /** Concrete slot an item should occupy on a hero, preferring an empty ring. */
 export function targetSlot(hero, item) {
   if (item.slot === 'ring') return !hero.equipment.ring1 ? 'ring1' : (!hero.equipment.ring2 ? 'ring2' : 'ring1');
+  // A dual wielder with a hand free takes a second one-handed weapon there
+  // rather than displacing the one it is already holding.
+  if (item.slot === 'weapon' && canDualWield(hero) && isOneHanded(item)
+      && hero.equipment.weapon && !hero.equipment.offhand) {
+    return 'offhand';
+  }
   return item.slot;
+}
+
+/** Whether this hero's class fights with a weapon in each hand. */
+export function canDualWield(hero) {
+  return !!CLASS_BY_ID[hero?.classId]?.dualWield;
+}
+
+function isOneHanded(item) {
+  const base = BASE_BY_ID[item?.baseId];
+  return base?.slot === 'weapon' && base.hands !== 2;
+}
+
+/**
+ * Can this item go in this hero's offhand at all?
+ * @returns {boolean}
+ */
+export function offhandAccepts(hero, item) {
+  if (!item) return false;
+  const base = BASE_BY_ID[item.baseId];
+  if (base?.slot === 'offhand') return true;
+  return canDualWield(hero) && isOneHanded(item);
 }
 
 /** Moves an item from the vault onto a hero. Anything replaced returns to the vault. */
@@ -322,6 +349,13 @@ export function equipOnHero(heroUid, itemUid, forcedSlot = null) {
   const slot = forcedSlot ?? targetSlot(hero, item);
   const base = BASE_BY_ID[item.baseId];
   const twoHanded = base?.slot === 'weapon' && base.hands === 2;
+
+  // A two-handed weapon occupies both hands, so nothing may sit beside it.
+  if (slot === 'offhand' && !offhandAccepts(hero, item)) {
+    s.vault.splice(idx, 0, item);
+    log(`${hero.name} cannot hold that in their off hand.`, 'danger');
+    return false;
+  }
 
   const displaced = [];
   if (hero.equipment[slot]) displaced.push(hero.equipment[slot]);
