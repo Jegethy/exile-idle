@@ -37,6 +37,7 @@ export function makeEnemy(tier, profile, rarityId = null) {
     xpMult: rarity.xp, dropMult: rarity.drops,
     timer: rng.range(0.2, 1.0),
     isBoss: false,
+    effects: [],
   };
 }
 
@@ -56,6 +57,7 @@ export function makeRaidBoss(def, tier) {
   const life = tierScale(tier, MON_LIFE_BASE, MON_LIFE_GROWTH) * def.life;
   const dmg = tierScale(tier, MON_DMG_BASE, MON_DMG_GROWTH, SOFT_DMG) * def.damage;
   return {
+    effects: [],
     uid: uid('e'), name: def.name, rarity: 'champion',
     life, maxLife: life, dmg, split: { ...def.split }, attack: def.attack ?? 'melee',
     aps: def.aps,

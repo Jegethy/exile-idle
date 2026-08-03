@@ -7,6 +7,7 @@ import { clamp, fmt, uid } from '../util.js';
 import { DAMAGE_TYPES, WAVE_GAP, flaskFx } from './balance.js';
 import { makeEnemy, makeGuardian } from './enemies.js';
 import { finishRun, onEnemyKilled } from './rewards.js';
+import { fireTrigger, modFrom, tickEffects } from './effects.js';
 
 /** Advances every running expedition by `dt` seconds. */
 export function tickAll(dt) {
@@ -27,6 +28,17 @@ function tickRun(run, dt) {
     return;
   }
 
+  // --- Effects tick first, so a bleed can finish something off before the
+  // swing that would otherwise have been wasted on it ---
+  tickPartyEffects(run, dt);
+  tickEnemyEffects(run, dt);
+  if (!run.enemies.length) {
+    if (run.raidId || (run.wave >= run.totalWaves + 1)) { finishRun(run, true); return; }
+    run.waveTimer = WAVE_GAP;
+    emit('expeditions');
+    return;
+  }
+
   const alive = run.combatants.filter((c) => !c.down);
   if (!alive.length) { finishRun(run, false); return; }
 
@@ -35,7 +47,8 @@ function tickRun(run, dt) {
     const sheet = G.sheets[c.uid];
     if (!sheet) continue;
     c.timer -= dt;
-    const aps = sheet.aps * (1 + (flaskFx(run).incAtkSpeed ?? 0) / 100);
+    const aps = sheet.aps
+      * (1 + ((flaskFx(run).incAtkSpeed ?? 0) + modFrom(c, 'incAtkSpeed')) / 100);
     let guard = 0;
     while (c.timer <= 0 && guard++ < 12 && run.enemies.length) {
       heroAct(run, c, sheet);
@@ -66,12 +79,82 @@ function tickRun(run, dt) {
   // --- Regeneration ---
   for (const c of alive) {
     const sheet = G.sheets[c.uid];
-    const flaskRegen = c.maxLife * (flaskFx(run).lifeRegenPct ?? 0) / 100;
-    const regen = (sheet?.regen ?? 0) + flaskRegen;
+    const pctRegen = (flaskFx(run).lifeRegenPct ?? 0) + modFrom(c, 'lifeRegenPct');
+    const regen = (sheet?.regen ?? 0) + c.maxLife * pctRegen / 100;
     if (regen > 0 && c.life < c.maxLife) {
       c.life = Math.min(c.maxLife, c.life + regen * dt);
     }
   }
+}
+
+/**
+ * Advances every effect on the party. Damage over time is attributed to the
+ * effect rather than to a swing, so a hero can be finished by a bleed.
+ */
+function tickPartyEffects(run, dt) {
+  for (const c of run.combatants) {
+    if (c.down) continue;
+    tickEffects(c, dt, {
+      onDamage: (amount) => damageHero(run, c, amount),
+      onHeal: (amount) => healHero(c, amount),
+    });
+  }
+}
+
+function tickEnemyEffects(run, dt) {
+  for (let i = run.enemies.length - 1; i >= 0; i--) {
+    const e = run.enemies[i];
+    tickEffects(e, dt, {
+      onDamage: (amount, fx) => {
+        e.life -= amount;
+        if (e.life <= 0) {
+          const killer = run.combatants.find((c) => c.uid === fx.source);
+          log(`${e.name} succumbs to ${fx.name}.`, 'kill');
+          if (killer) fireTrigger('kill', { run, self: killer, target: e });
+          onEnemyKilled(run, e);
+        }
+      },
+    });
+  }
+}
+
+/** Single place damage reaches a hero, whatever its source. */
+export function damageHero(run, c, amount) {
+  if (c.down || amount <= 0) return;
+  let left = amount;
+  if (c.es > 0) {
+    const absorbed = Math.min(c.es, left);
+    c.es -= absorbed;
+    left -= absorbed;
+  }
+  c.life -= left;
+  if (c.life <= 0) {
+    c.life = 0;
+    c.down = true;
+    G.state.stats.heroDeaths++;
+    log(`${c.name} has fallen in ${run.name}.`, 'danger');
+    for (const ally of run.combatants) {
+      if (ally !== c && !ally.down) fireTrigger('allyDown', { run, self: ally, target: c });
+    }
+    emit('expeditions');
+    return;
+  }
+  // Announced once per crossing, not on every tick below the line.
+  if (c.life < c.maxLife * 0.5 && !c.wasLow) {
+    c.wasLow = true;
+    for (const ally of run.combatants) {
+      if (!ally.down) fireTrigger('allyLow', { run, self: ally, target: c });
+    }
+  }
+}
+
+/** Single place healing reaches a hero. */
+export function healHero(c, amount) {
+  if (c.down || amount <= 0) return 0;
+  const healed = Math.min(amount, c.maxLife - c.life);
+  c.life += healed;
+  if (c.life >= c.maxLife * 0.5) c.wasLow = false;
+  return healed;
 }
 
 function spawnWave(run) {
@@ -85,6 +168,11 @@ function spawnWave(run) {
     const count = rng.int(2, 4);
     run.enemies = [];
     for (let i = 0; i < count; i++) run.enemies.push(makeEnemy(run.tier, profile));
+  }
+  // Openers land on every wave, not only the first: a decaying burst that only
+  // ever applied once would be irrelevant by wave three.
+  for (const c of run.combatants) {
+    if (!c.down) fireTrigger('combatStart', { run, self: c });
   }
   emit('expeditions');
 }
@@ -100,8 +188,9 @@ function heroAct(run, c, sheet) {
       .filter((x) => !x.down && x.life < x.maxLife * 0.92)
       .sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife))[0];
     if (wounded) {
-      const healed = Math.min(sheet.healPower, wounded.maxLife - wounded.life);
-      wounded.life += healed;
+      const power = sheet.healPower * (1 + modFrom(c, 'incHeal') / 100);
+      const healed = healHero(wounded, power);
+      fireTrigger('heal', { run, self: c, target: wounded, amount: healed });
       if (rng.chance(0.10)) log(`${c.name} heals ${wounded.name} for ${fmt(healed)}.`, 'kill');
       return;
     }
@@ -115,9 +204,21 @@ function heroAct(run, c, sheet) {
     return;
   }
 
+  swing(run, c, sheet, target, 0);
+}
+
+/**
+ * One attack, resolved. Split out from heroAct so an effect can ask for
+ * another one — `depth` is the guard that keeps "attacks may repeat" from
+ * chaining into itself forever.
+ */
+export function swing(run, c, sheet, target, depth) {
+  if (!target || target.life <= 0) return;
+
   const crit = rng.chance(sheet.critChance / 100);
   const critMult = crit ? sheet.critMulti / 100 : 1;
-  const dmgMult = 1 + (flaskFx(run).incDamage ?? 0) / 100;
+  const dmgMult = 1
+    + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage')) / 100;
 
   let total = 0; let physDealt = 0;
   for (const type of DAMAGE_TYPES) {
@@ -135,14 +236,26 @@ function heroAct(run, c, sheet) {
   }
 
   target.life -= total;
-  if (sheet.leech > 0 && physDealt > 0) {
-    c.life = Math.min(c.maxLife, c.life + physDealt * sheet.leech / 100);
-  }
+  if (sheet.leech > 0 && physDealt > 0) healHero(c, physDealt * sheet.leech / 100);
+
+  const ctx = { run, self: c, sheet, target, amount: total, depth };
+  fireTrigger('hit', ctx);
+  if (crit) fireTrigger('crit', ctx);
 
   if (crit && rng.chance(0.25)) log(`${c.name} crits ${target.name} for ${fmt(total)}.`, 'crit');
   else if (rng.chance(0.05)) log(`${c.name} hits ${target.name} for ${fmt(total)}.`, 'hit');
 
-  if (target.life <= 0) onEnemyKilled(run, target);
+  if (target.life <= 0) {
+    fireTrigger('kill', { run, self: c, target });
+    onEnemyKilled(run, target);
+  }
+}
+
+/** Repeats an attack, refusing to recurse past a shallow depth. */
+export const MAX_REPEAT_DEPTH = 2;
+export function repeatSwing(ctx) {
+  if ((ctx.depth ?? 0) >= MAX_REPEAT_DEPTH) return;
+  swing(ctx.run, ctx.self, ctx.sheet, ctx.target, (ctx.depth ?? 0) + 1);
 }
 
 function enemyAct(run, e) {
@@ -159,8 +272,10 @@ function enemyAct(run, e) {
   // A shield only helps against what it is shaped to stop. A 'mixed' attacker
   // — the Worldeater — switches between the two, so no single shield answers it.
   const incoming = e.attack === 'mixed' ? (rng.chance(0.5) ? 'spell' : 'melee') : e.attack;
-  const chance = incoming === 'spell' ? sheet.blockSpell : sheet.blockMelee;
+  const chance = (incoming === 'spell' ? sheet.blockSpell : sheet.blockMelee)
+    + modFrom(target, incoming === 'spell' ? 'blockSpell' : 'blockMelee');
   if (chance > 0 && rng.chance(chance / 100)) {
+    fireTrigger('block', { run, self: target, target: e, kind: incoming });
     if (rng.chance(0.06)) {
       log(`${target.name} blocks ${e.name}'s ${incoming === 'spell' ? 'spell' : 'blow'}.`, 'hit');
     }
@@ -173,29 +288,18 @@ function enemyAct(run, e) {
   let taken = 0;
   for (const [type, frac] of Object.entries(e.split)) {
     const raw = base * frac;
-    const armour = sheet.armour * (1 + (flaskFx(run).incArmour ?? 0) / 100);
+    const armour = sheet.armour
+      * (1 + ((flaskFx(run).incArmour ?? 0) + modFrom(target, 'incArmour')) / 100);
     if (type === 'phys') taken += raw * (1 - armourReduction(armour, raw));
     else taken += raw * (1 - (sheet.res[type]?.value ?? 0) / 100);
   }
-  taken *= (1 + sheet.damageTaken / 100);
+  taken *= (1 + (sheet.damageTaken + modFrom(target, 'damageTaken')) / 100);
 
-  if (target.es > 0) {
-    const absorbed = Math.min(target.es, taken);
-    target.es -= absorbed;
-    taken -= absorbed;
-  }
-  target.life -= taken;
+  fireTrigger('takeHit', { run, self: target, target: e, amount: taken, kind: incoming });
+  damageHero(run, target, taken);
 
   if (sheet.reflect > 0) {
     e.life -= taken * sheet.reflect / 100;
     if (e.life <= 0) { onEnemyKilled(run, e); return; }
-  }
-
-  if (target.life <= 0) {
-    target.life = 0;
-    target.down = true;
-    G.state.stats.heroDeaths++;
-    log(`${target.name} has fallen in ${run.name}.`, 'danger');
-    emit('expeditions');
   }
 }

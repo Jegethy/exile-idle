@@ -23,6 +23,8 @@ import {
 } from './heroes.js';
 
 import { makeRaidBoss } from './expedition/enemies.js';
+import { bindReactions } from './expedition/effects.js';
+import { reactionsFor } from './expedition/abilities.js';
 import { bankHaul } from './expedition/rewards.js';
 import { tickAll } from './expedition/combat.js';
 
@@ -113,12 +115,17 @@ function buildRun(opts) {
   const combatants = opts.members.map((hero) => {
     const sheet = G.sheets[hero.uid] ?? heroStats(hero, G.state.upgrades);
     const maxLife = Math.round(sheet.life * lifeMult);
-    return {
+    const c = {
       uid: hero.uid, name: hero.name, classId: hero.classId, role: sheet.role,
       life: maxLife, maxLife,
       es: sheet.es, maxES: sheet.es,
       timer: rng.range(0.1, 0.6), down: false,
+      wasLow: false,
+      effects: [],
     };
+    // Everything that can react to a moment in combat — the class's own
+    // ability and any unique item worn — is indexed once, here.
+    return bindReactions(c, reactionsFor(hero, sheet));
   });
 
   return {
