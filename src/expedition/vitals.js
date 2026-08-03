@@ -24,6 +24,12 @@ export function damageHero(run, c, amount, from = null) {
   if (c.down || amount <= 0) return 0;
 
   let left = amount;
+  // Wards are spent first: they are the healing that arrived before the blow.
+  if (c.ward > 0) {
+    const absorbed = Math.min(c.ward, left);
+    c.ward -= absorbed;
+    left -= absorbed;
+  }
   if (c.es > 0) {
     const absorbed = Math.min(c.es, left);
     c.es -= absorbed;
@@ -70,10 +76,31 @@ export function healHero(c, amount, from = null) {
   return healed;
 }
 
+/**
+ * Adds an absorb shield, capped as a share of the hero's maximum life.
+ *
+ * This is what healing that would otherwise have been wasted turns into. A
+ * heal-over-time spread across a whole party mostly lands on people who are
+ * fine; converting that overflow into a ward is what makes preparing for
+ * damage a different job from reacting to it.
+ *
+ * @returns {number} the amount actually banked
+ */
+export function addWard(c, amount, capFraction = 0.20, from = null) {
+  if (c.down || amount <= 0) return 0;
+  const cap = c.maxLife * capFraction;
+  const banked = Math.min(amount, Math.max(0, cap - (c.ward ?? 0)));
+  c.ward = (c.ward ?? 0) + banked;
+  // Warding counts as healing done: it is the same throughput, spent early.
+  if (from && banked > 0) from.healingDone = (from.healingDone ?? 0) + banked;
+  return banked;
+}
+
 /** Zeroes the per-run contribution counters. */
 export function initVitals(c) {
   c.damageDealt = 0;
   c.damageTaken = 0;
   c.healingDone = 0;
+  c.ward = 0;
   return c;
 }

@@ -314,6 +314,29 @@ export default async function run() {
     return `all three clear; Templar deals ${(templar.damage / cleric.damage).toFixed(1)}x the Cleric's damage`;
   });
 
+  await test('the Druid earns its slot where damage is spread', async () => {
+    // Its healing goes to the whole party and the overflow becomes a ward, so
+    // it is wasted when only the tank is being hit and efficient when everyone
+    // is. A party with no tank is exactly the second case.
+    const withTank = {};
+    const without = {};
+    for (const id of ['cleric', 'druid']) {
+      withTank[id] = trial(['guardian', id, 'rogue', 'archer', 'wizard'], 17, 24).clearRate;
+      without[id] = trial([id, 'rogue', 'archer', 'wizard', 'warlock'], 16, 30).clearRate;
+    }
+    console.log('\n     clear rate         with a tank   no tank at all');
+    for (const id of ['cleric', 'druid']) {
+      console.log(`       ${id.padEnd(11)} ${pct(withTank[id]).padStart(14)}${pct(without[id]).padStart(16)}`);
+    }
+    ok(withTank.cleric > withTank.druid,
+      'the Cleric should be the better answer when a tank concentrates the damage');
+    ok(without.druid >= without.cleric,
+      `the Druid should come into its own without a tank `
+      + `(${pct(without.druid)} vs the Cleric's ${pct(without.cleric)})`);
+    return `Cleric leads ${pct(withTank.cleric)} to ${pct(withTank.druid)} with a tank; `
+      + `Druid leads ${pct(without.druid)} to ${pct(without.cleric)} without one`;
+  });
+
   await test('no damage class is beaten everywhere', async () => {
     // A trap is a class with no scenario in which it is not the worst pick.
     const traps = [];

@@ -129,7 +129,7 @@ function buildRun(opts) {
       timer: rng.range(0.1, 0.6), down: false,
       wasLow: false,
       effects: [],
-      damageDealt: 0, damageTaken: 0, healingDone: 0,
+      damageDealt: 0, damageTaken: 0, healingDone: 0, ward: 0,
     };
     // Everything that can react to a moment in combat — the class's own
     // ability and any unique item worn — is indexed once, here.

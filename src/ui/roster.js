@@ -60,7 +60,7 @@ export function renderRecruitBoard() {
           <button class="btn tiny ${locked ? 'active' : ''}" data-lock="${h.uid}"
             title="${locked ? 'Unlock' : 'Hold through a reroll'}">${locked ? 'Locked' : 'Lock'}</button>
         </div>
-        <div class="rc-sub">${info.rarity.name} ${escapeHtml(info.cls.name)} ·
+        <div class="rc-sub"><span class="rarity-word">${info.rarity.name}</span> ${escapeHtml(info.cls.name)} ·
           <span class="role role-${info.cls.role.toLowerCase()}">${info.cls.role}</span>
           <span class="row-tag ${info.cls.row}">${info.cls.row} line</span></div>
         <div class="rc-blurb">${escapeHtml(info.cls.blurb)}</div>
@@ -182,7 +182,7 @@ export function openHeroModal(heroUid) {
     <div class="hm-head ${info.rarity.cls}">
       <div>
         <div class="hm-name">${escapeHtml(hero.name)}</div>
-        <div class="hm-sub">${info.rarity.name} ${escapeHtml(info.cls.name)} ·
+        <div class="hm-sub"><span class="rarity-word">${info.rarity.name}</span> ${escapeHtml(info.cls.name)} ·
           <span class="role role-${info.cls.role.toLowerCase()}">${info.cls.role}</span> · Level ${hero.level}</div>
       </div>
       <div class="hm-stats">

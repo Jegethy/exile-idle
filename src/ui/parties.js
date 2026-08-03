@@ -56,7 +56,8 @@ export function renderParties() {
     ? '<span class="warn" title="Nobody will mend the party. Fine for content you outgear.">no healer</span>' : ''}
       </div>
       <div class="party-members">${members.map((h) => `<span class="pm ${RARITY_BY_ID[h.rarity].cls}"
-        data-hero="${h.uid}">${escapeHtml(h.name)} <small>Lv${h.level}</small></span>`).join('')}</div>
+        data-hero="${h.uid}"><i class="pm-dot"></i>${escapeHtml(h.name)}
+        <small>Lv${h.level}</small></span>`).join('')}</div>
       ${flaskPicker(p)}
       <div class="row">${running ? '<span class="tag out">On expedition</span>'
     : `<button class="btn tiny danger" data-delparty="${p.id}">Disband</button>`}</div>

@@ -37,13 +37,13 @@ export function dotFromHit(id, name, shareOfHit, duration) {
 }
 
 /** Healing over time on every standing ally. */
-export function partyHot(id, name, totalPerAlly, duration) {
+export function partyHot(id, name, totalPerAlly, duration, extra = {}) {
   return (ctx) => {
     for (const ally of ctx.run.combatants) {
       if (ally.down) continue;
       applyEffect(ally, {
         id: `${id}:${ctx.self.uid}`, name, duration,
-        hps: totalPerAlly / duration, source: ctx.self.uid,
+        hps: totalPerAlly / duration, source: ctx.self.uid, ...extra,
       });
     }
   };

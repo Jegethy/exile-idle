@@ -255,12 +255,16 @@ Tanks are a genuine trade rather than a gradient:
 Which one you want depends on the dungeon, and bringing the wrong one costs
 about a tier — a harder afternoon, never a locked door.
 
-**Known gap:** the Druid does not have a demonstrable niche. It heals less than
-the Cleric and no scenario in the current content rewards a party-wide
-heal-over-time enough to compensate, because a party that is all hurt at once
-is usually a party that is about to die. It is a working third healer, not yet
-a distinct one. The likely fix is content that applies steady chip damage to
-everyone rather than spikes to the tank.
+The Druid's niche is the tankless party. Its healing goes to everyone at once
+and whatever would be wasted on an unhurt ally becomes a **ward** — absorb that
+soaks the next blow — so it prepares a party for damage rather than answering
+it. With a tank concentrating the damage the Cleric is clearly better (46% to
+29%); with no tank at all the Druid pulls ahead (27% to 23%), because the
+healing that was being thrown away is now sitting on the whole party as armour.
+
+That also makes the Druid the class most likely to come into its own alongside
+dungeon and raid modifiers, where damage is applied to the party as a whole
+rather than to whoever is holding the front.
 
 ## Why the dungeon blend matters
 

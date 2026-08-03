@@ -129,17 +129,26 @@ export const HERO_CLASSES = [
   {
     id: 'druid', name: 'Druid', role: 'Healer', icon: 'leaf',
     row: 'back', reach: 'ranged', school: 'spell',
-    blurb: 'Healing that arrives steadily rather than all at once. Carries a party through a grind; poor at catching a sudden drop.',
+    blurb: 'Wards the whole party rather than answering one wound at a time. '
+      + 'The healer to bring when damage is spread across everyone, or when there '
+      + 'is no tank to soak it — and the wrong one when a single ally is being hammered.',
     mult: { life: 1.00, armour: 0.75, evasion: 0.70, damage: 0.50, aps: 0.90, heal: 1.00, threat: 0.7 },
     prefers: ['staff', 'wand', 'shield_dex'],
     ability: {
       name: 'Rejuvenation',
-      desc: 'Every 6s the whole party regains life over the following 6s, so much '
-        + 'of it is wasted on a party that is fine and none of it on one that is not.',
+      desc: 'Every 5s the whole party regains life over the following 5s. Healing '
+        + 'that would be wasted on an unhurt ally becomes a ward instead, '
+        + 'absorbing the next damage they take — so a Druid prepares a party '
+        + 'for a blow rather than answering one.',
       reactions: [{
-        trigger: 'hit', key: 'rejuv', cooldown: 6,
-        bind(sheet) { this.power = sheet.healPower * 4.0; },
-        run(ctx) { partyHot('rejuv', 'Rejuvenation', this.power ?? 0, 6)(ctx); },
+        trigger: 'hit', key: 'rejuv', cooldown: 5,
+        bind(sheet) { this.power = sheet.healPower * 7.0; },
+        run(ctx) {
+          // The overflow is the whole point. A party-wide heal-over-time lands
+          // mostly on people who are fine, which made the Druid a worse Cleric;
+          // banking that overflow as absorb is what makes it a different job.
+          partyHot('rejuv', 'Rejuvenation', this.power ?? 0, 5, { wardOverflow: 1 })(ctx);
+        },
       }],
     },
   },

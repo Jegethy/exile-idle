@@ -8,7 +8,7 @@ import { DAMAGE_TYPES, WAVE_GAP, flaskFx } from './balance.js';
 import { makeEnemy, makeGuardian } from './enemies.js';
 import { finishRun, onEnemyKilled } from './rewards.js';
 import { fireTrigger, modFrom, tickEffects } from './effects.js';
-import { damageHero, healHero } from './vitals.js';
+import { addWard, damageHero, healHero } from './vitals.js';
 
 /** Advances every running expedition by `dt` seconds. */
 export function tickAll(dt) {
@@ -97,7 +97,12 @@ function tickPartyEffects(run, dt) {
     if (c.down) continue;
     tickEffects(c, dt, {
       onDamage: (amount, fx) => damageHero(run, c, amount, sourceOf(run, fx)),
-      onHeal: (amount, fx) => healHero(c, amount, sourceOf(run, fx)),
+      onHeal: (amount, fx) => {
+        const from = sourceOf(run, fx);
+        const healed = healHero(c, amount, from);
+        // An effect may declare that its overflow is not wasted.
+        if (fx.wardOverflow) addWard(c, (amount - healed) * fx.wardOverflow, 0.20, from);
+      },
     });
   }
 }

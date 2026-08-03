@@ -128,7 +128,7 @@ export function showHeroTooltip(hero, event) {
   t.className = `tooltip ${info.rarity.cls}`;
   t.innerHTML = `
     <div class="tt-name">${escapeHtml(hero.name)}</div>
-    <div class="tt-base">${info.rarity.name} ${escapeHtml(info.cls.name)} · ${info.cls.role} · Level ${hero.level}
+    <div class="tt-base"><span class="rarity-word">${info.rarity.name}</span> ${escapeHtml(info.cls.name)} · ${info.cls.role} · Level ${hero.level}
       <span class="row-tag ${info.cls.row ?? 'front'}">${info.cls.row ?? 'front'} line</span></div>
     <div class="tt-sep"></div>
     ${line('Damage / sec', fmt(sheet.dps))}

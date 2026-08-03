@@ -629,22 +629,37 @@ b.gold { color:var(--gold); }
 }
 .hero-card:hover { background:var(--bg-3); border-color:var(--line-2); }
 .hero-card.deployed { opacity:.62; }
-.hero-card.h-common    { border-left-color:var(--h-common); }
-.hero-card.h-uncommon  { border-left-color:var(--h-uncommon); }
-.hero-card.h-rare      { border-left-color:var(--h-rare); }
-.hero-card.h-epic      { border-left-color:var(--h-epic); }
-.hero-card.h-legendary { border-left-color:var(--h-legendary); box-shadow:0 0 12px rgba(224,160,58,.12) inset; }
+/* Rarity is carried by a single custom property, so anything that shows a
+   hero picks it up without another five rules. Kept deliberately quiet: a
+   coloured edge and a coloured name, with a faint wash reserved for the two
+   rarities worth looking up from your inbox for. */
+.h-common    { --rarity:var(--h-common); }
+.h-uncommon  { --rarity:var(--h-uncommon); }
+.h-rare      { --rarity:var(--h-rare); }
+.h-epic      { --rarity:var(--h-epic); }
+.h-legendary { --rarity:var(--h-legendary); }
+
+.hero-card, .recruit-card, .hm-head { border-left-color:var(--rarity, var(--line)); }
+.hero-card.h-epic, .recruit-card.h-epic,
+.hero-card.h-legendary, .recruit-card.h-legendary {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--rarity) 9%, transparent), transparent 42%),
+    rgba(0,0,0,.22);
+}
 
 .hero-top { display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
 .hero-name { font-size:13px; }
-.h-common .hero-name    { color:var(--h-common); }
-.h-uncommon .hero-name  { color:var(--h-uncommon); }
-.h-rare .hero-name      { color:var(--h-rare); }
-.h-epic .hero-name      { color:var(--h-epic); }
-.h-legendary .hero-name { color:var(--h-legendary); }
+/* Every place a hero is named. */
+.hero-name, .rc-name, .hm-name, .tooltip .tt-name { color:var(--rarity, var(--ink)); }
+.hero-rarity, .rarity-word { color:var(--rarity, var(--ink-dim)); }
+.pm { border-color:color-mix(in srgb, var(--rarity, var(--line-2)) 45%, transparent); }
+.pm-dot {
+  display:inline-block; width:5px; height:5px; border-radius:50%;
+  margin-right:4px; vertical-align:middle; background:var(--rarity, var(--ink-faint));
+}
 .hero-lvl { font-size:10px; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
 .hero-sub { display:flex; align-items:center; gap:6px; margin-top:3px; font-size:10px; color:var(--ink-dim); }
-.hero-rarity { color:var(--ink-faint); }
+.hero-rarity { opacity:.85; }   /* colour comes from --rarity above */
 .hero-stats { display:flex; gap:10px; margin-top:4px; font-size:10px; color:var(--ink-faint); }
 .hero-foot { margin-top:5px; }
 
