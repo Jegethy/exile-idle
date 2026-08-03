@@ -4,7 +4,7 @@ import { rng } from '../rng.js';
 import { G, emit, log } from '../state.js';
 import { armourReduction, hitChance } from '../stats.js';
 import { clamp, fmt, uid } from '../util.js';
-import { DAMAGE_TYPES, WAVE_GAP, flaskFx } from './balance.js';
+import { DAMAGE_TYPES, WAVE_GAP, flaskFx, levelGap } from './balance.js';
 import { makeEnemy, makeGuardian } from './enemies.js';
 import { finishRun, onEnemyKilled } from './rewards.js';
 import { fireTrigger, modFrom, tickEffects } from './effects.js';
@@ -212,8 +212,10 @@ export function swing(run, c, sheet, target, depth) {
 
   const crit = rng.chance(sheet.critChance / 100);
   const critMult = crit ? sheet.critMulti / 100 : 1;
-  const dmgMult = 1
-    + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage')) / 100;
+  const dmgMult = (1
+    + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage')) / 100)
+    // Fighting above your level takes the edge off everything you swing.
+    * levelGap(c.level ?? run.level, run.level).outgoing;
 
   let total = 0; let physDealt = 0;
   for (const type of DAMAGE_TYPES) {
@@ -301,6 +303,8 @@ function enemyAct(run, e) {
   // The hero's own standing against this school, plus anything warding them.
   const ward = modFrom(target, incoming === 'spell' ? 'spellResist' : 'meleeResist');
   taken *= (1 - ((sheet.schoolResist?.[incoming] ?? 0) + ward) / 100);
+  // ...and everything that hits you lands harder.
+  taken *= levelGap(target.level ?? run.level, run.level).incoming;
 
   fireTrigger('takeHit', { run, self: target, target: e, amount: taken, kind: incoming });
   damageHero(run, target, taken);

@@ -11,6 +11,7 @@ import { refreshSheets } from '../src/sheets.js';
 import { dispatch, tickAll } from '../src/expedition.js';
 import { createItem } from '../src/items.js';
 import { EQUIP_SLOTS, BASE_BY_ID } from '../src/data/bases.js';
+import { tierToLevel, tierToIlvl } from '../src/data/dungeons.js';
 import { CLASS_BY_ID } from '../src/data/heroclasses.js';
 
 const DT = 0.1;
@@ -114,6 +115,20 @@ export function runExpedition(party, dungeonId, tier) {
     contribution: last,
     timedOut: ticks >= MAX_TICKS,
   };
+}
+
+/**
+ * A party levelled and geared for the tier it is about to run.
+ *
+ * Class comparisons have to hold this constant: since fighting above your
+ * level now costs real damage in both directions, a party that is under-levelled
+ * for the content is measuring the level gap rather than the classes.
+ */
+export function partyForTier(classIds, tier, levelsBehind = 0) {
+  return makeParty(classIds, {
+    level: Math.max(1, tierToLevel(tier) - levelsBehind),
+    ilvl: Math.max(1, tierToIlvl(tier) - levelsBehind),
+  });
 }
 
 /** Mean of a list, or 0. */

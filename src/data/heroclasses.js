@@ -142,7 +142,7 @@ export const HERO_CLASSES = [
         + 'for a blow rather than answering one.',
       reactions: [{
         trigger: 'hit', key: 'rejuv', cooldown: 5,
-        bind(sheet) { this.power = sheet.healPower * 7.0; },
+        bind(sheet) { this.power = sheet.healPower * 6.0; },
         run(ctx) {
           // The overflow is the whole point. A party-wide heal-over-time lands
           // mostly on people who are fine, which made the Druid a worse Cleric;

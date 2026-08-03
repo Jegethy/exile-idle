@@ -266,6 +266,43 @@ That also makes the Druid the class most likely to come into its own alongside
 dungeon and raid modifiers, where damage is applied to the party as a whole
 rather than to whoever is holding the front.
 
+## Level matters
+
+Every dungeon states the level of what lives in it, and that used to be
+decoration: enemy strength came from the tier and hero strength from levels and
+gear, but the distance between the two was never consulted. A level-9 party
+could grind down level-33 content, because two healers out-sustained damage
+that never became more threatening for being far above them.
+
+Fighting above your level now cuts what you deal and raises what you take.
+Being over-levelled grants nothing — clearing old content quickly is already
+the reward for having outgrown it.
+
+| Level-9 party in the Deepmines | Clear rate |
+|---|---|
+| Tier 4 (level 12) | 100% |
+| Tier 6 (level 19) | 100% |
+| Tier 8 (level 26) | 50% |
+| Tier 10 (level 33) | 0% |
+
+Flattening the enemy damage curve was tried first and abandoned. Raising the
+base enough to pressure a geared mid-game party makes tier 1 unclearable for
+three level-1 heroes with a club between them: the distance between a starter
+and a fully geared party of the same level is far larger than the distance
+between tiers. The level gap works precisely because it only touches parties
+fighting above their own level, so it cannot make anyone's first expedition
+harder.
+
+**Two class intents are not realised, and the balance suite says so rather than
+pretending otherwise.** The Rogue's Bloodlust does not produce a burst profile:
+measured head to head, the Rogue fares slightly worse against the Archer in
+1.9-second waves (0.98x) than in 7-second ones (1.03x), because a wave that
+short is over in one or two swings and a damage buff has almost nothing to
+multiply. And the Cleric/Druid split — concentrated damage versus spread —
+flips with tier, push depth and party makeup; several rounds of tuning could not
+make it stable. Both are working classes; they are not yet the classes their
+descriptions claim.
+
 ## Why the dungeon blend matters
 
 Every dungeon mixes brawlers and spellcasters, but no two mix them the same

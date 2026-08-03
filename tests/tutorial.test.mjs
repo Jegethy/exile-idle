@@ -49,12 +49,17 @@ export default async function run(browser) {
         last = await title(page);
         const acted = await act(page);
         if (acted) { await page.waitForTimeout(250); continue; }
-        // Nothing to press means a wait step. Wait on the actual condition —
-        // the party coming home — rather than on a fixed number of ticks.
-        await page.waitForFunction(async () => {
-          const { G } = await import('./src/state.js');
-          return G.state.expeditions.length === 0;
-        }, null, { timeout: 45000 }).catch(() => {});
+        // Nothing to press means a wait step. Poll for the party coming home
+        // rather than guessing a duration.
+        //
+        // Deliberately not page.waitForFunction: its callback cannot be async,
+        // because a returned Promise is truthy and the wait resolves at once.
+        for (let w = 0; w < 120; w++) {
+          const home = await page.evaluate(async () =>
+            (await import('./src/state.js')).G.state.expeditions.length === 0);
+          if (home) break;
+          await page.waitForTimeout(500);
+        }
         await page.waitForTimeout(400);
       }
       const state = await page.evaluate(async () => {

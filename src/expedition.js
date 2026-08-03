@@ -119,6 +119,7 @@ function buildRun(opts) {
     const cls = CLASS_BY_ID[hero.classId];
     const c = {
       uid: hero.uid, name: hero.name, classId: hero.classId, role: sheet.role,
+      level: hero.level,
       // Where a hero stands follows from what they do: anyone who fights hand
       // to hand has to be within reach of the thing they are hitting, and
       // being within reach cuts both ways.

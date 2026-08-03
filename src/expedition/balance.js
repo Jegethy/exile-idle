@@ -26,7 +26,11 @@ export const MON_DEF_GROWTH = 1.24;
 
 export const MON_ACC_GROWTH = 1.22;
 
-export const WAVE_GAP = 1.1;             // seconds between waves
+// Per level below the content, compounding on what you deal and take.
+const GAP_OUTGOING = 0.075;
+const GAP_INCOMING = 0.130;
+
+export const WAVE_GAP = 1.1;      // seconds between waves
 
 export const DAMAGE_TYPES = ['phys', 'fire', 'cold', 'light', 'chaos'];
 
@@ -44,3 +48,29 @@ export function flaskFx(run) { return run.flaskId ? (FLASK_BY_ID[run.flaskId]?.e
 
 /** Find-rate effect (rarity, gold) of this run's flask. */
 export function flaskFind(run) { return run.flaskId ? (FLASK_BY_ID[run.flaskId]?.find ?? {}) : {}; }
+
+/**
+ * What it costs to fight above your level.
+ *
+ * Every dungeon states the level of what lives in it, and until now that was
+ * decoration: enemy strength came from the tier and hero strength from levels
+ * and gear, but the distance between the two was never consulted. A level-9
+ * party could grind down level-33 content because two healers out-sustained
+ * damage that never got any more threatening for being far above them.
+ *
+ * Being under-levelled now cuts what you deal and raises what you take, which
+ * is a gap healing cannot close: out-sustaining an enemy is no longer a
+ * substitute for being strong enough to fight it.
+ *
+ * Being over-levelled grants nothing. Clearing old content quickly is already
+ * the reward for having outgrown it, and a bonus on top would only make the
+ * spread between tiers wider than it needs to be.
+ */
+export function levelGap(heroLevel, contentLevel) {
+  const gap = Math.max(0, contentLevel - heroLevel);
+  if (gap === 0) return { outgoing: 1, incoming: 1 };
+  return {
+    outgoing: 1 / (1 + gap * GAP_OUTGOING),
+    incoming: 1 + gap * GAP_INCOMING,
+  };
+}
