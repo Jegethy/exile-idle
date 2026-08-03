@@ -12,7 +12,9 @@
 //           is why a melee class is always a front-row class.
 //   school  how this class's damage arrives, for enemies that resist one kind.
 
-import { selfBuff, dotFromHit, partyHot, announce, all } from '../expedition/reactions.js';
+import {
+  selfBuff, dotFromHit, partyHot, announce, all, healWounded,
+} from '../expedition/reactions.js';
 import { applyEffect } from '../expedition/effects.js';
 
 /**
@@ -32,7 +34,7 @@ export const HERO_CLASSES = [
     blurb: 'A wall against anything holding a weapon. Steel turns steel, and does much less against a curse.',
     mult: { life: 1.95, armour: 2.30, evasion: 0.40, damage: 0.60, aps: 0.90, heal: 0, threat: 6.0 },
     block: { melee: 15, spell: 0 },
-    resist: { melee: 10, spell: -20 },
+    resist: { melee: 8, spell: -24 },
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Bulwark Stance',
@@ -50,7 +52,7 @@ export const HERO_CLASSES = [
     blurb: 'Faith turns aside what armour cannot. Softer to a blade than a Warrior, far harder to burn.',
     mult: { life: 1.55, armour: 1.60, evasion: 0.50, damage: 0.65, aps: 0.90, heal: 0, threat: 5.4 },
     block: { melee: 0, spell: 15 },
-    resist: { melee: -20, spell: 10 },
+    resist: { melee: -8, spell: 30 },
     prefers: ['mace1h', 'sword1h', 'shield_int'],
     ability: {
       name: 'Consecrate',
@@ -104,14 +106,14 @@ export const HERO_CLASSES = [
     id: 'druid', name: 'Druid', role: 'Healer', icon: 'leaf',
     row: 'back', reach: 'ranged', school: 'spell',
     blurb: 'Healing that arrives steadily rather than all at once. Carries a party through a grind; poor at catching a sudden drop.',
-    mult: { life: 1.00, armour: 0.75, evasion: 0.70, damage: 0.50, aps: 0.90, heal: 0.55, threat: 0.7 },
+    mult: { life: 1.00, armour: 0.75, evasion: 0.70, damage: 0.50, aps: 0.90, heal: 1.00, threat: 0.7 },
     prefers: ['staff', 'wand', 'shield_dex'],
     ability: {
       name: 'Rejuvenation',
       desc: 'Every 6s the whole party regains life over the following 6s.',
       reactions: [{
         trigger: 'hit', key: 'rejuv', cooldown: 6,
-        bind(sheet) { this.power = sheet.healPower * 1.6; },
+        bind(sheet) { this.power = sheet.healPower * 4.0; },
         run(ctx) { partyHot('rejuv', 'Rejuvenation', this.power ?? 0, 6)(ctx); },
       }],
     },
@@ -120,28 +122,22 @@ export const HERO_CLASSES = [
     id: 'templar', name: 'Templar', role: 'Healer', icon: 'hammer',
     row: 'front', reach: 'melee', school: 'melee',
     blurb: 'Heals by fighting, and cannot heal any other way. Hits harder than any other healer, and has to stand where it hurts.',
-    mult: { life: 1.30, armour: 1.20, evasion: 0.55, damage: 0.95, aps: 1.00, heal: 0, threat: 1.6 },
+    mult: { life: 1.30, armour: 1.20, evasion: 0.55, damage: 1.15, aps: 1.05, heal: 0, threat: 1.6 },
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Radiance',
-      desc: 'Damage dealt heals the most wounded ally for 35% of it, and everyone else for 15% over 3s.',
+      desc: 'Damage dealt heals the most wounded ally for 85% of it, and everyone else for 30% over 3s.',
       reactions: [{
         trigger: 'hit', key: 'radiance',
-        run: (ctx) => {
-          const wounded = ctx.run.combatants
-            .filter((x) => !x.down && x.life < x.maxLife)
-            .sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife))[0];
-          if (wounded) {
-            wounded.life = Math.min(wounded.maxLife, wounded.life + ctx.amount * 0.35);
-          }
+        run: all(healWounded(0.85), (ctx) => {
           for (const ally of ctx.run.combatants) {
-            if (ally.down || ally === wounded) continue;
+            if (ally.down || ally === ctx.healed) continue;
             applyEffect(ally, {
-              id: 'radiance', name: 'Radiance', duration: 3,
-              hps: (ctx.amount * 0.15) / 3, source: ctx.self.uid,
+              id: `radiance:${ctx.self.uid}`, name: 'Radiance', duration: 3,
+              hps: (ctx.amount * 0.30) / 3, source: ctx.self.uid,
             });
           }
-        },
+        }),
       }],
     },
   },
@@ -171,10 +167,10 @@ export const HERO_CLASSES = [
     prefers: ['bow', 'quiver'],
     ability: {
       name: 'Steady Aim',
-      desc: 'Each hit builds 6% attack speed for 5s, up to five times.',
+      desc: 'Each hit builds 4% attack speed for 5s, up to five times.',
       reactions: [{
         trigger: 'hit', key: 'steadyaim',
-        run: selfBuff('steadyaim', 'Steady Aim', { incAtkSpeed: 6 }, 5,
+        run: selfBuff('steadyaim', 'Steady Aim', { incAtkSpeed: 4 }, 5,
           { onReapply: 'stack', maxStacks: 5 }),
       }],
     },
@@ -187,10 +183,10 @@ export const HERO_CLASSES = [
     prefers: ['staff', 'wand', 'shield_int'],
     ability: {
       name: 'Overload',
-      desc: 'A critical strike burns the target for a further 60% of the hit over 3s.',
+      desc: 'Hits burn the target for a further 35% of the damage over 3s.',
       reactions: [{
-        trigger: 'crit', key: 'overload',
-        run: all(dotFromHit('overload', 'Overload', 0.6, 3),
+        trigger: 'hit', key: 'overload',
+        run: all(dotFromHit('overload', 'Overload', 0.35, 3),
           announce((ctx) => `${ctx.self.name}'s magic sets ${ctx.target.name} alight.`, 0.15)),
       }],
     },
@@ -199,18 +195,27 @@ export const HERO_CLASSES = [
     id: 'warlock', name: 'Warlock', role: 'DPS', icon: 'skull',
     row: 'back', reach: 'ranged', school: 'spell',
     blurb: 'Withers everything at once. The weakest single target in the guild, and the only one who does not care how many enemies there are.',
-    mult: { life: 0.80, armour: 0.40, evasion: 0.75, damage: 0.85, aps: 0.95, heal: 0, threat: 1.0 },
+    mult: { life: 0.80, armour: 0.40, evasion: 0.75, damage: 1.12, aps: 0.95, heal: 0, threat: 1.0 },
     prefers: ['wand', 'staff', 'shield_int'],
     ability: {
       name: 'Contagion',
-      desc: 'Every 3s, a hit spreads a wasting curse to every enemy for 45% of it over 4s.',
+      desc: 'Every hit curses every *other* enemy for 35% of the damage over 3s, '
+        + 'stacking five times. Nothing extra against a lone target.',
       reactions: [{
-        trigger: 'hit', key: 'contagion', cooldown: 3,
+        // No cooldown, and the struck target is excluded: this is a cleave, so
+        // it should scale with how many enemies there are and do nothing at all
+        // against one. On a cooldown it was too rare to be an identity.
+        trigger: 'hit', key: 'contagion',
         run: (ctx) => {
           for (const enemy of ctx.run.enemies) {
+            if (enemy === ctx.target) continue;
             applyEffect(enemy, {
-              id: 'contagion', name: 'Contagion', duration: 4,
-              dps: (ctx.amount * 0.45) / 4, source: ctx.self.uid,
+              // Per-caster: two Warlocks should curse a target twice over.
+              id: `contagion:${ctx.self.uid}`, name: 'Contagion', duration: 3,
+              dps: (ctx.amount * 0.35) / 3, source: ctx.self.uid,
+              // Stacking, not refreshing: applying it on every hit would
+              // otherwise collapse seven applications into one.
+              onReapply: 'stack', maxStacks: 5,
             });
           }
         },

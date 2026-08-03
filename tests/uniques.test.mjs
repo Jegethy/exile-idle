@@ -77,7 +77,7 @@ export default async function run(browser) {
       let burning = false;
       for (let i = 0; i < 200 && run_.status === 'running' && !burning; i++) {
         tickAll(0.1);
-        burning = run_.enemies.some((e) => e.effects?.some((f) => f.id === 'emberbrand'));
+        burning = run_.enemies.some((e) => e.effects?.some((f) => f.id.startsWith('emberbrand:')));
       }
       return { burning };
     });

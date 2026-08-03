@@ -65,8 +65,12 @@ export function applyEffect(target, effect) {
       }
       existing.stacks += 1;
     }
-    // Refreshing never shortens: a weaker reapply should not cut a strong one.
+    // Refreshing never downgrades. A weaker reapply must not cut a strong one
+    // short, and a stronger one should take over — otherwise the first hit of
+    // a fight would pin a damage-over-time effect at its weakest value.
     existing.duration = Math.max(existing.duration, effect.duration);
+    if (effect.dps) existing.dps = Math.max(existing.dps ?? 0, effect.dps);
+    if (effect.hps) existing.hps = Math.max(existing.hps ?? 0, effect.hps);
     return true;
   }
 

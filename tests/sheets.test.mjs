@@ -33,11 +33,18 @@ export default async function run(browser) {
       // By uid: two heroes can share a name fragment, and matching on text
       // picked the wrong card.
       const card = document.querySelector(`.hero-card[data-hero="${hero.uid}"]`);
-      const shown = card?.textContent.replace(/\s+/g, ' ').match(/([\d.]+) dps/)?.[1];
-      return { shown: Number(shown), sheet: G.sheets[hero.uid].dps, found: !!card };
+      // fmt() abbreviates past a thousand, so the card may read "1.10K dps".
+      const raw = card?.textContent.replace(/\s+/g, ' ').match(/([\d.]+)([KMB]?) dps/);
+      const scale = { '': 1, K: 1e3, M: 1e6, B: 1e9 }[raw?.[2] ?? ''];
+      return {
+        shown: raw ? Number(raw[1]) * scale : NaN,
+        sheet: G.sheets[hero.uid].dps,
+        found: !!card,
+      };
     });
     ok(r.found, 'no card rendered for that hero');
-    ok(Math.abs(r.shown - r.sheet) < 0.5, `DOM ${r.shown} vs sheet ${r.sheet}`);
+    ok(Math.abs(r.shown - r.sheet) / r.sheet < 0.01,
+      `DOM ${r.shown} vs sheet ${r.sheet}`);
     return `${r.shown} dps on screen`;
   });
 

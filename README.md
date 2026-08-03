@@ -221,19 +221,44 @@ export/import and `.json` download/upload.
 
 ## Balance
 
-Verified by a headless simulation that plays sensibly (staffs parties, gears the
-roster, only pushes a tier it is levelled for). A party geared and levelled for
-its tier clears reliably; pushing is where the risk lives:
+`npm test balance` runs the real combat engine headlessly — hundreds of full
+expeditions in under a second — and reports what each class actually
+contributes. It exists because eleven classes are only eleven classes if you
+can show it.
 
-| Tiers above your level | Clear rate |
-|---|---|
-| +0 to +2 | 20/20 — safe |
-| +4 | 12/20 — starts to bite |
-| +6 | 0–15/20 — usually fails |
-| +8 | wall |
+The measure is **clear time**, not damage dealt. Total damage is nearly fixed
+by the content: every party chews through the same enemies, so damage per hero
+says almost nothing and how long it takes says everything.
 
-Two to four tiers of stretch is the sweet spot, which is exactly the risk/reward
-decision the dispatch screen is asking you to make.
+At level 40 in matching gear, three of each damage class alongside a Guardian
+and a Cleric:
+
+| | Clear rate | Time | vs fastest |
+|---|---|---|---|
+| Archer | 90% | 56s | 1.00× |
+| Rogue | 87% | 66s | 1.18× |
+| Wizard | 77% | 72s | 1.29× |
+| Warlock | 83% | 83s | 1.49× |
+| Inquisitor | 80% | 98s | 1.76× |
+
+The Inquisitor looks worst there and is not: three of them is the wrong test,
+because Zealotry does not stack with itself. One in a mixed party takes the
+clear rate from 87% to 97%.
+
+Tanks are a genuine trade rather than a gradient, which only shows when the
+content is not mixed:
+
+| Forced content | Warrior | Paladin | Guardian |
+|---|---|---|---|
+| All melee | 92% | 33% | 88% |
+| All spell | 71% | 96% | 83% |
+
+Healers hold their stated niches. With a tank concentrating damage the Cleric
+loses 0.7 heroes a run and the Druid 1.6; take the tank away and the gap
+closes, because a party-wide heal-over-time is wasted on the healthy.
+
+**Known gap:** no dungeon is caster-heavy, so the Paladin has no home content
+and looks weaker than it is. Per-dungeon enemy composition is the fix.
 
 ## Project layout
 

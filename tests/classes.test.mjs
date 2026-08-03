@@ -108,22 +108,26 @@ export default async function run(browser) {
     return 'reached 5 stacks';
   });
 
-  await test('the Warlock curses every enemy at once', async () => {
+  await test('the Warlock curses the enemies it is not hitting', async () => {
     const r = await page.evaluate(async () => {
       const { tickAll } = await import('./src/expedition.js');
       const run_ = await window.__solo('warlock', 4);
+      const cursed = (e) => e.effects?.some((f) => f.id.startsWith('contagion:'));
       for (let i = 0; i < 300 && run_.status === 'running'; i++) {
         tickAll(0.1);
-        if (run_.enemies.length > 1 && run_.enemies.every((e) => e.effects?.some((f) => f.id === 'contagion'))) break;
+        // It is a cleave: the struck target takes the hit itself, everything
+        // else takes the curse. So the ones *behind* the front are the tell.
+        if (run_.enemies.length > 1 && run_.enemies.slice(1).every(cursed)) break;
       }
       return {
         enemies: run_.enemies.length,
-        cursed: run_.enemies.filter((e) => e.effects?.some((f) => f.id === 'contagion')).length,
+        others: run_.enemies.slice(1).length,
+        cursedOthers: run_.enemies.slice(1).filter(cursed).length,
       };
     });
     ok(r.enemies > 1, 'needed more than one enemy to prove it spreads');
-    eq(r.cursed, r.enemies, 'every enemy should be cursed');
-    return `${r.cursed}/${r.enemies} enemies cursed by one hit`;
+    eq(r.cursedOthers, r.others, 'every enemy but the one being hit should be cursed');
+    return `${r.cursedOthers}/${r.others} bystanders cursed`;
   });
 
   await test('the Templar heals the party by dealing damage', async () => {
@@ -153,7 +157,7 @@ export default async function run(browser) {
       let sawHot = false;
       for (let i = 0; i < 150 && run_.status === 'running'; i++) {
         tickAll(0.1);
-        if (t.effects?.some((e) => e.id === 'radiance') || g.effects?.some((e) => e.id === 'radiance')) {
+        if ([t, g].some((x) => x.effects?.some((e) => e.id.startsWith('radiance:')))) {
           sawHot = true;
         }
       }

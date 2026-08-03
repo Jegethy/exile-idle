@@ -8,6 +8,7 @@ import { DAMAGE_TYPES, WAVE_GAP, flaskFx } from './balance.js';
 import { makeEnemy, makeGuardian } from './enemies.js';
 import { finishRun, onEnemyKilled } from './rewards.js';
 import { fireTrigger, modFrom, tickEffects } from './effects.js';
+import { damageHero, healHero } from './vitals.js';
 
 /** Advances every running expedition by `dt` seconds. */
 export function tickAll(dt) {
@@ -95,10 +96,15 @@ function tickPartyEffects(run, dt) {
   for (const c of run.combatants) {
     if (c.down) continue;
     tickEffects(c, dt, {
-      onDamage: (amount) => damageHero(run, c, amount),
-      onHeal: (amount) => healHero(c, amount),
+      onDamage: (amount, fx) => damageHero(run, c, amount, sourceOf(run, fx)),
+      onHeal: (amount, fx) => healHero(c, amount, sourceOf(run, fx)),
     });
   }
+}
+
+/** The combatant an effect should be credited to, if they are still standing. */
+function sourceOf(run, fx) {
+  return fx?.source ? run.combatants.find((c) => c.uid === fx.source) ?? null : null;
 }
 
 function tickEnemyEffects(run, dt) {
@@ -107,8 +113,10 @@ function tickEnemyEffects(run, dt) {
     tickEffects(e, dt, {
       onDamage: (amount, fx) => {
         e.life -= amount;
+        const owner = sourceOf(run, fx);
+        if (owner) owner.damageDealt = (owner.damageDealt ?? 0) + amount;
         if (e.life <= 0) {
-          const killer = run.combatants.find((c) => c.uid === fx.source);
+          const killer = owner;
           log(`${e.name} succumbs to ${fx.name}.`, 'kill');
           if (killer) fireTrigger('kill', { run, self: killer, target: e });
           onEnemyKilled(run, e);
@@ -116,45 +124,6 @@ function tickEnemyEffects(run, dt) {
       },
     });
   }
-}
-
-/** Single place damage reaches a hero, whatever its source. */
-export function damageHero(run, c, amount) {
-  if (c.down || amount <= 0) return;
-  let left = amount;
-  if (c.es > 0) {
-    const absorbed = Math.min(c.es, left);
-    c.es -= absorbed;
-    left -= absorbed;
-  }
-  c.life -= left;
-  if (c.life <= 0) {
-    c.life = 0;
-    c.down = true;
-    G.state.stats.heroDeaths++;
-    log(`${c.name} has fallen in ${run.name}.`, 'danger');
-    for (const ally of run.combatants) {
-      if (ally !== c && !ally.down) fireTrigger('allyDown', { run, self: ally, target: c });
-    }
-    emit('expeditions');
-    return;
-  }
-  // Announced once per crossing, not on every tick below the line.
-  if (c.life < c.maxLife * 0.5 && !c.wasLow) {
-    c.wasLow = true;
-    for (const ally of run.combatants) {
-      if (!ally.down) fireTrigger('allyLow', { run, self: ally, target: c });
-    }
-  }
-}
-
-/** Single place healing reaches a hero. */
-export function healHero(c, amount) {
-  if (c.down || amount <= 0) return 0;
-  const healed = Math.min(amount, c.maxLife - c.life);
-  c.life += healed;
-  if (c.life >= c.maxLife * 0.5) c.wasLow = false;
-  return healed;
 }
 
 /**
@@ -209,7 +178,7 @@ function heroAct(run, c, sheet) {
       .sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife))[0];
     if (wounded) {
       const power = sheet.healPower * (1 + modFrom(c, 'incHeal') / 100);
-      const healed = healHero(wounded, power);
+      const healed = healHero(wounded, power, c);
       fireTrigger('heal', { run, self: c, target: wounded, amount: healed });
       if (rng.chance(0.10)) log(`${c.name} heals ${wounded.name} for ${fmt(healed)}.`, 'kill');
       return;
@@ -257,7 +226,8 @@ export function swing(run, c, sheet, target, depth) {
   }
 
   target.life -= total;
-  if (sheet.leech > 0 && physDealt > 0) healHero(c, physDealt * sheet.leech / 100);
+  c.damageDealt = (c.damageDealt ?? 0) + total;
+  if (sheet.leech > 0 && physDealt > 0) healHero(c, physDealt * sheet.leech / 100, c);
 
   const ctx = { run, self: c, sheet, target, amount: total, depth, repeat: false };
   fireTrigger('hit', ctx);
