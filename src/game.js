@@ -5,7 +5,9 @@ import { rng } from './rng.js';
 import * as Save from './save.js';
 import { tickAll, dispatch } from './expedition.js';
 import { restAll, startingRoster, createParty, assignToParty } from './heroes.js';
-import { rebuildSheets } from './stats.js';
+import { refreshSheets } from './sheets.js';
+
+export { refreshSheets };
 import { guildEffects } from './data/upgrades.js';
 import { initUI, renderAll, tick as uiTick } from './ui.js';
 import { startTutorial, shouldRunTutorial, isTutorialActive } from './tutorial.js';
@@ -26,13 +28,6 @@ let last = 0;
 let autosaveTimer = 0;
 let uiTimer = 0;
 let redeployTimer = 0;
-
-/** Rebuilds every hero's derived sheet. Called whenever gear or level changes. */
-export function refreshSheets() {
-  if (!G.state) return;
-  rebuildSheets(G.state, G.sheets);
-  emit('sheets');
-}
 
 // ---------------------------------------------------------------------------
 // Boot
@@ -151,7 +146,6 @@ function handleRedeploy(dt) {
 }
 
 on('loaded', () => { refreshSheets(); redeployTimer = 0; });
-on('sheets-request', refreshSheets);
 
 window.IDLE_GUILD = { G, Save, rng, refreshSheets };
 

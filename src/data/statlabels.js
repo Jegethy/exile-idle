@@ -21,6 +21,8 @@ export const STAT_LABELS = {
   flatEvasion: (v) => `+${v} to Evasion Rating`,
   incEvasion: (v) => `${v}% increased Evasion Rating`,
   block: (v) => `+${v}% Chance to Block`,
+  blockMelee: (v) => `+${v}% Chance to Block Melee`,
+  blockSpell: (v) => `+${v}% Chance to Block Spells`,
   damageTaken: (v) => `${v > 0 ? v + '% increased' : Math.abs(v) + '% reduced'} Damage taken`,
   esRecharge: (v) => `${v}% increased Energy Shield Recharge Rate`,
 

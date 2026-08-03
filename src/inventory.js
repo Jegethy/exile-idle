@@ -6,6 +6,7 @@ import { itemScore, RARITY } from './items.js';
 import { MATERIALS, MATERIAL_BY_ID, materialOf, gradeForIlvl, salvageFamilies } from './data/materials.js';
 import { BASE_BY_ID } from './data/bases.js';
 import { UPGRADE_BY_ID, upgradeCost } from './data/upgrades.js';
+import { refreshSheets } from './sheets.js';
 
 export function vaultCount() { return G.state.vault.length; }
 export function vaultFull() { return G.state.vault.length >= vaultCapacity(); }
@@ -243,6 +244,6 @@ export function buyUpgrade(id) {
 
   s.upgrades[id] = rank + 1;
   log(`${def.name} improved to rank ${rank + 1}.`, 'gold');
-  emit('upgrades'); emit('guild'); emit('sheets');
+  emit('upgrades'); emit('guild'); refreshSheets();
   return { ok: true, msg: `${def.name} is now rank ${rank + 1}.` };
 }

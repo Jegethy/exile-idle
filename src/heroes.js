@@ -9,6 +9,7 @@ import {
 import { traitPoolFor, traitPerks, TRAIT_BY_ID } from './data/traits.js';
 import { EQUIP_SLOTS, BASE_BY_ID } from './data/bases.js';
 import { addToVault } from './inventory.js';
+import { refreshSheets } from './sheets.js';
 import { createItem } from './items.js';
 import { guildEffects } from './data/upgrades.js';
 
@@ -110,6 +111,9 @@ export function grantHeroXp(hero, amount) {
     hero.xp -= xpToNext(hero.level);
     hero.level++;
   }
+  // Levelling changes every derived number, including mid-expedition. Only
+  // rebuild when a level actually landed — this runs on every kill.
+  if (hero.level !== gained0) refreshSheets();
   return hero.level - gained0;
 }
 
@@ -245,7 +249,7 @@ export function equipOnHero(heroUid, itemUid, forcedSlot = null) {
     addToVault(old, { noAutoSalvage: true });
   }
 
-  emit('roster'); emit('vault'); emit('sheets');
+  emit('roster'); emit('vault'); refreshSheets();
   return true;
 }
 
@@ -256,7 +260,7 @@ export function unequipFromHero(heroUid, slot) {
   const item = hero.equipment[slot];
   hero.equipment[slot] = null;
   addToVault(item, { noAutoSalvage: true });
-  emit('roster'); emit('vault'); emit('sheets');
+  emit('roster'); emit('vault'); refreshSheets();
   return true;
 }
 

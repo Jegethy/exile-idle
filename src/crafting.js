@@ -12,6 +12,7 @@ import {
   corruptItem,
 } from './items.js';
 import { hasMaterials, spendMaterials, addFlask } from './inventory.js';
+import { refreshSheets } from './sheets.js';
 
 const ok = (msg) => ({ ok: true, msg });
 const no = (msg) => ({ ok: false, msg });
@@ -140,7 +141,7 @@ export function craft(recipeId, item) {
 
   spendMaterials(cost);
   log(msg, 'loot');
-  emit('vault'); emit('materials'); emit('sheets');
+  emit('vault'); emit('materials'); refreshSheets();
   return ok(msg);
 }
 

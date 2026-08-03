@@ -26,7 +26,10 @@ export function emptyBag() {
     moreDamage: 0, moreEle: 0, moreFire: 0,
     flatLife: 0, incLife: 0, flatMana: 0, incMana: 0,
     flatES: 0, incES: 0, esRecharge: 0,
-    flatArmour: 0, incArmour: 0, flatEvasion: 0, incEvasion: 0, block: 0,
+    flatArmour: 0, incArmour: 0, flatEvasion: 0, incEvasion: 0,
+    // `block` is the untyped kind that applies to both; the other two are
+    // what shield bases grant.
+    block: 0, blockMelee: 0, blockSpell: 0,
     localIncPhys: 0, localIncArmour: 0, localIncEvasion: 0, localIncES: 0,
     resFire: 0, resCold: 0, resLight: 0, resChaos: 0, maxRes: 0,
     penFire: 0, penCold: 0, penLight: 0,
@@ -39,6 +42,9 @@ export function emptyBag() {
 }
 
 const UNARMED = { physMin: 2, physMax: 5, aps: 1.15, crit: 5, hands: 1 };
+
+/** Hard ceiling on either block chance, however it is stacked. */
+export const BLOCK_CAP = 75;
 
 /**
  * Computes a hero's full derived sheet.
@@ -60,6 +66,10 @@ export function heroStats(hero, upgrades = {}) {
     const base = BASE_BY_ID[item.baseId];
     const bs = itemBaseStats(item);
     if (base?.slot === 'weapon' && slot === 'weapon') weapon = bs;
+    if (bs.block) {
+      bag.blockMelee += bs.block.melee ?? 0;
+      bag.blockSpell += bs.block.spell ?? 0;
+    }
     gearArmour += bs.armour ?? 0;
     gearEvasion += bs.evasion ?? 0;
     gearES += bs.es ?? 0;
@@ -93,7 +103,8 @@ export function heroStats(hero, upgrades = {}) {
   const es = (gearES + bag.flatES) * (1 + bag.incES / 100);
   const armour = (baseArmour + gearArmour + bag.flatArmour) * (1 + bag.incArmour / 100);
   const evasion = (baseEvasion + gearEvasion + bag.flatEvasion) * (1 + bag.incEvasion / 100);
-  const block = clamp(bag.block, 0, 75);
+  const blockMelee = clamp(bag.block + bag.blockMelee, 0, BLOCK_CAP);
+  const blockSpell = clamp(bag.block + bag.blockSpell, 0, BLOCK_CAP);
 
   // ---- 5. Resistances ----------------------------------------------------
   const maxRes = Math.round(75 + bag.maxRes);
@@ -151,7 +162,8 @@ export function heroStats(hero, upgrades = {}) {
     heroUid: hero.uid, classId: hero.classId, role: cls.role,
     bag,
     life: Math.round(life), es: Math.round(es),
-    armour: Math.round(armour), evasion: Math.round(evasion), block,
+    armour: Math.round(armour), evasion: Math.round(evasion),
+    blockMelee, blockSpell,
     res, dmg, hitMin: Math.round(hitMin), hitMax: Math.round(hitMax), avgHit,
     aps, critChance, critMulti, accuracy, dps,
     healPower, regen, leech: bag.lifeLeech,

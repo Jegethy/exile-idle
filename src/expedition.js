@@ -70,7 +70,7 @@ function makeEnemy(tier, profile, rarityId = null) {
     uid: uid('e'),
     name: rarity.id === 'champion' ? `${championName()}, ${arch.name}` : `${rarity.name}${arch.name}`,
     rarity: rarity.id,
-    life, maxLife: life, dmg, split: { ...arch.split },
+    life, maxLife: life, dmg, split: { ...arch.split }, attack: arch.attack ?? 'melee',
     aps: arch.aps * (profile.aps ?? 1),
     armour: tierScale(tier, MON_ARMOUR_BASE, MON_DEF_GROWTH) * arch.ar * (profile.armour ?? 1),
     evasion: tierScale(tier, MON_EV_BASE, MON_DEF_GROWTH) * arch.ev * (profile.evasion ?? 1),
@@ -100,7 +100,7 @@ function makeRaidBoss(def, tier) {
   const dmg = tierScale(tier, MON_DMG_BASE, MON_DMG_GROWTH, SOFT_DMG) * def.damage;
   return {
     uid: uid('e'), name: def.name, rarity: 'champion',
-    life, maxLife: life, dmg, split: { ...def.split },
+    life, maxLife: life, dmg, split: { ...def.split }, attack: def.attack ?? 'melee',
     aps: def.aps,
     armour: tierScale(tier, MON_ARMOUR_BASE, MON_DEF_GROWTH) * def.armour,
     evasion: tierScale(tier, MON_EV_BASE, MON_DEF_GROWTH) * 1.0,
@@ -227,16 +227,29 @@ function buildRun(opts) {
     flaskId: opts.flaskId ?? null,
     status: 'running',
     rewards: { gold: 0, gear: 0, materials: 0, xp: 0, uniques: 0, seals: 0 },
+    // Everything found is carried by the party, not teleported to the guild
+    // vault the instant it drops. A wiped party carries nothing home, so this
+    // is discarded on failure. `rewards` above stays a running tally for the
+    // UI — what is currently at stake.
+    haul: { gold: 0, guildXp: 0, seals: 0, items: [], materials: {}, heroXp: {} },
   };
 }
 
-/** Recalls a party early. Loot already banked is kept; the clear bonus is not. */
+/**
+ * Recalls a party early. They walk out under their own power, so they keep
+ * what they are carrying — the clear bonus is what they give up. That is the
+ * real decision a recall exists to offer: bank a partial haul now, or push a
+ * hurt party deeper for the completion chest and risk losing all of it.
+ */
 export function recall(expeditionId) {
   const s = G.state;
   const i = s.expeditions.findIndex((e) => e.id === expeditionId);
   if (i < 0) return false;
   const run = s.expeditions[i];
-  log(`${partyName(run)} returns early from ${run.name}.`, 'sys');
+  bankHaul(run);
+  const r = run.rewards;
+  log(`${partyName(run)} returns early from ${run.name} with ${fmt(r.gold)} gold · `
+    + `${r.gear} items · ${r.materials} materials.`, 'loot');
   s.expeditions.splice(i, 1);
   emit('expeditions'); emit('roster');
   return true;
@@ -395,7 +408,17 @@ function enemyAct(run, e) {
   if (!sheet) return;
 
   if (!rng.chance(hitChance(e.accuracy, sheet.evasion))) return;
-  if (sheet.block > 0 && rng.chance(sheet.block / 100)) return;
+
+  // A shield only helps against what it is shaped to stop. A 'mixed' attacker
+  // — the Worldeater — switches between the two, so no single shield answers it.
+  const incoming = e.attack === 'mixed' ? (rng.chance(0.5) ? 'spell' : 'melee') : e.attack;
+  const chance = incoming === 'spell' ? sheet.blockSpell : sheet.blockMelee;
+  if (chance > 0 && rng.chance(chance / 100)) {
+    if (rng.chance(0.06)) {
+      log(`${target.name} blocks ${e.name}'s ${incoming === 'spell' ? 'spell' : 'blow'}.`, 'hit');
+    }
+    return;
+  }
 
   const crit = rng.chance(e.crit / 100);
   const base = e.dmg * rng.range(0.85, 1.15) * (crit ? 1.5 : 1);
@@ -447,18 +470,18 @@ function onEnemyKilled(run, enemy) {
     (1.6 + run.tier * 1.15) * enemy.dropMult * focus.gold
     * (1 + (gu.gold + partyGold + (flaskFind(run).gold ?? 0)) / 100),
   );
-  addGold(gold);
+  run.haul.gold += gold;
   run.rewards.gold += gold;
 
   // --- Experience, split across the party ---
   const xpTotal = (14 * Math.pow(run.tier, 1.6) + run.tier * 10) * enemy.xpMult * focus.xp;
   const survivors = run.combatants.filter((c) => !c.down);
   for (const c of survivors) {
-    const hero = heroById(c.uid);
-    if (hero) grantHeroXp(hero, xpTotal / Math.max(1, survivors.length));
+    const share = xpTotal / Math.max(1, survivors.length);
+    run.haul.heroXp[c.uid] = (run.haul.heroXp[c.uid] ?? 0) + share;
   }
   run.rewards.xp += xpTotal;
-  grantGuildXp(xpTotal * 0.12);
+  run.haul.guildXp += xpTotal * 0.12;
 
   // --- Gear ---
   // A guild equips a whole roster, not one character: five heroes across nine
@@ -495,13 +518,12 @@ function dropMaterial(run) {
   let grade = gradeForIlvl(run.ilvl);
   if (grade < 3 && rng.chance(0.08)) grade++;
   const mat = materialOf(family, grade);
-  addMaterial(mat.id, 1);
+  run.haul.materials[mat.id] = (run.haul.materials[mat.id] ?? 0) + 1;
   run.rewards.materials++;
   if (grade >= 3 && rng.chance(0.3)) log(`${mat.name} recovered from ${run.name}.`, 'unique');
 }
 
 function dropGear(run, rarityBonus, fromBoss) {
-  const s = G.state;
   const roll = rng.float() * 100;
   const uniqueCut = (fromBoss ? 2.2 : 0.45) * (1 + rarityBonus / 250);
   const rareCut = uniqueCut + 8 * (1 + rarityBonus / 100);
@@ -510,28 +532,65 @@ function dropGear(run, rarityBonus, fromBoss) {
   let item = null;
   if (roll < uniqueCut) {
     item = rollUnique(run.ilvl);
-    if (item) {
-      s.stats.uniquesFound++;
-      s.collection[item.uniqueId] = (s.collection[item.uniqueId] ?? 0) + 1;
-      const isNew = s.collection[item.uniqueId] === 1;
-      run.rewards.uniques++;
-      log(`${item.name} recovered!${isNew ? ' (new to the collection)' : ''}`, 'unique');
-    }
+    // Nothing is recorded in the collection yet — the party still has to carry
+    // it out. Announcing the find is fine; banking it is not.
+    if (item) log(`${item.name} — if they make it back!`, 'unique');
   }
   if (!item) {
     const rarity = roll < rareCut ? 'rare' : roll < magicCut ? 'magic' : 'normal';
     item = createItem({ ilvl: run.ilvl, rarity });
   }
 
-  const result = addToVault(item);
-  if (result === 'added') { run.rewards.gear++; s.stats.gearFound++; }
-  else if (result === 'full') log('Vault full — an item was left behind.', 'danger');
-  else {
+  run.haul.items.push(item);
+  run.rewards.gear++;
+}
+
+/**
+ * Hands the haul over to the guild. Only ever called for a party that walked
+ * out — on a wipe the whole thing is dropped on the dungeon floor.
+ */
+function bankHaul(run) {
+  const s = G.state;
+  const h = run.haul;
+
+  if (h.gold > 0) addGold(h.gold);
+  if (h.guildXp > 0) grantGuildXp(h.guildXp);
+  if (h.seals > 0) s.guild.seals = (s.guild.seals ?? 0) + h.seals;
+  for (const [id, n] of Object.entries(h.materials)) addMaterial(id, n);
+
+  for (const uidStr of Object.keys(h.heroXp)) {
+    const hero = heroById(uidStr);
+    if (hero) grantHeroXp(hero, h.heroXp[uidStr]);
+  }
+
+  let full = 0;
+  for (const item of h.items) {
+    const result = addToVault(item);
+    if (result === 'full') { full++; continue; }
     s.stats.gearFound++;
-    if (result === 'salvaged-full' && rng.chance(0.12)) {
-      log('Vault full — drops are being salvaged automatically.', 'danger');
+    if (item.rarity === 'unique') {
+      s.stats.uniquesFound++;
+      s.collection[item.uniqueId] = (s.collection[item.uniqueId] ?? 0) + 1;
+      if (s.collection[item.uniqueId] === 1) {
+        log(`${item.name} is new to the collection.`, 'unique');
+      }
     }
   }
+  if (full > 0) log(`Vault full — ${full} item${full === 1 ? '' : 's'} left behind.`, 'danger');
+}
+
+/** Everything the party was carrying when they went down. */
+function forfeitHaul(run) {
+  const h = run.haul;
+  const uniques = h.items.filter((i) => i.rarity === 'unique').length;
+  const bits = [];
+  if (h.gold > 0) bits.push(`${fmt(h.gold)} gold`);
+  if (h.items.length) bits.push(`${h.items.length} item${h.items.length === 1 ? '' : 's'}`);
+  const matCount = Object.values(h.materials).reduce((a, n) => a + n, 0);
+  if (matCount > 0) bits.push(`${matCount} material${matCount === 1 ? '' : 's'}`);
+  if (uniques > 0) bits.push(`${uniques} unique${uniques === 1 ? '' : 's'}`);
+  run.haul = { gold: 0, guildXp: 0, seals: 0, items: [], materials: {}, heroXp: {} };
+  return bits;
 }
 
 /**
@@ -567,6 +626,11 @@ function finishRun(run, success) {
     s.stats.runs++;
     if (run.raidId) grantRaidRewards(run);
     else grantClearBonus(run);
+    bankHaul(run);
+
+    const r = run.rewards;
+    log(`${name}: ${fmt(r.gold)} gold · ${r.gear} items · ${r.materials} materials · `
+      + `${fmt(r.xp)} xp in ${run.elapsed.toFixed(0)}s.`, 'loot');
   } else {
     s.stats.runsFailed++;
     // A wipe costs the rest of the party's stamina — they need a real rest.
@@ -574,12 +638,13 @@ function finishRun(run, success) {
       const hero = heroById(uidStr);
       if (hero) hero.stamina = Math.min(hero.stamina, 10);
     }
-    log(`${name} was driven out of ${run.name}. No completion bonus.`, 'danger');
+    // Nobody walked out, so nobody carried anything out either.
+    const lost = forfeitHaul(run);
+    log(`${name} was wiped out in ${run.name}.`, 'danger');
+    log(lost.length
+      ? `Everything they were carrying is lost: ${lost.join(' · ')}.`
+      : 'They were carrying nothing.', 'danger');
   }
-
-  const r = run.rewards;
-  log(`${name}: ${fmt(r.gold)} gold · ${r.gear} items · ${r.materials} materials · ${fmt(r.xp)} xp `
-    + `in ${run.elapsed.toFixed(0)}s.`, success ? 'loot' : 'danger');
 
   const i = s.expeditions.indexOf(run);
   if (i >= 0) s.expeditions.splice(i, 1);
@@ -601,7 +666,7 @@ function grantClearBonus(run) {
   // Completion chest, weighted by the dungeon's focus.
   const bonusMult = 1 + s.progress.bonusMult / 100;
   const gold = Math.round((40 + run.tier * 26) * dungeon.rewards.gold * bonusMult * (1 + gu.gold / 100));
-  addGold(gold);
+  run.haul.gold += gold;
   run.rewards.gold += gold;
 
   const mats = Math.max(2, Math.round((dungeon.rewards.mats ?? 1) * 3 * bonusMult * (1 + gu.materials / 100)));
@@ -614,7 +679,7 @@ function grantClearBonus(run) {
   if (run.tier >= 4) {
     const chance = Math.min(0.30, (0.035 + run.tier * 0.005) * (1 + gu.seals / 100));
     if (rng.chance(chance)) {
-      s.guild.seals = (s.guild.seals ?? 0) + 1;
+      run.haul.seals++;
       run.rewards.seals++;
       log('A Raid Seal was recovered.', 'unique');
     }
@@ -634,15 +699,14 @@ function grantRaidRewards(run) {
   s.progress.raidKills[def.id] = (s.progress.raidKills[def.id] ?? 0) + 1;
   s.stats.raidKills++;
 
-  addGold(def.reward.gold);
+  run.haul.gold += def.reward.gold;
   run.rewards.gold += def.reward.gold;
   for (let i = 0; i < def.reward.materials; i++) dropMaterial(run);
   if (rng.chance(def.reward.uniqueChance)) {
     const u = rollUnique(tierToIlvl(def.tier));
-    if (u && addToVault(u) === 'added') {
+    if (u) {
+      run.haul.items.push(u);
       run.rewards.uniques++;
-      s.stats.uniquesFound++;
-      s.collection[u.uniqueId] = (s.collection[u.uniqueId] ?? 0) + 1;
       log(`${def.name} yields ${u.name}!`, 'unique');
     }
   }

@@ -270,6 +270,8 @@ function showHeroTooltip(hero, event) {
     ${line('Evasion', fmt(sheet.evasion))}
     ${sheet.healPower > 0 ? line('Healing / cast', fmt(sheet.healPower)) : ''}
     ${line('Attacks / sec', sheet.aps.toFixed(2))}
+    ${sheet.blockMelee > 0 ? line('Block (melee)', `${sheet.blockMelee}%`) : ''}
+    ${sheet.blockSpell > 0 ? line('Block (spell)', `${sheet.blockSpell}%`) : ''}
     ${line('Threat', `${sheet.threat.toFixed(1)}×`)}
     ${line('Resistances', `${sheet.res.fire.value}/${sheet.res.cold.value}/${sheet.res.light.value}/${sheet.res.chaos.value}`)}
     ${info.traits.length ? '<div class="tt-sep"></div>' : ''}
@@ -302,6 +304,8 @@ function openHeroModal(heroUid) {
         <span><b>${fmt(sheet.dps)}</b> dps</span>
         <span><b>${fmt(sheet.life)}</b> life</span>
         <span><b>${fmt(sheet.armour)}</b> armour</span>
+        ${sheet.blockMelee || sheet.blockSpell
+    ? `<span><b>${sheet.blockMelee}/${sheet.blockSpell}%</b> block</span>` : ''}
         <span><b>${fmt(ehp(sheet))}</b> ehp</span>
       </div>
     </div>
@@ -547,7 +551,8 @@ function updateRunBars() {
         ? run.enemies.map((en) => {
           const pct = clamp((en.life / en.maxLife) * 100, 0, 100);
           return `<div class="cbt enemy">
-            <div class="cbt-name ${en.rarity === 'champion' ? 'champ' : ''}">${escapeHtml(en.name)}</div>
+            <div class="cbt-name ${en.rarity === 'champion' ? 'champ' : ''}">${escapeHtml(en.name)}
+              <span class="atk-tag ${en.attack ?? 'melee'}">${en.attack ?? 'melee'}</span></div>
             <div class="bar mon"><i style="width:${pct}%"></i>
               <span>${fmt(Math.max(0, en.life))} / ${fmt(en.maxLife)}</span></div>
           </div>`;
@@ -557,7 +562,7 @@ function updateRunBars() {
 
     const st = qs(`[data-runstats="${run.id}"]`);
     if (st) {
-      st.textContent = `${fmtTime(run.elapsed)} · ${fmt(run.rewards.gold)}g · `
+      st.textContent = `${fmtTime(run.elapsed)} · carrying ${fmt(run.rewards.gold)}g · `
         + `${run.rewards.gear} items · ${run.rewards.materials} materials`;
     }
   }
@@ -1150,6 +1155,8 @@ function itemTooltipHtml(item, compare, hint) {
     if (bs.armour) parts.push(line('Armour', fmt(bs.armour)));
     if (bs.evasion) parts.push(line('Evasion Rating', fmt(bs.evasion)));
     if (bs.es) parts.push(line('Energy Shield', fmt(bs.es)));
+    if (bs.block?.melee) parts.push(line('Chance to Block Melee', `${bs.block.melee}%`));
+    if (bs.block?.spell) parts.push(line('Chance to Block Spells', `${bs.block.spell}%`));
   }
   if (item.quality) parts.push(line('Quality', `+${item.quality}%`));
   parts.push(line('Item Level', String(item.ilvl)));
@@ -1194,6 +1201,8 @@ function compareHtml(item) {
     ['Life', before.life, after.life],
     ['Armour', before.armour, after.armour],
     ['Evasion', before.evasion, after.evasion],
+    ['Block (melee)', before.blockMelee, after.blockMelee],
+    ['Block (spell)', before.blockSpell, after.blockSpell],
     ['Healing', before.healPower, after.healPower],
   ].filter(([, a, b]) => Math.abs(b - a) > 0.5);
 

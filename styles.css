@@ -1152,3 +1152,12 @@ body.splash-open { overflow:hidden; }
   .exped-top { flex:0 0 auto; overflow-y:visible; }
   #tab-expeditions #guildLog { flex:0 0 auto; height:200px; }
 }
+
+/* Melee or spell decides which shield helps, so the party can see it coming. */
+.atk-tag {
+  display:inline-block; margin-left:5px; padding:0 4px; border-radius:2px;
+  font-size:8px; text-transform:uppercase; letter-spacing:.06em; vertical-align:middle;
+  border:1px solid var(--line-2); color:var(--ink-faint);
+}
+.atk-tag.spell { color:#9a7fd0; border-color:rgba(154,127,208,.4); }
+.atk-tag.mixed { color:var(--gold); border-color:rgba(200,170,110,.4); }

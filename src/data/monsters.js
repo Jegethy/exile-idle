@@ -1,18 +1,23 @@
 // data/monsters.js — enemy archetypes encountered on expeditions.
 
-/** `split` is the fraction of a hit dealt as each damage type. */
+/**
+ * `split` is the fraction of a hit dealt as each damage type — that is the
+ * elemental axis. `attack` is the separate question of *how* the hit arrives,
+ * which is what block cares about: a shield turns aside a swing very
+ * differently from how it turns aside a curse.
+ */
 export const ARCHETYPES = [
-  { id: 'skeleton', name: 'Rattling Skeleton', split: { phys: 1.0 }, life: 0.85, dmg: 1.00, aps: 1.10, ar: 1.0, ev: 0.6 },
-  { id: 'ghoul', name: 'Crypt Ghoul', split: { phys: 0.8, chaos: 0.2 }, life: 1.30, dmg: 1.10, aps: 0.75, ar: 1.2, ev: 0.3 },
-  { id: 'hound', name: 'Cinder Hound', split: { fire: 0.9, phys: 0.1 }, life: 0.80, dmg: 1.10, aps: 1.35, ar: 0.5, ev: 1.2 },
-  { id: 'revenant', name: 'Frost Revenant', split: { cold: 0.9, phys: 0.1 }, life: 1.00, dmg: 1.05, aps: 0.95, ar: 0.8, ev: 0.8 },
-  { id: 'warden', name: 'Storm Warden', split: { light: 0.95, phys: 0.05 }, life: 0.75, dmg: 1.30, aps: 0.85, ar: 0.4, ev: 1.0 },
-  { id: 'cultist', name: 'Hooded Cultist', split: { phys: 0.6, chaos: 0.4 }, life: 0.90, dmg: 1.10, aps: 1.15, ar: 0.7, ev: 1.0 },
-  { id: 'golem', name: 'Stone Golem', split: { phys: 1.0 }, life: 1.85, dmg: 1.35, aps: 0.60, ar: 2.2, ev: 0.1 },
-  { id: 'wraith', name: 'Hollow Wraith', split: { chaos: 0.7, cold: 0.3 }, life: 0.70, dmg: 1.20, aps: 1.20, ar: 0.2, ev: 2.0 },
-  { id: 'sentinel', name: 'Vault Sentinel', split: { light: 0.5, fire: 0.5 }, life: 1.15, dmg: 1.25, aps: 0.90, ar: 1.1, ev: 0.7 },
-  { id: 'brute', name: 'Pit Brute', split: { phys: 1.0 }, life: 1.20, dmg: 1.20, aps: 1.00, ar: 0.9, ev: 0.9 },
-  { id: 'spider', name: 'Brood Spider', split: { chaos: 0.6, phys: 0.4 }, life: 0.65, dmg: 1.05, aps: 1.45, ar: 0.4, ev: 1.5 },
+  { id: 'skeleton', name: 'Rattling Skeleton', attack: 'melee', split: { phys: 1.0 }, life: 0.85, dmg: 1.00, aps: 1.10, ar: 1.0, ev: 0.6 },
+  { id: 'ghoul', name: 'Crypt Ghoul', attack: 'melee', split: { phys: 0.8, chaos: 0.2 }, life: 1.30, dmg: 1.10, aps: 0.75, ar: 1.2, ev: 0.3 },
+  { id: 'hound', name: 'Cinder Hound', attack: 'melee', split: { fire: 0.9, phys: 0.1 }, life: 0.80, dmg: 1.10, aps: 1.35, ar: 0.5, ev: 1.2 },
+  { id: 'revenant', name: 'Frost Revenant', attack: 'spell', split: { cold: 0.9, phys: 0.1 }, life: 1.00, dmg: 1.05, aps: 0.95, ar: 0.8, ev: 0.8 },
+  { id: 'warden', name: 'Storm Warden', attack: 'spell', split: { light: 0.95, phys: 0.05 }, life: 0.75, dmg: 1.30, aps: 0.85, ar: 0.4, ev: 1.0 },
+  { id: 'cultist', name: 'Hooded Cultist', attack: 'spell', split: { phys: 0.6, chaos: 0.4 }, life: 0.90, dmg: 1.10, aps: 1.15, ar: 0.7, ev: 1.0 },
+  { id: 'golem', name: 'Stone Golem', attack: 'melee', split: { phys: 1.0 }, life: 1.85, dmg: 1.35, aps: 0.60, ar: 2.2, ev: 0.1 },
+  { id: 'wraith', name: 'Hollow Wraith', attack: 'spell', split: { chaos: 0.7, cold: 0.3 }, life: 0.70, dmg: 1.20, aps: 1.20, ar: 0.2, ev: 2.0 },
+  { id: 'sentinel', name: 'Vault Sentinel', attack: 'spell', split: { light: 0.5, fire: 0.5 }, life: 1.15, dmg: 1.25, aps: 0.90, ar: 1.1, ev: 0.7 },
+  { id: 'brute', name: 'Pit Brute', attack: 'melee', split: { phys: 1.0 }, life: 1.20, dmg: 1.20, aps: 1.00, ar: 0.9, ev: 0.9 },
+  { id: 'spider', name: 'Brood Spider', attack: 'melee', split: { chaos: 0.6, phys: 0.4 }, life: 0.65, dmg: 1.05, aps: 1.45, ar: 0.4, ev: 1.5 },
 ];
 
 /** Enemy rarity: multipliers and how much extra loot they carry. */
