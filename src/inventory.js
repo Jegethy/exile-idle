@@ -3,8 +3,10 @@
 import { G, log, emit, vaultCapacity, addGold, spendGold } from './state.js';
 import { rng } from './rng.js';
 import { itemScore, RARITY } from './items.js';
-import { CURRENCIES, CURRENCY_VALUE } from './data/currency.js';
+import { MATERIALS, MATERIAL_BY_ID, materialOf, gradeForIlvl, salvageFamilies } from './data/materials.js';
+import { BASE_BY_ID } from './data/bases.js';
 import { UPGRADE_BY_ID, upgradeCost } from './data/upgrades.js';
+import { refreshSheets } from './sheets.js';
 
 export function vaultCount() { return G.state.vault.length; }
 export function vaultFull() { return G.state.vault.length >= vaultCapacity(); }
@@ -95,40 +97,59 @@ export function wearerOf(uid) {
 // Salvage
 // ---------------------------------------------------------------------------
 
-/** Expected value returned when salvaging, in "chaos equivalent". */
+/**
+ * Rough worth of an item when broken down, in grade-1 material units.
+ *
+ * Kept deliberately lean: one salvaged rare should contribute to a craft, not
+ * fund several of them, or the bench costs stop mattering.
+ */
 export function salvageValue(item) {
-  return itemScore(item) * 0.014 * (item.corrupted ? 0.5 : 1);
+  return itemScore(item) * 0.10 * (item.corrupted ? 0.5 : 1);
 }
 
-/** Breaks an item down into orbs and a little gold. */
+/**
+ * Breaks an item into materials and a little gold.
+ *
+ * What comes back depends on what the item is made of — a plate cuirass
+ * returns metal, a robe returns cloth — so base type matters beyond its stats.
+ */
 export function salvageItem(item, quiet = false) {
   const s = G.state;
-  const value = salvageValue(item);
+  const base = BASE_BY_ID[item.baseId];
+  const families = salvageFamilies(base);
+  const grade = gradeForIlvl(item.ilvl);
   const gained = {};
 
-  let budget = value;
-  const pool = CURRENCIES.filter((c) => c.weight > 0);
+  let budget = salvageValue(item);
   let guard = 0;
-  while (budget > 0.01 && guard++ < 24) {
-    const affordable = pool.filter((c) => CURRENCY_VALUE[c.id] <= budget);
-    if (!affordable.length) break;
-    const c = rng.weighted(affordable, (x) => x.weight * (CURRENCY_VALUE[x.id] >= budget * 0.4 ? 3 : 1));
-    gained[c.id] = (gained[c.id] ?? 0) + 1;
-    budget -= CURRENCY_VALUE[c.id];
+  while (budget > 0.5 && guard++ < 30) {
+    const family = rng.pick(families);
+    // Prefer the best grade the budget allows so deep runs feel different.
+    let g = grade;
+    while (g > 1 && MATERIAL_BY_ID[materialOf(family, g).id].value > budget) g--;
+    const mat = materialOf(family, g);
+    if (mat.value > budget) break;
+    gained[mat.id] = (gained[mat.id] ?? 0) + 1;
+    budget -= mat.value;
   }
-  if (!Object.keys(gained).length) gained.scroll = 1;
+  // Never a wasted salvage.
+  if (!Object.keys(gained).length) {
+    const mat = materialOf(families[0], 1);
+    gained[mat.id] = 1;
+  }
 
-  for (const [id, n] of Object.entries(gained)) s.orbs[id] = (s.orbs[id] ?? 0) + n;
-  const gold = Math.max(1, Math.round(item.ilvl * 1.2 * ({ normal: 1, magic: 2, rare: 4, unique: 10 }[item.rarity] ?? 1)));
+  for (const [id, n] of Object.entries(gained)) s.materials[id] = (s.materials[id] ?? 0) + n;
+  const gold = Math.max(1, Math.round(item.ilvl * 1.2
+    * ({ normal: 1, magic: 2, rare: 4, unique: 10 }[item.rarity] ?? 1)));
   addGold(gold);
 
   removeFromVault(item.uid);
   if (!quiet) {
     const parts = Object.entries(gained)
-      .map(([id, n]) => `${n}x ${CURRENCIES.find((c) => c.id === id).short}`).join(', ');
+      .map(([id, n]) => `${n}× ${MATERIAL_BY_ID[id].name}`).join(', ');
     log(`Salvaged ${item.name} → ${parts}, ${gold} gold.`, 'loot');
   }
-  emit('orbs'); emit('vault');
+  emit('materials'); emit('vault');
   return gained;
 }
 
@@ -137,16 +158,15 @@ export function salvageAll(filter) {
   const s = G.state;
   const doomed = s.vault.filter((i) => !i.locked && filter(i));
   const gained = {};
-  let gold = 0;
   const before = s.guild.gold;
   for (const item of doomed) {
     const got = salvageItem(item, true);
     for (const [id, n] of Object.entries(got)) gained[id] = (gained[id] ?? 0) + n;
   }
-  gold = s.guild.gold - before;
+  const gold = s.guild.gold - before;
   if (doomed.length) {
     const parts = Object.entries(gained).sort((a, b) => b[1] - a[1]).slice(0, 4)
-      .map(([id, n]) => `${n}x ${CURRENCIES.find((c) => c.id === id)?.short ?? id}`).join(', ');
+      .map(([id, n]) => `${n}× ${MATERIAL_BY_ID[id]?.name ?? id}`).join(', ');
     log(`Salvaged ${doomed.length} item${doomed.length === 1 ? '' : 's'} → ${parts}, ${gold} gold.`, 'loot');
   }
   return doomed.length;
@@ -167,23 +187,40 @@ export function sortVault() {
 }
 
 // ---------------------------------------------------------------------------
-// Orbs
+// Materials and flasks
 // ---------------------------------------------------------------------------
 
-export function addOrb(id, n = 1) {
-  G.state.orbs[id] = (G.state.orbs[id] ?? 0) + n;
-  emit('orbs');
+export function addMaterial(id, n = 1) {
+  G.state.materials[id] = (G.state.materials[id] ?? 0) + n;
+  emit('materials');
 }
 
-export function spendOrb(id, n = 1) {
-  const s = G.state;
-  if ((s.orbs[id] ?? 0) < n) return false;
-  s.orbs[id] -= n;
-  emit('orbs');
+/** Do we hold every entry in a [{id, qty}] cost list? */
+export function hasMaterials(cost) {
+  return cost.every((c) => (G.state.materials[c.id] ?? 0) >= c.qty);
+}
+
+export function spendMaterials(cost) {
+  if (!hasMaterials(cost)) return false;
+  for (const c of cost) G.state.materials[c.id] -= c.qty;
+  emit('materials');
   return true;
 }
 
-export function hasOrb(id, n = 1) { return (G.state.orbs[id] ?? 0) >= n; }
+export function addFlask(id, n = 1) {
+  G.state.flasks[id] = (G.state.flasks[id] ?? 0) + n;
+  emit('materials');
+}
+
+export function spendFlask(id, n = 1) {
+  const s = G.state;
+  if ((s.flasks[id] ?? 0) < n) return false;
+  s.flasks[id] -= n;
+  emit('materials');
+  return true;
+}
+
+export function hasFlask(id, n = 1) { return (G.state.flasks[id] ?? 0) >= n; }
 
 // ---------------------------------------------------------------------------
 // Guild Hall upgrades
@@ -201,13 +238,12 @@ export function buyUpgrade(id) {
   const cost = upgradeCost(id, rank);
   if (cost.kind === 'gold') {
     if (!spendGold(cost.amount)) return { ok: false, msg: `Needs ${cost.amount} gold.` };
-  } else if (!spendOrb(cost.orb, cost.amount)) {
-    const c = CURRENCIES.find((x) => x.id === cost.orb);
-    return { ok: false, msg: `Needs ${cost.amount}x ${c?.name ?? cost.orb}.` };
+  } else if (!spendMaterials([{ id: cost.mat, qty: cost.amount }])) {
+    return { ok: false, msg: `Needs ${cost.amount}× ${MATERIAL_BY_ID[cost.mat]?.name ?? cost.mat}.` };
   }
 
   s.upgrades[id] = rank + 1;
   log(`${def.name} improved to rank ${rank + 1}.`, 'gold');
-  emit('upgrades'); emit('guild'); emit('sheets');
+  emit('upgrades'); emit('guild'); refreshSheets();
   return { ok: true, msg: `${def.name} is now rank ${rank + 1}.` };
 }

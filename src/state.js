@@ -1,10 +1,10 @@
 // state.js — the single mutable guild state plus a tiny event bus.
 
 import { rng } from './rng.js';
-import { CURRENCIES } from './data/currency.js';
+import { MATERIALS } from './data/materials.js';
 import { guildEffects } from './data/upgrades.js';
 
-export const SAVE_VERSION = 10;          // 10+ = Idle Guild; below that is Exile Idle
+export const SAVE_VERSION = 11;          // 10+ = Idle Guild; 11 = materials replace orbs
 export const BASE_VAULT_CAPACITY = 80;
 export const BASE_PARTY_SLOTS = 1;
 export const MAX_PARTY_SIZE = 5;
@@ -52,12 +52,12 @@ export function recruitCost(rosterSize) {
 // ---------------------------------------------------------------------------
 
 export function createState(name = 'The Wayfarers') {
-  const orbs = {};
-  for (const c of CURRENCIES) orbs[c.id] = 0;
-  orbs.transmute = 5;
-  orbs.alteration = 3;
-  orbs.augment = 2;
-  orbs.alchemy = 1;
+  const materials = {};
+  for (const m of MATERIALS) materials[m.id] = 0;
+  // A small starting stock so the bench is usable before the first salvage.
+  materials.copper_ore = 8;
+  materials.rough_stone = 6;
+  materials.faint_essence = 4;
 
   return {
     version: SAVE_VERSION,
@@ -71,10 +71,14 @@ export function createState(name = 'The Wayfarers') {
     parties: [],             // { id, name, members: [heroUid] }
     expeditions: [],         // active runs; see expedition.js
     vault: [],               // unequipped gear
-    orbs,                    // crafting currency
+    materials,               // crafting materials, id -> count
+    flasks: {},              // flaskId -> brewed count
 
     upgrades: {},            // Guild Hall ranks
     collection: {},          // uniqueId -> count
+
+    // Guided first session; see tutorial.js. `skipped` is permanent.
+    tutorial: { step: 0, done: false, skipped: false },
 
     progress: {
       highestTier: 0,        // highest tier cleared

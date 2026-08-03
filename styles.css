@@ -560,8 +560,14 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 }
 #statusRight { font-variant-numeric:tabular-nums; }
 @media (max-width:1180px) {
-  #layout { grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; }
-#rightPanel { grid-column:1 / -1; }
+  /* Below this width the panels cannot all keep full height without becoming
+     unusable, so the page itself scrolls and each panel gets room to breathe
+     rather than being crushed into a half-height grid cell. */
+  html, body { overflow:auto; }
+  #app { height:auto; min-height:100vh; }
+  #layout { grid-template-columns:1fr 1fr; grid-template-rows:none; }
+  #rightPanel { grid-column:1 / -1; }
+  .panel { min-height:640px; }
 }
 @media (max-width:820px) {
   html, body { overflow:auto; }
@@ -760,3 +766,398 @@ b.gold { color:var(--gold); }
 @media (max-width:1180px) {
   .run-body { grid-template-columns:1fr; }
 }
+
+/* ==========================================================================
+   Tutorial overlay
+   ========================================================================== */
+
+#tutorial { position:fixed; inset:0; z-index:1500; pointer-events:none; }
+#tutorial.hidden { display:none; }
+/* While the skip confirmation is up, the overlay drops below the modal layer. */
+#tutorial.behind { z-index:800; }
+
+/* Four solid panels surround the highlighted element. They swallow clicks, so
+   the only interactive thing on screen is whatever the tutorial points at. */
+.tut-panel {
+  position:fixed; background:rgba(4,4,7,.78); pointer-events:auto;
+  backdrop-filter:blur(1px);
+}
+
+.tut-ring {
+  position:fixed; pointer-events:none; border-radius:4px;
+  border:2px solid var(--gold);
+  box-shadow:0 0 0 2px rgba(200,170,110,.25), 0 0 26px rgba(200,170,110,.45);
+  animation:tut-pulse 2.1s ease-in-out infinite;
+}
+.tut-ring.hidden { display:none; }
+
+@keyframes tut-pulse {
+  0%,100% { box-shadow:0 0 0 2px rgba(200,170,110,.22), 0 0 22px rgba(200,170,110,.38); }
+  50%     { box-shadow:0 0 0 3px rgba(200,170,110,.40), 0 0 34px rgba(200,170,110,.62); }
+}
+
+.tut-pop {
+  position:fixed; width:340px; max-width:calc(100vw - 24px); pointer-events:auto;
+  padding:14px 16px 12px;
+  background:linear-gradient(180deg,#191921,#101015);
+  border:1px solid var(--gold-dim); border-radius:5px;
+  box-shadow:0 18px 50px rgba(0,0,0,.75), 0 0 0 1px rgba(0,0,0,.6);
+}
+.tut-step {
+  font-size:9px; letter-spacing:1.6px; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:5px;
+}
+.tut-pop h3 {
+  font-size:15px; letter-spacing:.5px; color:var(--gold);
+  margin-bottom:7px; font-weight:600;
+}
+.tut-body { font-size:12.5px; line-height:1.62; color:var(--ink); }
+.tut-body b { color:var(--gold); font-weight:600; }
+.tut-body .role { vertical-align:1px; }
+
+.tut-actions {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-top:13px; padding-top:10px; border-top:1px solid var(--line);
+}
+#tutSkip { color:var(--ink-faint); }
+#tutSkip:hover { color:#e0705c; border-color:#5a2a22; }
+#tutNext.hidden { display:none; }
+
+/* When the tutorial is waiting on an action rather than a button, say so. */
+#tutNext.hidden ~ .tut-hintline { display:block; }
+
+@media (max-width:820px) {
+  .tut-pop { width:calc(100vw - 24px); }
+}
+
+/* ==========================================================================
+   Title screen
+   ========================================================================== */
+
+.splash {
+  position:fixed; inset:0; z-index:700; overflow-y:auto;
+  display:flex; flex-direction:column; align-items:center;
+  background:#07070b;
+}
+.splash.hidden { display:none; }
+body.splash-open { overflow:hidden; }
+
+.splash-scene {
+  position:fixed; inset:0; width:100%; height:100%;
+  pointer-events:none; z-index:0;
+}
+
+.splash-inner {
+  position:relative; z-index:1;
+  width:min(640px, calc(100vw - 32px));
+  margin:auto; padding:44px 0 30px; text-align:center;
+}
+
+/* ---- Crest ------------------------------------------------------------- */
+.splash-crest {
+  width:104px; height:116px; display:block; margin:0 auto 14px;
+  filter:drop-shadow(0 6px 22px rgba(0,0,0,.75));
+}
+.crest-shield { fill:url(#crestFill); stroke:#f0dcae; stroke-width:2; }
+.crest-field  { fill:#14141c; }
+.crest-swords path {
+  stroke:#e3c98d; stroke-width:5; stroke-linecap:round; fill:none;
+}
+.crest-swords path:nth-child(3), .crest-swords path:nth-child(4) { stroke-width:4; }
+.crest-stud { fill:#e3c98d; }
+.crest-chevron { fill:none; stroke:#e3c98d; stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round; }
+
+/* ---- Wordmark ---------------------------------------------------------- */
+.splash-word {
+  font-size:clamp(38px, 7vw, 60px); font-weight:800; letter-spacing:9px;
+  line-height:1; color:#efe8dc; margin-bottom:10px;
+  text-shadow:0 3px 26px rgba(0,0,0,.85);
+}
+.splash-word em {
+  font-style:normal; color:var(--gold);
+  text-shadow:0 0 30px rgba(200,170,110,.45), 0 3px 26px rgba(0,0,0,.85);
+}
+.splash-tag {
+  font-size:13px; letter-spacing:1.4px; color:#9a948a; margin-bottom:26px;
+}
+
+/* ---- Body -------------------------------------------------------------- */
+.splash-body { text-align:left; }
+.splash-h {
+  font-size:17px; letter-spacing:2.4px; text-transform:uppercase;
+  color:var(--gold); text-align:center; margin-bottom:6px; font-weight:600;
+}
+.splash-sub {
+  font-size:13px; line-height:1.6; color:var(--ink-dim);
+  text-align:center; margin-bottom:18px;
+}
+.splash-note {
+  font-size:11px; line-height:1.6; color:var(--ink-faint);
+  text-align:center; margin-top:18px;
+}
+.splash-links { text-align:center; margin-top:14px; }
+.splash-links a { color:var(--gold-dim); font-size:12px; text-decoration:none; }
+.splash-links a:hover { color:var(--gold); text-decoration:underline; }
+
+/* ---- Slot cards -------------------------------------------------------- */
+.slot-grid { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+.sl-card {
+  padding:14px 16px; border-radius:5px;
+  border:1px solid var(--line-2); border-left:3px solid var(--gold-dim);
+  background:linear-gradient(180deg, rgba(26,26,34,.94), rgba(15,15,20,.94));
+  box-shadow:0 10px 30px rgba(0,0,0,.5);
+  transition:border-color .14s, transform .14s;
+}
+.sl-card:hover { border-left-color:var(--gold); transform:translateY(-1px); }
+.sl-card.empty { border-left-color:var(--line-2); border-style:dashed; }
+.sl-card.empty:hover { border-left-color:var(--gold-dim); }
+.sl-card.corrupt { border-left-color:var(--danger); }
+
+.sl-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.sl-num {
+  font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--ink-faint);
+}
+.sl-tag {
+  font-size:10px; letter-spacing:.6px; padding:1px 8px; border-radius:9px;
+  border:1px solid var(--line-2); color:var(--ink-dim);
+}
+.sl-tag.good { color:var(--gold); border-color:var(--gold-dim); background:rgba(200,170,110,.10); }
+.sl-tag.bad { color:#e0705c; border-color:#5a2a22; background:rgba(224,112,92,.10); }
+
+.sl-name { font-size:19px; color:#efe8dc; margin:5px 0 7px; letter-spacing:.4px; }
+.sl-name.muted { color:var(--ink-faint); font-size:16px; }
+.sl-meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--ink-dim); }
+.sl-meta.dim { color:var(--ink-faint); font-size:11px; margin-top:3px; }
+.sl-actions { display:flex; gap:8px; margin-top:12px; }
+.sl-actions .btn { padding:7px 16px; }
+
+/* ---- Create form ------------------------------------------------------- */
+.splash-form { display:flex; flex-direction:column; gap:10px; }
+.splash-input {
+  width:100%; padding:14px 16px; font-size:16px; letter-spacing:.5px;
+  color:#efe8dc; background:rgba(10,10,14,.92);
+  border:1px solid var(--line-2); border-radius:4px;
+}
+.splash-input::placeholder { color:#5f5a53; }
+.splash-input:focus {
+  outline:none; border-color:var(--gold-dim);
+  box-shadow:0 0 0 3px rgba(200,170,110,.12);
+}
+.btn.big { padding:13px 18px; font-size:14px; letter-spacing:1px; }
+
+.splash-foot {
+  position:relative; z-index:1;
+  padding:0 0 16px; font-size:10px; letter-spacing:1px; color:#4a463f;
+}
+
+@media (max-height:720px) {
+  .splash-inner { padding-top:22px; }
+  .splash-crest { width:82px; height:92px; margin-bottom:10px; }
+  .splash-tag { margin-bottom:18px; }
+}
+
+/* Primary actions on the title screen carry the gold, so "Continue" and
+   "Open for Business" read as the obvious next step. */
+.splash .btn.primary {
+  background:linear-gradient(180deg,#d8bb79,#a8873f);
+  border-color:#e6cf98; color:#171208; font-weight:600;
+}
+.splash .btn.primary:hover:not(:disabled) {
+  background:linear-gradient(180deg,#eccf8c,#c09b4c); color:#120e05;
+}
+.splash .btn.danger {
+  border-color:#4a2a24; color:#c98a7a; background:linear-gradient(180deg,#241a18,#180f0e);
+}
+.splash .btn.danger:hover:not(:disabled) { border-color:var(--danger); color:#ff9c8c; }
+
+/* ---- Expeditions tab: the log gets its own scroller -------------------- */
+/* Without this the whole centre panel grew one ever-lengthening scrollbar as
+   the log filled up, pushing the dispatch controls off-screen. */
+#tab-expeditions.active { display:flex; flex-direction:column; overflow:hidden; }
+.exped-top { flex:1 1 auto; overflow-y:auto; min-height:0; padding-right:2px; }
+#tab-expeditions .log-head { flex:0 0 auto; margin-top:8px; }
+#tab-expeditions #guildLog {
+  /* Capped rather than a flat 38%: on a tall screen the log was claiming 350px
+     it had no use for while the dungeon list above it scrolled. */
+  flex:0 1 38%; min-height:130px; max-height:240px; overflow-y:auto;
+  border:1px solid var(--line); border-radius:3px;
+  background:rgba(0,0,0,.22); padding:4px 6px;
+}
+
+/* ---- Auto-redeploy control -------------------------------------------- */
+.auto-box {
+  display:flex; align-items:center; gap:8px; margin-left:auto;
+  padding:3px 9px 3px 6px; border-radius:12px;
+  border:1px solid var(--line-2); background:rgba(0,0,0,.3);
+}
+.auto-box.locked { opacity:.72; }
+.auto-box .al {
+  font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--ink-dim);
+  white-space:nowrap;
+}
+.auto-box.on { border-color:var(--gold-dim); background:rgba(200,170,110,.10); }
+.auto-box.on .al { color:var(--gold); }
+.auto-lock { font-size:10px; color:var(--ink-faint); white-space:nowrap; }
+.switch.small { width:34px; height:18px; }
+.switch.small i::before { width:12px; height:12px; }
+.switch.small input:checked + i::before { transform:translateX(16px); }
+
+/* ---- Tutorial: waiting vs ready --------------------------------------- */
+/* A wait step shows Continue straight away but inert, so it reads as "not yet"
+   rather than "broken", then visibly wakes up when the game catches up. */
+#tutNext:disabled {
+  opacity:1; cursor:default;
+  background:linear-gradient(180deg,#1c1c24,#141419);
+  border-color:var(--line-2); color:var(--ink-faint);
+}
+#tutNext.ready { animation:tut-ready 1.5s ease-in-out 3; }
+@keyframes tut-ready {
+  0%,100% { box-shadow:0 0 0 0 rgba(200,170,110,0); }
+  50%     { box-shadow:0 0 0 4px rgba(200,170,110,.30); }
+}
+.tut-ready-note {
+  margin-top:10px; padding-top:9px; border-top:1px solid var(--line);
+  color:var(--gold); font-size:12.5px; line-height:1.55;
+}
+.tut-ready-note b { color:#efe8dc; }
+
+/* ==========================================================================
+   Workshop: materials, recipes, alchemy
+   ========================================================================== */
+
+.mat-family {
+  padding:7px 9px; margin-bottom:5px;
+  border:1px solid var(--line); border-radius:3px; background:var(--bg-2);
+}
+.mat-family.empty { opacity:.5; }
+.mf-head {
+  font-size:10px; letter-spacing:1.4px; text-transform:uppercase; margin-bottom:5px;
+}
+.mf-row { display:flex; gap:5px; }
+.mat {
+  flex:1 1 0; display:flex; align-items:center; gap:5px;
+  padding:4px 7px; border-radius:3px;
+  border:1px solid var(--line); background:#0d0d11;
+  cursor:default; transition:border-color .12s;
+}
+.mat:hover { border-color:var(--line-2); }
+.mat.zero { opacity:.38; }
+.mat-dot {
+  width:9px; height:9px; border-radius:50%; flex:0 0 auto;
+  background:var(--mat); box-shadow:0 0 6px color-mix(in srgb, var(--mat) 55%, transparent);
+}
+.mat.g1 .mat-dot { opacity:.55; transform:scale(.78); }
+.mat.g2 .mat-dot { opacity:.8; }
+.mat.g3 .mat-dot { opacity:1; transform:scale(1.15); }
+.mat-n { font-size:11px; font-variant-numeric:tabular-nums; color:var(--ink-dim); }
+.mat.zero .mat-n { color:var(--ink-faint); }
+
+/* ---- Bench recipes ----------------------------------------------------- */
+.recipe-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:5px; }
+.recipe {
+  padding:7px 9px; border:1px solid var(--line); border-left:3px solid var(--line-2);
+  border-radius:3px; background:var(--bg-2); cursor:pointer; transition:all .12s;
+}
+.recipe:hover { background:var(--bg-3); border-left-color:var(--gold-dim); }
+.recipe.selected {
+  border-color:var(--gold); border-left-color:var(--gold);
+  background:rgba(200,170,110,.12); box-shadow:0 0 10px rgba(200,170,110,.15);
+}
+.recipe.risky { border-left-color:#7a3226; }
+.recipe.risky .rc-name { color:#e0705c; }
+.rc-name { font-size:12px; color:var(--ink); margin-bottom:3px; }
+.recipe.selected .rc-name { color:var(--gold); }
+.rc-desc { font-size:10px; color:var(--ink-faint); line-height:1.45; }
+
+/* ---- Alchemy ----------------------------------------------------------- */
+.flask-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:5px; }
+.flask {
+  padding:8px 10px; border:1px solid var(--line); border-left:3px solid #3a5a3a;
+  border-radius:3px; background:var(--bg-2);
+}
+.flask.afford { border-left-color:var(--good); }
+.fl-top { display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
+.fl-name { font-size:12px; color:#9fd08a; }
+.fl-held { font-size:10px; color:var(--gold); }
+.fl-effect { font-size:10px; color:var(--r-magic); margin:3px 0 5px; line-height:1.4; }
+.fl-cost { display:flex; flex-wrap:wrap; gap:8px; font-size:10px; color:var(--ink-faint); margin-bottom:6px; }
+.fl-cost .short { color:#c9705c; }
+
+/* ---- Flask assignment on a party --------------------------------------- */
+.flask-picker {
+  display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-top:7px;
+  padding-top:7px; border-top:1px solid var(--line);
+}
+.fp-label {
+  font-size:9px; letter-spacing:1.2px; text-transform:uppercase; color:var(--ink-faint);
+  margin-right:2px;
+}
+.flask-picker .btn small { color:var(--gold); margin-left:3px; }
+
+/* Material families need real width — the generic currency grid squeezed eight
+   of them onto one row and the counts spilled out of their boxes. */
+.material-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:6px; }
+.material-grid .mat-family { margin-bottom:0; }
+.material-grid .mf-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
+.material-grid .mat {
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  min-width:0; padding:4px 5px; overflow:hidden;
+}
+.material-grid .mat-n {
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* ---- Dispatch filters -------------------------------------------------- */
+/* Seven destinations is already a lot to scan; filtering by payout keeps the
+   list short however many are added later. */
+.dungeon-filters {
+  display:flex; flex-wrap:wrap; gap:4px; margin-bottom:7px;
+  padding-bottom:7px; border-bottom:1px solid var(--line);
+}
+.dungeon-filters .df-n {
+  display:inline-block; min-width:15px; padding:0 3px; margin-left:3px;
+  border-radius:7px; background:rgba(0,0,0,.4);
+  font-size:9px; color:var(--ink-faint); font-variant-numeric:tabular-nums;
+}
+.dungeon-filters .btn.active .df-n { color:var(--gold); background:rgba(200,170,110,.16); }
+
+/* The idle banner does not need to be the tallest thing on the screen. */
+#activeRuns .idle-state { padding:9px 12px; }
+#activeRuns .idle-state h3 { font-size:13px; margin-bottom:2px; }
+#activeRuns .idle-state p { font-size:11px; }
+
+/* Denser cards where vertical space is tight. The flavour text goes first —
+   the mechanical lines below it are what actually get read. */
+/* Height matters as much as width here — a wide but short window runs out of
+   room for the flavour text just as fast as a narrow one. */
+@media (max-width:1400px), (max-height:1000px) {
+  .dungeon-grid { grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); }
+  .dungeon { padding:7px 9px; }
+  .dg-blurb { display:none; }
+  .dg-rewards { gap:1px 8px; margin-bottom:3px; }
+  .dg-counter { margin-bottom:3px; line-height:1.3; }
+  .dg-foot { margin-bottom:3px; }
+  .dg-name { font-size:12px; }
+  .dungeon-grid { gap:5px; }
+}
+
+/* Nested scrollbars were the actual complaint: a short window turned the
+   dispatch list into a cramped peephole. Below this width the expedition tab
+   lays out at its natural height and the page scrolls instead, so a filtered
+   category is always visible in full. Must live at the end of the sheet — it
+   overrides rules declared later, and a media query adds no specificity. */
+@media (max-width:1180px) {
+  .tab-body { overflow-y:visible; }
+  #tab-expeditions.active { overflow:visible; }
+  .exped-top { flex:0 0 auto; overflow-y:visible; }
+  #tab-expeditions #guildLog { flex:0 0 auto; height:200px; }
+}
+
+/* Melee or spell decides which shield helps, so the party can see it coming. */
+.atk-tag {
+  display:inline-block; margin-left:5px; padding:0 4px; border-radius:2px;
+  font-size:8px; text-transform:uppercase; letter-spacing:.06em; vertical-align:middle;
+  border:1px solid var(--line-2); color:var(--ink-faint);
+}
+.atk-tag.spell { color:#9a7fd0; border-color:rgba(154,127,208,.4); }
+.atk-tag.mixed { color:var(--gold); border-color:rgba(200,170,110,.4); }

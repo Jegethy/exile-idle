@@ -26,12 +26,53 @@ Any static server works equally well (`python -m http.server`, `npx serve`, …)
 2. **Build parties.** Four to five heroes, ideally with a Tank and a Healer.
 3. **Dispatch.** Pick a *tier* (how hard) and a *dungeon* (what for), then send
    a party. With enough Expedition Charters, several parties run at once.
+   Gathering runs like the Dark Forest exist purely to stock the workshop.
 4. **Combat resolves automatically** — tanks soak, healers mend, damage classes
    kill. Fallen heroes sit out the rest of the run but are never lost.
 5. **Spend the returns.** Gold buys recruits and permanent Guild Hall upgrades;
-   orbs craft gear; equipment kits out the roster.
+   materials craft and improve gear, and brew flasks; equipment kits out the
+   roster.
 6. **Push tiers, then raid.** Raid Seals drop from Tier 4+ and open milestone
    bosses whose first kills permanently raise guild rewards.
+
+## Title screen and saves
+
+The game always opens on a title screen — nothing loads automatically.
+
+A brand-new player skips the slot list entirely and goes straight to naming
+their first guild, which lands in slot 1. A returning player gets all three
+slots, each showing the guild name, level, roster size, highest tier, playtime
+and when it was last saved. From there you can **Continue** any guild, **Found
+a Guild** in an empty slot, or **Delete** one.
+
+Deleting names the guild being destroyed and states what will be lost before it
+does anything, and is the only irreversible action on the screen. Deleting your
+last save drops back to the naming form, so the screen is never empty.
+
+**Return to Title Screen** in the in-game Saves menu saves the current guild and
+comes back here, so you can run several guilds without reloading the page.
+
+## Tutorial
+
+A new guild opens into a fourteen-step guided tour. It darkens the screen except
+for the element being explained, and the cut-out stays genuinely interactive —
+when it asks you to send your first expedition, you press the real button and it
+runs a real expedition.
+
+Steps advance on your input, never on a timer, and **nothing on screen changes
+between one press and the next** — each step has exactly one presentation, so
+reading is never racing the game. Most steps wait for **Continue**; two wait
+for you to click the thing being pointed at; one waits on the party coming
+home, and even then the run finishing only *unlocks* Continue rather than
+pressing it.
+
+The demonstration expedition is accelerated (and says so) to about ten seconds
+— long enough to actually watch, short enough not to be endured. Skipping the
+tutorial drops the acceleration immediately. Progress is saved, so closing the
+tab mid-tutorial picks up where you left off.
+
+**Skip Tutorial** is always available. It warns that finishing is advised and
+that it cannot be restarted, and only then takes the choice.
 
 ## Why the two axes matter
 
@@ -40,10 +81,13 @@ Tier and dungeon are deliberately independent. Tier is *how hard*; dungeon is
 
 | Dungeon | Pays in | Defensive slant |
 |---|---|---|
-| The Deepmines | Gold | Heavily armoured — physical struggles |
-| The Sunken Crypt | Equipment | High life, hits hard — bring sustain |
-| The Proving Arena | Experience | Fast and aggressive — bring a Tank |
-| The Arcane Vault | Crafting orbs | Elementally resistant — physical cuts deeper |
+| The Deepmines | Gold, metal, stone | Heavily armoured — physical struggles |
+| The Sunken Crypt | Equipment, bone, cloth | High life, hits hard — bring sustain |
+| The Proving Arena | Experience, leather | Fast and aggressive — bring a Tank |
+| The Arcane Vault | Essence, stone | Elementally resistant — physical cuts deeper |
+| The Dark Forest | **Wood, herbs** | Fast and evasive — accuracy over armour |
+| The Wild Marches | **Leather, bone** | Slow heavy brutes — a Tank holds them |
+| Silkmoth Hollow | **Cloth, herbs** | Swarms of weak attackers — sustain beats armour |
 
 So a Tier 4 Deepmines run you finish in twenty seconds can out-earn gold from a
 Tier 12 you barely survive. Cleared content stays useful, which was the single
@@ -57,6 +101,9 @@ Common to Legendary set both stat multipliers and how many **traits** a hero
 rolls — 28 traits across three tiers, from `Sturdy` to `Executioner`. Rogues
 bring back more gold; Treasure Hunters more still.
 
+Your three starters are all **Common** on purpose. Handing out free Uncommons
+would make the first genuinely better recruit feel like a sidegrade.
+
 **Roles are mechanical, not cosmetic.** Enemies pick targets by threat weight, so
 a Guardian at 6.0× soaks nearly everything. Healers spend their turn mending the
 most wounded ally instead of attacking. A party with no Tank and no Healer is
@@ -65,10 +112,34 @@ flagged in the UI, and dies accordingly.
 **Stamina** — Expeditions cost stamina that recovers while a hero rests, so roster
 depth matters: you rotate parties rather than running the same five heroes forever.
 
+**Dispatching by hand, at first.** Auto-redeploy is locked behind **Standing
+Orders**, a one-off 1,500 gold purchase in the Guild Hall. Sending the opening
+expeditions yourself is how you learn which dungeon pays what and how far a
+party can be pushed; once that is second nature, buy it and the toggle appears
+on the Expeditions tab. Early runs are also deliberately short — dungeons reach
+their full wave count around Tier 8.
+
 **Itemisation** — Nine slots, 29 formula-driven bases, tiered affixes gated by
-item level, 19 uniques, and 13 crafting orbs with their real PoE behaviour.
-Everything is shared through one guild vault, so gearing is a genuine allocation
-problem across the whole roster.
+item level and 19 uniques, all shared through one guild vault, so gearing is a
+genuine allocation problem across the whole roster.
+
+**Materials** — Eight families (metal, cloth, leather, bone, wood, stone,
+essence, herb) at three grades each. They come from expeditions and from
+salvage — and salvage returns what the item is actually *made of*, so a plate
+cuirass gives metal, a robe gives cloth and a bow gives wood. Base type finally
+matters for something other than its stat block.
+
+**The workshop** — Eight bench recipes replace the old currency orbs. Temper
+raises quality, Imbue and Enrich promote rarity, Reforge rerolls a Rare,
+Augment adds a modifier, Refine rerolls numbers, Strip clears them and Warp is
+the one-way gamble. Costs scale with the item's level and use the family the
+item is built from, so reworking deep-tier gear is a project rather than a
+click.
+
+**Alchemy** — Flasks and elixirs brewed from herbs. A flask is assigned to a
+party and drunk on dispatch, buffing that whole expedition — armour, life,
+damage, attack speed, or the elixirs that raise item rarity and gold. Deciding
+which company gets the good one is the point.
 
 **Guild Hall** — Thirteen permanent upgrades. **Expedition Charters** are the
 headline purchase: each one lets another party run concurrently, which changes
@@ -109,13 +180,13 @@ src/
   expedition.js     party-vs-wave combat, loot, run resolution
   stats.js          class + level + traits + gear -> hero stat sheet
   items.js          item generation, affix rolling, naming
-  currency.js       crafting orb rules
   inventory.js      guild vault, salvage, Guild Hall purchases
   save.js           slots, migration, export/import
   ui.js             all rendering and interaction
   rng.js            seeded PRNG
   util.js           formatting and DOM helpers
-  data/             bases, affixes, uniques, currency, monsters,
+  crafting.js       bench recipes and alchemy
+  data/             bases, affixes, uniques, materials, recipes, monsters,
                     heroclasses, traits, dungeons, upgrades
 ```
 

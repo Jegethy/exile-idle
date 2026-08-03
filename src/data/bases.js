@@ -108,6 +108,7 @@ export const BASES = [
   {
     id: 'shield_str', slot: 'offhand', class: 'Shield',
     tags: ['offhand', 'shield', 'armour', 'str'], def: { ar: 1.0 }, defMult: 1.55,
+    block: { melee: 30 },
     names: [L(1, 'Splintered Tower Shield'), L(10, 'Corroded Tower Shield'), L(20, 'Rawhide Tower Shield'),
       L(30, 'Reinforced Tower Shield'), L(40, 'Painted Tower Shield'), L(50, 'Buckskin Tower Shield'),
       L(60, 'Mosaic Kite Shield'), L(70, 'Girded Tower Shield'), L(80, 'Pinnacle Tower Shield')],
@@ -115,6 +116,7 @@ export const BASES = [
   {
     id: 'shield_dex', slot: 'offhand', class: 'Shield',
     tags: ['offhand', 'shield', 'armour', 'dex'], def: { ev: 1.0 }, defMult: 1.55,
+    block: { melee: 15, spell: 15 },
     names: [L(1, 'Goathide Buckler'), L(10, 'Pine Buckler'), L(20, 'Painted Buckler'),
       L(30, 'War Buckler'), L(40, 'Gilded Buckler'), L(50, 'Oak Buckler'),
       L(60, 'Battle Buckler'), L(70, 'Golden Buckler'), L(80, 'Vaal Buckler')],
@@ -122,6 +124,7 @@ export const BASES = [
   {
     id: 'shield_int', slot: 'offhand', class: 'Shield',
     tags: ['offhand', 'shield', 'armour', 'int'], def: { es: 1.0 }, defMult: 1.55,
+    block: { spell: 30 },
     names: [L(1, 'Twig Spirit Shield'), L(10, 'Yew Spirit Shield'), L(20, 'Bone Spirit Shield'),
       L(30, 'Tarnished Spirit Shield'), L(40, 'Jingling Spirit Shield'), L(50, 'Brass Spirit Shield'),
       L(60, 'Walnut Spirit Shield'), L(70, 'Ivory Spirit Shield'), L(80, 'Titanium Spirit Shield')],
@@ -271,6 +274,22 @@ export function baseNameFor(base, ilvl) {
  * Derived base numbers for a given item level. Everything scales linearly with
  * ilvl so tier-500 maps still hand out meaningfully better bases.
  */
+/**
+ * A shield's block chance grows toward its cap as the base improves, so a
+ * Splintered Tower Shield is a real upgrade away from a Pinnacle one rather
+ * than an identical wall with more armour bolted on. Caps are per base type:
+ * 30% melee for armour shields, 15%/15% for evasion, 30% spell for energy
+ * shield. Reaches the cap at the level-68 bases.
+ */
+export function blockFor(base, ilvl) {
+  if (!base.block) return null;
+  const t = Math.min(1, Math.max(0, ilvl) / 68);
+  const scale = 0.45 + 0.55 * t;
+  const out = {};
+  for (const [k, cap] of Object.entries(base.block)) out[k] = Math.round(cap * scale);
+  return out;
+}
+
 export function baseStatsFor(base, ilvl) {
   const out = {};
   if (base.slot === 'weapon') {
@@ -286,6 +305,8 @@ export function baseStatsFor(base, ilvl) {
     if (base.def.ev) out.evasion = Math.round(d * 1.15 * base.def.ev);
     if (base.def.es) out.es = Math.round(d * 0.22 * base.def.es);
   }
+  const block = blockFor(base, ilvl);
+  if (block) out.block = block;
   return out;
 }
 

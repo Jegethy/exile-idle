@@ -19,7 +19,7 @@ export const RARITY = {
 export const AFFIX_CAPS = { normal: 0, magic: 1, rare: 3, unique: 0 };
 
 // ---------------------------------------------------------------------------
-// Implicit modifiers — determined by base type, rerollable with Blessed Orbs.
+// Implicit modifiers — determined by base type, rerolled by the Refine recipe.
 // ---------------------------------------------------------------------------
 
 export const IMPLICITS = [
@@ -97,7 +97,7 @@ export function rollAffix(def, ilvl) {
   return { defId: def.id, tierIndex, values };
 }
 
-/** Rerolls only the numbers of an existing affix (Divine Orb). */
+/** Rerolls only the numbers of an existing affix (the Refine recipe). */
 export function divineAffix(aff, ilvl) {
   const def = AFFIX_BY_ID[aff.defId];
   if (!def) return aff;
@@ -223,7 +223,9 @@ export function createItem(opts) {
       baseName: baseNameFor(base, ilvl), implicit: null, affixes: [],
       uniqueRolls: u.mods.map((mod) => rollRange(mod.r, mod.dec ?? 0)),
     };
-    item.implicit = rollImplicit(item);
+    // `noBaseStats` means exactly that: the base contributes nothing, implicit
+    // included. The Bulwark is its two block lines and nothing else.
+    if (!u.noBaseStats) item.implicit = rollImplicit(item);
     refreshName(item);
     return item;
   }
@@ -281,6 +283,10 @@ export function itemBaseStats(item) {
     });
   }
 
+  // A unique may declare that it discards its base's defences entirely — the
+  // point of The Bulwark is that you carry a wall and nothing else.
+  const bare = item.rarity === 'unique' && !!UNIQUE_BY_ID[item.uniqueId]?.noBaseStats;
+
   const out = {};
   if (base.slot === 'weapon') {
     // Flat added phys from affixes is local to the weapon and scales with inc phys.
@@ -295,11 +301,13 @@ export function itemBaseStats(item) {
     out.crit = s.crit;
     out.hands = s.hands;
     out.dps = Math.round(((out.physMin + out.physMax) / 2) * s.aps);
-  } else {
+  } else if (!bare) {
     if (s.armour) out.armour = Math.round(s.armour * q * (1 + local.armour / 100));
     if (s.evasion) out.evasion = Math.round(s.evasion * q * (1 + local.evasion / 100));
     if (s.es) out.es = Math.round(s.es * q * (1 + local.es / 100));
   }
+  // Base block comes from the shield type; a bare unique brings its own.
+  if (s.block && !bare) out.block = { ...s.block };
   out.req = reqAttrs(base, item.ilvl);
   out.class = base.class;
   return out;

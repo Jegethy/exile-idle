@@ -173,6 +173,20 @@ export const UNIQUES = [
     ],
   },
   {
+    // Deliberately statless. Its whole argument is that it blocks both kinds of
+    // hit at the cap a dedicated shield only reaches for one of them — the
+    // price is every point of armour, evasion and energy shield a shield in
+    // that slot would otherwise have given.
+    id: 'bulwark', name: 'The Bulwark', base: 'shield_str', lvl: 20, weight: 30,
+    flavour: 'No blade, no word. Nothing gets past.',
+    noBaseStats: true,
+    mods: [
+      m([30, 30], (v) => `${v}% Chance to Block Melee`, (b, v) => { b.blockMelee += v; }),
+      m([30, 30], (v) => `${v}% Chance to Block Spells`, (b, v) => { b.blockSpell += v; }),
+      m([0, 0], () => 'Grants no Armour, Evasion or Energy Shield', () => {}),
+    ],
+  },
+  {
     id: 'aegis', name: 'Aegis Aurora', base: 'shield_int', lvl: 72, weight: 25,
     flavour: 'Dawn breaks upon a wall of light.',
     mods: [

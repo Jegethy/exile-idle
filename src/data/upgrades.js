@@ -14,6 +14,14 @@ export const UPGRADES = [
     effect: (r) => ({ partySlots: r }),
   },
   {
+    id: 'autoDispatch', name: 'Standing Orders', cost: 'gold',
+    baseCost: 1500, growth: 1, max: 1,
+    desc: 'Lets idle parties re-run their last expedition without being told. '
+      + 'Bought once; the toggle then lives on the Expeditions tab.',
+    unit: ' — auto-redeploy unlocked',
+    effect: (r) => ({ autoDispatch: r }),
+  },
+  {
     id: 'quarters', name: 'Guild Quarters', cost: 'gold',
     baseCost: 300, growth: 1.55, max: 15,
     desc: 'Better beds. Heroes recover stamina faster between expeditions.',
@@ -49,11 +57,11 @@ export const UPGRADES = [
     effect: (r) => ({ quantity: r * 8 }),
   },
   {
-    id: 'archive', name: 'Arcane Archive', cost: 'gold',
+    id: 'archive', name: 'Gathering Crews', cost: 'gold',
     baseCost: 600, growth: 1.46, max: 20,
-    desc: 'Expeditions recover more crafting orbs.',
-    unit: '% increased Orb drops',
-    effect: (r) => ({ orbs: r * 10 }),
+    desc: 'Expeditions recover more crafting materials.',
+    unit: '% increased Material drops',
+    effect: (r) => ({ materials: r * 10 }),
   },
   {
     id: 'trainers', name: 'Training Yard', cost: 'gold',
@@ -91,8 +99,8 @@ export const UPGRADES = [
     effect: (r) => ({ incDamage: r * 3 }),
   },
   {
-    id: 'sealsmith', name: 'Sealsmith', cost: 'orbs',
-    orb: 'chaos', baseCost: 4, growth: 1.55, max: 10,
+    id: 'sealsmith', name: 'Sealsmith', cost: 'mats',
+    mat: 'radiant_essence', baseCost: 2, growth: 1.5, max: 10,
     desc: 'Raid Seals are recovered more often from deep expeditions.',
     unit: '% increased Raid Seal drops',
     effect: (r) => ({ seals: r * 18 }),
@@ -106,14 +114,14 @@ export function upgradeCost(id, rank) {
   const u = UPGRADE_BY_ID[id];
   if (!u || rank >= u.max) return null;
   const amount = Math.ceil(u.baseCost * Math.pow(u.growth, rank));
-  return u.cost === 'orbs' ? { kind: 'orb', orb: u.orb, amount } : { kind: 'gold', amount };
+  return u.cost === 'mats' ? { kind: 'mat', mat: u.mat, amount } : { kind: 'gold', amount };
 }
 
 /** Accumulated effects of every purchased upgrade. */
 export function guildEffects(ranks = {}) {
   const out = {
-    partySlots: 0, stamina: 0, vaultSlots: 0, gold: 0, rarity: 0, quantity: 0,
-    orbs: 0, xp: 0, recruitQuality: 0, healing: 0, incLife: 0, incArmour: 0,
+    partySlots: 0, autoDispatch: 0, stamina: 0, vaultSlots: 0, gold: 0, rarity: 0, quantity: 0,
+    materials: 0, xp: 0, recruitQuality: 0, healing: 0, incLife: 0, incArmour: 0,
     incDamage: 0, seals: 0,
   };
   for (const u of UPGRADES) {

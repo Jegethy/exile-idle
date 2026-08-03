@@ -1,6 +1,6 @@
 // save.js — multi-slot localStorage persistence plus base64/file export.
 
-import { G, SAVE_VERSION, createState, log, emit } from './state.js';
+import { G, SAVE_VERSION, createState, log, emit, vaultCapacity } from './state.js';
 import { rng } from './rng.js';
 import { uidCounter, setUidFloor, defaults } from './util.js';
 import { CLASS_BY_ID } from './data/heroclasses.js';
@@ -78,9 +78,40 @@ function migrate(state) {
     if (hero.stamina === undefined) hero.stamina = 100;
     if (!Array.isArray(hero.traits)) hero.traits = [];
   }
-  // Expeditions hold live combat state that balance changes can invalidate.
+  // A save that has already played is past the tutorial, whatever it says.
+  if (!state.tutorial) state.tutorial = { step: 0, done: true, skipped: false };
+  if (!state.tutorial.done && (state.stats?.runs ?? 0) > 0) state.tutorial.done = true;
+
+  // Expeditions hold live combat state that balance changes can invalidate, so
+  // they do not survive a load. The party is treated as recalled rather than
+  // wiped, which means they walk out with the haul they were carrying — losing
+  // it to a reload would be a punishment for closing the tab.
+  //
+  // This banks the haul directly instead of calling into expedition.js, whose
+  // reward helpers all operate on the live G.state; during a load the state
+  // being repaired is still detached.
   if (state.expeditions?.length) {
-    notes.push(`${state.expeditions.length} expedition(s) were recalled by the update.`);
+    let gold = 0; let items = 0;
+    for (const run of state.expeditions) {
+      const h = run.haul;
+      if (!h) continue;
+      gold += h.gold ?? 0;
+      state.guild.gold += h.gold ?? 0;
+      for (const [id, n] of Object.entries(h.materials ?? {})) {
+        state.materials[id] = (state.materials[id] ?? 0) + n;
+      }
+      for (const item of h.items ?? []) {
+        if (state.vault.length >= vaultCapacity(state)) break;
+        state.vault.push(item);
+        items++;
+      }
+      for (const [heroUid, xp] of Object.entries(h.heroXp ?? {})) {
+        const hero = state.heroes.find((x) => x.uid === heroUid);
+        if (hero) hero.xp += xp;
+      }
+    }
+    notes.push(`${state.expeditions.length} expedition(s) were recalled by the update`
+      + (gold || items ? ` — they kept ${Math.round(gold)} gold and ${items} item(s).` : '.'));
     state.expeditions = [];
   }
 

@@ -11,17 +11,19 @@ import { heroStats, ehp } from './stats.js';
 import { RARITY, itemBaseStats, itemMods, itemDescriptor } from './items.js';
 import { EQUIP_SLOTS, SLOTS } from './data/bases.js';
 import { UNIQUE_BY_ID, UNIQUES } from './data/uniques.js';
-import { CURRENCIES, CURRENCY_BY_ID } from './data/currency.js';
+import { MATERIALS, MATERIAL_BY_ID, FAMILIES, familyMaterials } from './data/materials.js';
+import { RECIPES, FLASKS, flaskCost } from './data/recipes.js';
 import { CLASS_BY_ID, RARITY_BY_ID } from './data/heroclasses.js';
 import {
-  DUNGEONS, DUNGEON_BY_ID, RAIDS, staminaCost, expectedDuration, tierToLevel,
+  DUNGEONS, DUNGEON_BY_ID, DUNGEON_CATEGORIES, dungeonsIn, RAIDS,
+  staminaCost, expectedDuration, tierToLevel, wavesFor,
 } from './data/dungeons.js';
 import { UPGRADES, upgradeCost, guildEffects } from './data/upgrades.js';
 import {
   salvageItem, salvageAll, countSalvageable, sortVault, toggleLock,
-  findItem, wearerOf, buyUpgrade, hasOrb,
+  findItem, wearerOf, buyUpgrade, hasMaterials,
 } from './inventory.js';
-import { applyOrb, canApply } from './currency.js';
+import { craft, canCraft, canAfford, costOf, brew } from './crafting.js';
 import {
   recruit, dismiss, heroById, heroInfo, isDeployed, partyById, partyMembers,
   createParty, deleteParty, assignToParty, removeFromParty, canDispatch,
@@ -29,12 +31,15 @@ import {
 } from './heroes.js';
 import { dispatch, dispatchRaid, recall, runProgress } from './expedition.js';
 import * as Save from './save.js';
+import { tutorialTick } from './tutorial.js';
+import { returnToTitle } from './splash.js';
 
 /** Transient UI state — never persisted. */
 const ui = {
-  craftOrb: null,
+  craftRecipe: null,
   equipTarget: null,     // heroUid the vault is currently gearing
   dispatchTier: 1,
+  dungeonFilter: 'all',
   logFilter: 'all',
   confirmCb: null,
 };
@@ -51,18 +56,18 @@ export function initUI() {
   wireModals();
   wireVaultActions();
   wireLogFilters();
-  buildOrbGrid();
+  buildMaterialGrid();
 
   on('roster', () => { renderRoster(); renderParties(); renderDispatch(); renderEquipTarget(); });
   on('vault', () => { renderVault(); renderEquipTarget(); });
-  on('orbs', () => { renderOrbs(); renderCraftPanel(); });
+  on('materials', () => { renderMaterials(); renderCraftPanel(); });
   on('guild', () => { renderGuildBar(); renderQuickStats(); renderHall(); renderDispatch(); renderRaids(); });
   on('upgrades', () => { renderHall(); renderQuickStats(); renderDispatch(); });
   on('sheets', () => { renderRoster(); renderParties(); });
   on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
   on('log', () => { renderLog(); });
   on('saves', () => { renderSlots(); });
-  on('loaded', () => { ui.craftOrb = null; ui.equipTarget = null; renderAll(); });
+  on('loaded', () => { ui.craftRecipe = null; ui.equipTarget = null; renderAll(); });
 
   renderAll();
 }
@@ -79,7 +84,7 @@ export function renderAll() {
   renderCollection();
   renderEquipTarget();
   renderVault();
-  renderOrbs();
+  renderMaterials();
   renderCraftPanel();
   renderLog();
   renderSettings();
@@ -90,6 +95,7 @@ export function tick() {
   updateRunBars();
   updateStaminaBars();
   renderStatus();
+  tutorialTick();
 }
 
 // ===========================================================================
@@ -110,6 +116,9 @@ function selectTab(nav, tabId) {
   qsa('.tab', nav).forEach((b) => b.classList.toggle('active', b.dataset.tab === tabId));
   qsa('.tab-body', panel).forEach((b) => b.classList.toggle('active', b.id === `tab-${tabId}`));
   if (tabId === 'hall') { renderHall(); renderCollection(); }
+  // Refresh on entry so affordability never shows stale after a run.
+  if (tabId === 'orbs') { renderMaterials(); renderCraftPanel(); }
+  if (tabId === 'parties') renderParties();
 }
 
 function gotoTab(tabId) {
@@ -261,6 +270,8 @@ function showHeroTooltip(hero, event) {
     ${line('Evasion', fmt(sheet.evasion))}
     ${sheet.healPower > 0 ? line('Healing / cast', fmt(sheet.healPower)) : ''}
     ${line('Attacks / sec', sheet.aps.toFixed(2))}
+    ${sheet.blockMelee > 0 ? line('Block (melee)', `${sheet.blockMelee}%`) : ''}
+    ${sheet.blockSpell > 0 ? line('Block (spell)', `${sheet.blockSpell}%`) : ''}
     ${line('Threat', `${sheet.threat.toFixed(1)}×`)}
     ${line('Resistances', `${sheet.res.fire.value}/${sheet.res.cold.value}/${sheet.res.light.value}/${sheet.res.chaos.value}`)}
     ${info.traits.length ? '<div class="tt-sep"></div>' : ''}
@@ -293,6 +304,8 @@ function openHeroModal(heroUid) {
         <span><b>${fmt(sheet.dps)}</b> dps</span>
         <span><b>${fmt(sheet.life)}</b> life</span>
         <span><b>${fmt(sheet.armour)}</b> armour</span>
+        ${sheet.blockMelee || sheet.blockSpell
+    ? `<span><b>${sheet.blockMelee}/${sheet.blockSpell}%</b> block</span>` : ''}
         <span><b>${fmt(ehp(sheet))}</b> ehp</span>
       </div>
     </div>
@@ -415,6 +428,7 @@ function renderParties() {
       </div>
       <div class="party-members">${members.map((h) => `<span class="pm ${RARITY_BY_ID[h.rarity].cls}"
         data-hero="${h.uid}">${escapeHtml(h.name)} <small>Lv${h.level}</small></span>`).join('')}</div>
+      ${flaskPicker(p)}
       <div class="row">${running ? '<span class="tag out">On expedition</span>'
     : `<button class="btn tiny danger" data-delparty="${p.id}">Disband</button>`}</div>
     </div>`;
@@ -427,9 +441,41 @@ function renderParties() {
         () => deleteParty(del.dataset.delparty));
       return;
     }
+    const flask = e.target.closest('[data-setflask]');
+    if (flask) {
+      const party = partyById(flask.dataset.party);
+      if (party) {
+        const id = flask.dataset.setflask;
+        party.flask = party.flask === id ? null : (id || null);
+        renderParties();
+        setStatus(party.flask
+          ? `${party.name} will drink ${FLASKS.find((f) => f.id === party.flask).name} on dispatch.`
+          : `${party.name} will carry no flask.`);
+      }
+      return;
+    }
     const hero = e.target.closest('[data-hero]');
     if (hero) openHeroModal(hero.dataset.hero);
   };
+}
+
+/**
+ * Flasks brewed in the workshop are assigned per party and drunk on dispatch,
+ * so the good ones are a decision about which company gets them.
+ */
+function flaskPicker(party) {
+  const stock = FLASKS.filter((f) => (G.state.flasks[f.id] ?? 0) > 0);
+  if (!stock.length && !party.flask) return '';
+  const chosen = party.flask ? FLASKS.find((f) => f.id === party.flask) : null;
+  return `<div class="flask-picker">
+    <span class="fp-label">Flask</span>
+    ${stock.map((f) => `<button class="btn tiny ${party.flask === f.id ? 'active' : ''}"
+        data-setflask="${f.id}" data-party="${party.id}"
+        title="${escapeHtml(f.effectText)}">${escapeHtml(f.name.replace(/^(Flask|Elixir) of /, ''))}
+        <small>${G.state.flasks[f.id]}</small></button>`).join('')}
+    ${chosen && !(G.state.flasks[chosen.id] > 0)
+    ? `<span class="hint">${escapeHtml(chosen.name)} — none left</span>` : ''}
+  </div>`;
 }
 
 // ===========================================================================
@@ -505,7 +551,8 @@ function updateRunBars() {
         ? run.enemies.map((en) => {
           const pct = clamp((en.life / en.maxLife) * 100, 0, 100);
           return `<div class="cbt enemy">
-            <div class="cbt-name ${en.rarity === 'champion' ? 'champ' : ''}">${escapeHtml(en.name)}</div>
+            <div class="cbt-name ${en.rarity === 'champion' ? 'champ' : ''}">${escapeHtml(en.name)}
+              <span class="atk-tag ${en.attack ?? 'melee'}">${en.attack ?? 'melee'}</span></div>
             <div class="bar mon"><i style="width:${pct}%"></i>
               <span>${fmt(Math.max(0, en.life))} / ${fmt(en.maxLife)}</span></div>
           </div>`;
@@ -515,8 +562,8 @@ function updateRunBars() {
 
     const st = qs(`[data-runstats="${run.id}"]`);
     if (st) {
-      st.textContent = `${fmtTime(run.elapsed)} · ${fmt(run.rewards.gold)}g · `
-        + `${run.rewards.gear} items · ${run.rewards.orbs} orbs`;
+      st.textContent = `${fmtTime(run.elapsed)} · carrying ${fmt(run.rewards.gold)}g · `
+        + `${run.rewards.gear} items · ${run.rewards.materials} materials`;
     }
   }
 }
@@ -531,6 +578,7 @@ function renderDispatch() {
   const tier = ui.dispatchTier;
   const free = partySlots() - s.expeditions.length;
   const idleParties = s.parties.filter((p) => !s.expeditions.some((e) => e.partyId === p.id));
+  const shown = dungeonsIn(ui.dungeonFilter);
 
   host.innerHTML = `
     <div class="dispatch-bar">
@@ -539,9 +587,15 @@ function renderDispatch() {
       <b class="tier-value">${tier}</b>
       <button class="btn tiny" id="tierUp" ${tier >= maxTier ? 'disabled' : ''}>+</button>
       <span class="hint">enemy level ~${tierToLevel(tier)} · ${staminaCost(tier)} stamina each</span>
-      <span class="hint" style="margin-left:auto">${free} charter${free === 1 ? '' : 's'} free</span>
+      <span class="hint">${free} charter${free === 1 ? '' : 's'} free</span>
+      ${autoDispatchControl()}
     </div>
-    <div class="dungeon-grid">${DUNGEONS.map((d) => {
+    <div class="dungeon-filters">${DUNGEON_CATEGORIES.map((c) => {
+    const n = dungeonsIn(c.id).length;
+    return `<button class="btn tiny ${ui.dungeonFilter === c.id ? 'active' : ''}"
+        data-dfilter="${c.id}">${escapeHtml(c.name)} <span class="df-n">${n}</span></button>`;
+  }).join('')}</div>
+    <div class="dungeon-grid">${shown.map((d) => {
     const cleared = s.progress.cleared[`${d.id}:${tier}`] ?? 0;
     return `<div class="dungeon ${cleared ? 'cleared' : ''}">
         <div class="dg-top">
@@ -552,9 +606,9 @@ function renderDispatch() {
         <div class="dg-counter">${escapeHtml(d.counter)}</div>
         <div class="dg-rewards">
           ${rewardBar('Gold', d.rewards.gold)}${rewardBar('Gear', d.rewards.gear)}
-          ${rewardBar('XP', d.rewards.xp)}${rewardBar('Orbs', d.rewards.orbs)}
+          ${rewardBar('XP', d.rewards.xp)}${rewardBar('Mats', d.rewards.mats)}
         </div>
-        <div class="dg-foot"><span class="hint">${d.waves} waves · ~${Math.round(expectedDuration(d, tier))}s${
+        <div class="dg-foot"><span class="hint">${wavesFor(d, tier)} waves · ~${Math.round(expectedDuration(d, tier))}s${
       cleared ? ` · cleared ${cleared}×` : ''}</span></div>
         <div class="dg-parties">${idleParties.length
       ? idleParties.map((p) => {
@@ -566,8 +620,24 @@ function renderDispatch() {
       }).join('')
       : '<span class="hint">All parties are busy.</span>'}</div>
       </div>`;
-  }).join('')}</div>`;
+  }).join('')}${shown.length ? '' : '<div class="empty-note">Nothing in this category yet.</div>'}</div>`;
 
+  host.querySelector('.dungeon-filters').onclick = (e) => {
+    const b = e.target.closest('[data-dfilter]');
+    if (!b) return;
+    ui.dungeonFilter = b.dataset.dfilter;
+    renderDispatch();
+  };
+  const toggle = qs('#autoRedeployToggle');
+  if (toggle) {
+    toggle.onchange = () => {
+      s.settings.autoRedeploy = toggle.checked;
+      setStatus(toggle.checked
+        ? 'Auto-redeploy on — idle parties will re-run their last expedition.'
+        : 'Auto-redeploy off.');
+      renderDispatch();
+    };
+  }
   qs('#tierDown').onclick = () => { ui.dispatchTier = Math.max(1, tier - 1); renderDispatch(); };
   qs('#tierUp').onclick = () => { ui.dispatchTier = Math.min(maxTier, tier + 1); renderDispatch(); };
   host.querySelector('.dungeon-grid').onclick = (e) => {
@@ -580,6 +650,28 @@ function renderDispatch() {
       if (party) party.lastRun = { dungeonId: b.dataset.dg, tier: ui.dispatchTier };
     }
   };
+}
+
+/**
+ * Auto-redeploy sits here rather than in Settings so it is discoverable, and is
+ * locked until Standing Orders is bought — the opening expeditions are meant to
+ * be dispatched by hand.
+ */
+function autoDispatchControl() {
+  const s = G.state;
+  const unlocked = guildEffects(s.upgrades).autoDispatch > 0;
+  if (!unlocked) {
+    return `<div class="auto-box locked" id="autoDispatchBox" title="Buy Standing Orders in the Guild Hall">
+      <span class="al">Auto-redeploy</span>
+      <span class="auto-lock">🔒 Guild Hall</span>
+    </div>`;
+  }
+  const on = !!s.settings.autoRedeploy;
+  return `<div class="auto-box ${on ? 'on' : ''}" id="autoDispatchBox"
+               title="Idle parties re-run their last expedition automatically">
+    <span class="al">Auto-redeploy</span>
+    <label class="switch small"><input type="checkbox" id="autoRedeployToggle" ${on ? 'checked' : ''}><i></i></label>
+  </div>`;
 }
 
 function rewardBar(label, mult) {
@@ -669,7 +761,7 @@ function renderHall() {
         <span>Gold <b>+${gu.gold}%</b></span>
         <span>Rarity <b>+${gu.rarity}%</b></span>
         <span>Quantity <b>+${gu.quantity}%</b></span>
-        <span>Orbs <b>+${gu.orbs}%</b></span>
+        <span>Materials <b>+${gu.materials}%</b></span>
         <span>Experience <b>+${gu.xp}%</b></span>
         <span>Charters <b>${1 + gu.partySlots}</b></span>
       </div>
@@ -680,14 +772,15 @@ function renderHall() {
     const maxed = rank >= u.max;
     const cost = upgradeCost(u.id, rank);
     const afford = !cost ? false
-      : cost.kind === 'gold' ? s.guild.gold >= cost.amount : hasOrb(cost.orb, cost.amount);
+      : cost.kind === 'gold' ? s.guild.gold >= cost.amount
+        : hasMaterials([{ id: cost.mat, qty: cost.amount }]);
     const now = u.effect(rank);
     const next = maxed ? null : u.effect(rank + 1);
     const key = Object.keys(u.effect(1))[0];
     const label = cost && (cost.kind === 'gold'
-      ? `${fmtInt(cost.amount)}g` : `${cost.amount}× ${CURRENCY_BY_ID[cost.orb]?.short ?? ''}`);
+      ? `${fmtInt(cost.amount)}g` : `${cost.amount}× ${MATERIAL_BY_ID[cost.mat]?.name ?? ''}`);
 
-    return `<div class="upgrade ${maxed ? 'maxed' : afford ? 'afford' : ''}">
+    return `<div class="upgrade ${maxed ? 'maxed' : afford ? 'afford' : ''}" data-upgrade="${u.id}">
       <div class="up-top">
         <span class="up-name">${escapeHtml(u.name)}</span>
         <span class="up-rank">${rank}/${u.max}</span>
@@ -741,7 +834,7 @@ function wireVaultActions() {
       const n = countSalvageable(f.test);
       if (!n) { setStatus(`No unlocked ${f.label} items in the vault.`); return; }
       confirmAction(`Salvage ${n} item${n === 1 ? '' : 's'}?`,
-        `All unlocked ${f.label} items in the vault become orbs and gold. `
+        `All unlocked ${f.label} items in the vault are broken down for materials and gold. `
         + 'Locked and Unique items are skipped, and worn gear is never touched.',
         () => salvageAll(f.test));
     };
@@ -775,13 +868,13 @@ function renderVault() {
 
   const hero = ui.equipTarget ? heroById(ui.equipTarget) : null;
   host.innerHTML = s.vault.map((item) => {
-    const craft = ui.craftOrb ? canApply(ui.craftOrb, item) : null;
+    const legal = ui.craftRecipe ? canAfford(ui.craftRecipe, item) : null;
     const d = itemDescriptor(item);
     const bs = itemBaseStats(item);
     const num = bs.dps ? `${fmt(bs.dps)} dps`
       : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`, bs.es && `${fmt(bs.es)} es`]
         .filter(Boolean).join(' · ');
-    return `<div class="inv-cell ${R(item.rarity)} ${craft ? (craft.ok ? 'craftable' : 'not-craftable') : ''}"
+    return `<div class="inv-cell ${R(item.rarity)} ${legal ? (legal.ok ? 'craftable' : 'not-craftable') : ''}"
                  data-uid="${item.uid}">
       <div class="inv-top">
         <span class="inv-name">${escapeHtml(item.name)}</span>
@@ -800,7 +893,7 @@ function renderVault() {
     const cell = e.target.closest('[data-uid]');
     if (!cell) return;
     const uid = cell.dataset.uid;
-    if (ui.craftOrb) { applyCraft(uid); return; }
+    if (ui.craftRecipe) { applyCraft(uid); return; }
     if (hero) { equipOnHero(hero.uid, uid); hideTooltip(); return; }
     const item = findItem(uid);
     if (!item) return;
@@ -893,98 +986,136 @@ function openItemMenu(uid) {
 }
 
 // ===========================================================================
-// Crafting orbs
+// Workshop: materials, bench recipes and alchemy
 // ===========================================================================
 
-function buildOrbGrid() {
-  const host = qs('#orbGrid');
-  host.onclick = (e) => {
-    const cell = e.target.closest('[data-orb]');
-    if (!cell) return;
-    const id = cell.dataset.orb;
-    if ((G.state.orbs[id] ?? 0) <= 0) return;
-    selectOrb(ui.craftOrb === id ? null : id);
-  };
+function buildMaterialGrid() {
+  const host = qs('#materialGrid');
   host.onmouseover = (e) => {
-    const cell = e.target.closest('[data-orb]');
-    if (cell) showOrbTooltip(CURRENCY_BY_ID[cell.dataset.orb], e);
+    const cell = e.target.closest('[data-mat]');
+    if (cell) showMaterialTooltip(MATERIAL_BY_ID[cell.dataset.mat], e);
   };
   host.onmouseout = hideTooltip;
   host.onmousemove = moveTooltip;
 }
 
-function renderOrbs() {
+/** Materials, grouped by family so the eight sources read at a glance. */
+function renderMaterials() {
   const s = G.state;
-  const host = qs('#orbGrid');
+  const host = qs('#materialGrid');
   if (!host || !s) return;
-  host.innerHTML = CURRENCIES.map((c) => {
-    const n = s.orbs[c.id] ?? 0;
-    return `<div class="cur-cell ${n ? '' : 'zero'} ${ui.craftOrb === c.id ? 'selected' : ''}"
-                 data-orb="${c.id}" data-tier="${c.tier}">
-      <div class="cur-orb">${c.short}</div>
-      <div class="cur-count">${fmtInt(n)}</div>
-      <div class="cur-name">${escapeHtml(c.name.replace('Orb of ', '').replace(' Orb', ''))}</div>
+  host.innerHTML = FAMILIES.map((f) => {
+    const mats = familyMaterials(f.id);
+    const held = mats.reduce((a, m) => a + (s.materials[m.id] ?? 0), 0);
+    return `<div class="mat-family ${held ? '' : 'empty'}">
+      <div class="mf-head" style="color:${f.colour}">${escapeHtml(f.name)}</div>
+      <div class="mf-row">${mats.map((m) => {
+    const n = s.materials[m.id] ?? 0;
+    return `<div class="mat ${n ? '' : 'zero'} g${m.grade}" data-mat="${m.id}" style="--mat:${f.colour}">
+        <span class="mat-dot"></span><span class="mat-n">${fmtInt(n)}</span>
+      </div>`;
+  }).join('')}</div>
     </div>`;
   }).join('');
 }
 
-function selectOrb(id) {
-  ui.craftOrb = id;
-  renderOrbs(); renderVault(); renderCraftPanel(); renderVaultBanner();
+function selectRecipe(id) {
+  ui.craftRecipe = id;
+  renderCraftPanel(); renderVault(); renderVaultBanner();
   if (id) {
     gotoTab('vault');
-    setStatus(`${CURRENCY_BY_ID[id].name} selected — click a vault item to apply it. Esc to cancel.`);
+    setStatus(`${RECIPES.find((r) => r.id === id).name} selected — click a vault item. Esc to cancel.`);
   } else setStatus('Crafting cancelled.');
 }
 
 function renderVaultBanner() {
   let banner = qs('#vaultCraftBanner');
-  if (!ui.craftOrb) { if (banner) banner.remove(); return; }
+  if (!ui.craftRecipe) { if (banner) banner.remove(); return; }
   if (!banner) {
     banner = el('div', 'craft-banner');
     banner.id = 'vaultCraftBanner';
     qs('#tab-vault').prepend(banner);
   }
-  const c = CURRENCY_BY_ID[ui.craftOrb];
-  banner.innerHTML = `<b>${escapeHtml(c.name)}</b> — click a vault item to apply.
+  const r = RECIPES.find((x) => x.id === ui.craftRecipe);
+  banner.innerHTML = `<b>${escapeHtml(r.name)}</b> — click a vault item to apply it.
     <button class="btn tiny" id="btnCancelCraft">Cancel</button>`;
-  qs('#btnCancelCraft').onclick = () => selectOrb(null);
+  qs('#btnCancelCraft').onclick = () => selectRecipe(null);
 }
 
 function renderCraftPanel() {
   const host = qs('#craftPanel');
   const banner = qs('#craftBanner');
-  if (!host) return;
+  if (!host || !G.state) return;
 
-  if (!ui.craftOrb) {
+  if (ui.craftRecipe) {
+    const r = RECIPES.find((x) => x.id === ui.craftRecipe);
+    banner.classList.remove('hidden');
+    banner.innerHTML = `<b>${escapeHtml(r.name)}</b> ready — click a valid vault item.
+      <button class="btn tiny" id="btnCancelCraft2">Cancel</button>`;
+    qs('#btnCancelCraft2').onclick = () => selectRecipe(null);
+  } else {
     banner.classList.add('hidden');
-    host.innerHTML = '<p class="hint">Select an orb above, then click an item in the Vault.</p>'
-      + CURRENCIES.filter((c) => c.tier > 0).map((c) =>
-        `<div class="stat-row"><label>${escapeHtml(c.name)}</label>
-        <b style="font-weight:400;font-size:11px">${escapeHtml(c.use)}</b></div>`).join('');
-    return;
   }
-  const c = CURRENCY_BY_ID[ui.craftOrb];
-  banner.classList.remove('hidden');
-  banner.innerHTML = `<b>${escapeHtml(c.name)}</b> ready — click a valid vault item.
-    <button class="btn tiny" id="btnCancelCraft2">Cancel</button>`;
-  qs('#btnCancelCraft2').onclick = () => selectOrb(null);
-  host.innerHTML = `<div class="craft-target">
-    <b style="color:var(--gold)">${escapeHtml(c.name)}</b>
-    <div class="hint" style="margin-top:4px">${escapeHtml(c.desc)}</div>
-    <div class="hint">${escapeHtml(c.use)}</div>
-    <div class="hint" style="margin-top:4px">You have <b>${fmtInt(G.state.orbs[c.id] ?? 0)}</b>.</div>
-  </div>`;
+
+  host.innerHTML = `
+    <p class="hint">Costs scale with the item level, and "self" materials depend on what the item
+      is made of — tempering plate wants metal, tempering a robe wants cloth.</p>
+    <div class="recipe-list">${RECIPES.map((r) => `
+      <div class="recipe ${ui.craftRecipe === r.id ? 'selected' : ''} ${r.risky ? 'risky' : ''}"
+           data-recipe="${r.id}">
+        <div class="rc-name">${escapeHtml(r.name)}</div>
+        <div class="rc-desc">${escapeHtml(r.desc)}</div>
+      </div>`).join('')}</div>
+
+    <div class="section-head"><span>Alchemy</span></div>
+    <p class="hint">Flasks are brewed in batches and assigned to a party on the Parties tab. One is
+      drunk when that party is dispatched and buffs the whole expedition.</p>
+    <div class="flask-list">${FLASKS.map((f) => {
+    const cost = flaskCost(f);
+    const afford = hasMaterials(cost);
+    const held = G.state.flasks[f.id] ?? 0;
+    return `<div class="flask ${afford ? 'afford' : ''}">
+        <div class="fl-top">
+          <span class="fl-name">${escapeHtml(f.name)}</span>
+          <span class="fl-held">${held ? `${held} in stock` : ''}</span>
+        </div>
+        <div class="fl-effect">${escapeHtml(f.effectText)}</div>
+        <div class="fl-cost">${cost.map((c) =>
+      `<span class="${(G.state.materials[c.id] ?? 0) >= c.qty ? '' : 'short'}">${c.qty}\u00d7 ${
+        escapeHtml(MATERIAL_BY_ID[c.id].name)}</span>`).join('')}</div>
+        <button class="btn tiny ${afford ? 'primary' : ''}" data-brew="${f.id}" ${afford ? '' : 'disabled'}>Brew ${f.batch}</button>
+      </div>`;
+  }).join('')}</div>`;
+
+  host.onclick = (e) => {
+    const rec = e.target.closest('[data-recipe]');
+    if (rec) { selectRecipe(ui.craftRecipe === rec.dataset.recipe ? null : rec.dataset.recipe); return; }
+    const b = e.target.closest('[data-brew]');
+    if (b && !b.disabled) setStatus(brew(b.dataset.brew).msg);
+  };
 }
 
 function applyCraft(uid) {
   const item = findItem(uid);
   if (!item) return;
-  const res = applyOrb(ui.craftOrb, item);
+  const res = craft(ui.craftRecipe, item);
   setStatus(res.msg);
   if (!res.ok) return;
-  if ((G.state.orbs[ui.craftOrb] ?? 0) <= 0) selectOrb(null);
-  else { renderOrbs(); renderVault(); renderCraftPanel(); }
+  renderVault(); renderMaterials(); renderCraftPanel();
+}
+
+function showMaterialTooltip(m, event) {
+  if (!m) return;
+  const fam = FAMILIES.find((f) => f.id === m.family);
+  const t = tip();
+  t.className = 'tooltip';
+  t.innerHTML = `<div class="tt-name" style="color:${fam.colour}">${escapeHtml(m.name)}</div>
+    <div class="tt-base">${escapeHtml(fam.name)} \u00b7 Grade ${m.grade}</div>
+    <div class="tt-sep"></div>
+    <div class="tt-implicit">${escapeHtml(fam.desc)}</div>
+    <div class="tt-hint">Held: ${fmtInt(G.state.materials[m.id] ?? 0)}</div>`;
+  t.classList.remove('hidden');
+  moveTooltip(event);
 }
 
 // ===========================================================================
@@ -1024,6 +1155,8 @@ function itemTooltipHtml(item, compare, hint) {
     if (bs.armour) parts.push(line('Armour', fmt(bs.armour)));
     if (bs.evasion) parts.push(line('Evasion Rating', fmt(bs.evasion)));
     if (bs.es) parts.push(line('Energy Shield', fmt(bs.es)));
+    if (bs.block?.melee) parts.push(line('Chance to Block Melee', `${bs.block.melee}%`));
+    if (bs.block?.spell) parts.push(line('Chance to Block Spells', `${bs.block.spell}%`));
   }
   if (item.quality) parts.push(line('Quality', `+${item.quality}%`));
   parts.push(line('Item Level', String(item.ilvl)));
@@ -1068,6 +1201,8 @@ function compareHtml(item) {
     ['Life', before.life, after.life],
     ['Armour', before.armour, after.armour],
     ['Evasion', before.evasion, after.evasion],
+    ['Block (melee)', before.blockMelee, after.blockMelee],
+    ['Block (spell)', before.blockSpell, after.blockSpell],
     ['Healing', before.healPower, after.healPower],
   ].filter(([, a, b]) => Math.abs(b - a) > 0.5);
 
@@ -1077,19 +1212,6 @@ function compareHtml(item) {
     return `<div class="tt-line"><label>${label}</label>
       <span class="${diff > 0 ? 'tt-up' : 'tt-down'}">${signed(Math.round(diff))} (${fmt(b)})</span></div>`;
   }).join('')}</div>`;
-}
-
-function showOrbTooltip(c, event) {
-  if (!c) return;
-  const t = tip();
-  t.className = 'tooltip';
-  t.innerHTML = `<div class="tt-name" style="color:var(--r-currency)">${escapeHtml(c.name)}</div>
-    <div class="tt-sep"></div>
-    <div class="tt-implicit">${escapeHtml(c.desc)}</div>
-    <div class="tt-mod" style="margin-top:4px">${escapeHtml(c.use)}</div>
-    <div class="tt-hint">Stock: ${fmtInt(G.state.orbs[c.id] ?? 0)}</div>`;
-  t.classList.remove('hidden');
-  moveTooltip(event);
 }
 
 function moveTooltip(event) {
@@ -1152,13 +1274,8 @@ function openModal(id) {
 }
 
 function closeModals() {
-  if (isBlockingCreation()) return;
   qs('#modalBackdrop').classList.add('hidden');
   qsa('.modal').forEach((m) => m.classList.add('hidden'));
-}
-
-function isBlockingCreation() {
-  return G.paused && !qs('#modalNew').classList.contains('hidden');
 }
 
 function wireModals() {
@@ -1168,7 +1285,7 @@ function wireModals() {
   });
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (ui.craftOrb) { selectOrb(null); return; }
+    if (ui.craftRecipe) { selectOrb(null); return; }
     closeModals();
   });
 
@@ -1203,22 +1320,11 @@ function wireModals() {
     if (cb) cb();
   };
 
-  qs('#btnCreateGuild').onclick = async () => {
-    const name = (qs('#newName').value || 'The Wayfarers').trim().slice(0, 24);
-    const { foundGuild } = await import('./game.js');
-    foundGuild(name);
+  qs('#btnTitle').onclick = () => {
+    Save.saveToSlot(G.slot, true);
     closeModals();
+    returnToTitle();
   };
-  qs('#newName').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') qs('#btnCreateGuild').click();
-  });
-}
-
-export function openNewGuild(isFirstRun = false) {
-  qs('#newName').value = '';
-  qs('#newCloseBtn').classList.toggle('hidden', isFirstRun);
-  openModal('modalNew');
-  setTimeout(() => qs('#newName').focus(), 50);
 }
 
 function confirmAction(title, text, cb) {
@@ -1291,11 +1397,9 @@ function renderSettings() {
   if (!host || !G.state) return;
   const s = G.state;
   host.innerHTML = `
-    ${toggleRow('autoRedeploy', 'Auto-redeploy parties',
-    'Off by default. When on, an idle party is re-sent wherever it last went, stamina permitting.')}
-    ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items become orbs on pickup.')}
-    ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items become orbs on pickup.')}
-    ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items become orbs. Uniques are never auto-salvaged.')}
+    ${toggleRow('autoSalvageNormal', 'Auto-salvage Normal drops', 'Normal items are broken down for materials on pickup.')}
+    ${toggleRow('autoSalvageMagic', 'Auto-salvage Magic drops', 'Magic items are broken down for materials on pickup.')}
+    ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items are broken down for materials. Uniques are never auto-salvaged.')}
     <div class="setting-row">
       <div><div class="sl">Simulation speed</div><div class="sh">Higher is faster but coarser.</div></div>
       <select class="text-input" style="width:auto" id="setSpeed">
@@ -1318,12 +1422,15 @@ function renderSettings() {
     else if (t.id === 'setLog') s.settings.logLimit = Number(t.value);
   };
   qs('#btnWipe').onclick = () => confirmAction(
-    'Delete this guild?', `Slot ${G.slot + 1} will be erased and a new guild founded.`,
+    'Delete this guild?',
+    `Slot ${G.slot + 1} will be erased permanently and you will be returned to the title screen. `
+    + 'Export a copy first if you might want it back.',
     () => {
       Save.deleteSlot(G.slot);
       G.state = createState();
       G.paused = true;
-      openNewGuild(true);
+      closeModals();
+      returnToTitle();
     },
   );
 }

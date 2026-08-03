@@ -42,6 +42,21 @@ export function fmtTime(sec) {
   return `${h}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
+/** Relative time for save timestamps: "4 minutes ago", "yesterday". */
+export function fmtAgo(ts) {
+  if (!ts) return 'never';
+  const secs = Math.max(0, (Date.now() - ts) / 1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
 export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
 export function lerp(a, b, t) { return a + (b - a) * t; }
