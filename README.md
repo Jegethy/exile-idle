@@ -111,11 +111,38 @@ biggest thing missing from the previous design.
 
 ## Systems
 
-**Heroes** — Six classes across five roles: Guardian (Tank), Berserker and Rogue
-(Melee), Ranger (Ranged), Sorcerer (Caster), Cleric (Healer). Five rarities from
-Common to Legendary set both stat multipliers and how many **traits** a hero
-rolls — 28 traits across three tiers, from `Sturdy` to `Executioner`. Rogues
-bring back more gold; Treasure Hunters more still.
+**Heroes** — Eleven classes across three roles, each with a passive ability
+that fires on its own. No clicking, no party micro-management: internally they
+are cooldowns and triggers on the combat effects layer.
+
+| | | |
+|---|---|---|
+| **Warrior** | Tank | Turns blades aside and burns. Blocking hardens him further. |
+| **Paladin** | Tank | The reverse — softer to a blade, far harder to burn. Mends on a blocked spell. |
+| **Guardian** | Tank | Even against both, and regenerates through the whole run. |
+| **Cleric** | Healer | One big heal at a time. Copes when a single ally is being hammered. |
+| **Druid** | Healer | A steady trickle across the party. Carries a grind; poor at catching a sudden drop. |
+| **Templar** | Healer | Cannot cast at all — heals by swinging, and so stands at the front. |
+| **Rogue** | DPS | Opens far ahead of anyone else and fades. Wants short waves. |
+| **Archer** | DPS | Builds speed as it fires, from out of reach. |
+| **Wizard** | DPS | The highest damage and the lowest life in the guild. |
+| **Warlock** | DPS | The worst single target, and the only class that ignores how many enemies there are. |
+| **Inquisitor** | DPS | Mediocre at everything, and makes the whole party better. |
+
+Five rarities from Common to Legendary set stat multipliers and how many
+**traits** a hero rolls — 28 traits across three tiers, from `Sturdy` to
+`Executioner`. Rogues bring back more gold; Treasure Hunters more still.
+
+**Positioning** — Where a hero stands follows from what they do. Melee heroes
+must be in the front row to reach anything, and the front row is the only row a
+melee enemy can reach — until it falls, at which point nothing stands between
+them and the back. That is what ranged classes are for: a melee boss that
+shreds a front-loaded party can be answered by archers and warlocks, at the
+cost of clearing more slowly.
+
+Neither a tank nor a healer is required. An over-geared party farming Tier 1
+for a unique it never found should not be made to bring a tank it does not
+need, so the composition notices are advice and can be switched off entirely.
 
 Your three starters are all **Common** on purpose. Handing out free Uncommons
 would make the first genuinely better recruit feel like a sidegrade.
@@ -136,9 +163,23 @@ on the Expeditions tab. Early runs are also deliberately short — dungeons reac
 their full wave count around Tier 8.
 
 **Itemisation** — Nine slots, 29 formula-driven bases, 31 tiered affixes gated
-by item level and 20 uniques, all shared through one guild vault, so gearing is
+by item level and 28 uniques, all shared through one guild vault, so gearing is
 a genuine allocation problem across the whole roster. Every modifier an item can
 roll changes a number on the hero wearing it; there are no decorative stats.
+
+**Uniques do things.** They carry better raw numbers than a rare of the same
+level before any modifier is counted, and eight of them are built around an
+effect rather than a stat line — Heartseeker restores its wearer outright on 5%
+of hits, Twinstrike lands a second blow, Emberbrand burns, Rending Edge bleeds,
+Wardstone answers a blocked blow with spell block, Benediction spreads a heal
+across the party. Everything scales with the level it drops at, so one
+definition covers Tier 1 through Tier 16 rather than needing a version per tier.
+
+**Recruitment** — The Hiring Hall offers three named candidates with their
+class, ability, traits and a price set by their rarity. Lock anyone you want to
+keep through a reroll; the reroll price climbs until you actually hire someone,
+and the exponential roster-size curve sits underneath every price, so a rich
+guild still cannot simply buy twenty heroes.
 
 **Shields and block** — A blocked hit is prevented outright, and what a shield
 blocks depends on what it is made of: armour shields turn aside melee (to 30%),

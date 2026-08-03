@@ -258,12 +258,13 @@ export const RETIRED_CLASSES = {
  * Hero rarity. Better heroes have stronger stats and more traits, and are the
  * main thing gold is spent chasing.
  */
+/** `cost` multiplies the recruit price — a better hero is worth more gold. */
 export const HERO_RARITIES = [
-  { id: 'common', name: 'Common', cls: 'h-common', mult: 1.00, traits: 1, weight: 520 },
-  { id: 'uncommon', name: 'Uncommon', cls: 'h-uncommon', mult: 1.16, traits: 2, weight: 300 },
-  { id: 'rare', name: 'Rare', cls: 'h-rare', mult: 1.34, traits: 3, weight: 130 },
-  { id: 'epic', name: 'Epic', cls: 'h-epic', mult: 1.58, traits: 4, weight: 42 },
-  { id: 'legendary', name: 'Legendary', cls: 'h-legendary', mult: 1.90, traits: 5, weight: 8 },
+  { id: 'common', name: 'Common', cls: 'h-common', mult: 1.00, traits: 1, weight: 520, cost: 1.0 },
+  { id: 'uncommon', name: 'Uncommon', cls: 'h-uncommon', mult: 1.16, traits: 2, weight: 300, cost: 2.1 },
+  { id: 'rare', name: 'Rare', cls: 'h-rare', mult: 1.34, traits: 3, weight: 130, cost: 4.2 },
+  { id: 'epic', name: 'Epic', cls: 'h-epic', mult: 1.58, traits: 4, weight: 42, cost: 9.0 },
+  { id: 'legendary', name: 'Legendary', cls: 'h-legendary', mult: 1.90, traits: 5, weight: 8, cost: 20.0 },
 ];
 
 export const RARITY_BY_ID = Object.fromEntries(HERO_RARITIES.map((r) => [r.id, r]));

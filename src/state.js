@@ -43,9 +43,14 @@ export function guildXpToNext(level) {
 }
 
 /** Cost in gold of the next recruit. Rises so roster growth stays a decision. */
+/**
+ * The exponential curve on roster size, which is what stops a rich guild
+ * simply buying twenty heroes. Rarity multiplies it — see candidateCost.
+ */
 export function recruitCost(rosterSize) {
   return Math.floor(120 * Math.pow(1.17, Math.max(0, rosterSize - 3)));
 }
+
 
 // ---------------------------------------------------------------------------
 // State construction
@@ -92,6 +97,10 @@ export function createState(name = 'The Wayfarers') {
       runs: 0, runsFailed: 0, kills: 0, heroDeaths: 0,
       gearFound: 0, uniquesFound: 0, goldEarned: 0, recruited: 0, raidKills: 0,
     },
+
+    // Candidates on offer, their locks, and how many times this board has been
+    // rerolled. Persisted so closing the tab is not a free reroll.
+    recruits: { candidates: [], locked: [], rerolls: 0 },
 
     settings: {
       autoRedeploy: false,   // re-run the same expedition when one finishes

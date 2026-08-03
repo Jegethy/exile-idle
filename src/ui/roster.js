@@ -3,10 +3,12 @@
 import { EQUIP_SLOTS, SLOTS } from '../data/bases.js';
 import { RARITY_BY_ID } from '../data/heroclasses.js';
 import {
-  BASE_STAMINA, assignToParty, dismiss, heroById, heroInfo, isDeployed, partyById, recruit, removeFromParty, unequipFromHero,
+  BASE_STAMINA, assignToParty, boardCosts, dismiss, heroById, heroInfo, isDeployed,
+  partyById, recruit, recruitBoard, rerollCost, rerollRecruits, removeFromParty,
+  toggleRecruitLock, unequipFromHero,
 } from '../heroes.js';
 import { itemBaseStats } from '../items.js';
-import { G, emit, on, recruitCost } from '../state.js';
+import { G, emit, on } from '../state.js';
 import { ehp, heroStats } from '../stats.js';
 import { clamp, escapeHtml, fmt, fmtInt, qs } from '../util.js';
 import { closeModals, confirmAction, openModal } from './modals.js';
@@ -20,16 +22,79 @@ import { hideTooltip, moveTooltip, showHeroTooltip, showItemTooltip } from './to
 
 function renderRosterHeader() {
   const s = G.state;
-  const cost = recruitCost(s.heroes.length);
-  const afford = s.guild.gold >= cost;
+  const cheapest = Math.min(...boardCosts());
+  const afford = s.guild.gold >= cheapest;
   qs('#rosterHeader').innerHTML = `
     <div class="panel-head">
       <span class="hint">${s.heroes.length} hero${s.heroes.length === 1 ? '' : 'es'}</span>
-      <button class="btn tiny ${afford ? 'primary' : ''}" id="btnRecruit" ${afford ? '' : 'disabled'}>
-        Recruit — ${fmtInt(cost)}g
+      <button class="btn tiny ${afford ? 'primary' : ''}" id="btnRecruit">
+        Hiring Hall${afford ? '' : ` — from ${fmtInt(cheapest)}g`}
       </button>
     </div>`;
-  qs('#btnRecruit').onclick = () => { setStatus(recruit().msg); renderRosterHeader(); };
+  qs('#btnRecruit').onclick = () => { renderRecruitBoard(); openModal('modalRecruit'); };
+}
+
+/**
+ * Three candidates, priced by how good they are. Locking one holds it through
+ * a reroll, which is what makes an unaffordable Legendary something to save
+ * towards rather than something you watch disappear.
+ */
+export function renderRecruitBoard() {
+  const s = G.state;
+  const board = recruitBoard();
+  const costs = boardCosts();
+  const reroll = rerollCost(s.heroes.length, board.rerolls);
+
+  qs('#recruitBody').innerHTML = `
+    <p class="hint">Candidates are priced by their quality. Lock anyone you want
+      to keep on the board through a reroll — the reroll price climbs until you
+      hire someone.</p>
+    <div class="recruit-grid">${board.candidates.map((h, i) => {
+    const info = heroInfo(h);
+    const cost = costs[i];
+    const afford = s.guild.gold >= cost;
+    const locked = board.locked.includes(h.uid);
+    return `<div class="recruit-card ${info.rarity.cls} ${locked ? 'locked' : ''}">
+        <div class="rc-top">
+          <span class="rc-name">${escapeHtml(h.name)}</span>
+          <button class="btn tiny ${locked ? 'active' : ''}" data-lock="${h.uid}"
+            title="${locked ? 'Unlock' : 'Hold through a reroll'}">${locked ? 'Locked' : 'Lock'}</button>
+        </div>
+        <div class="rc-sub">${info.rarity.name} ${escapeHtml(info.cls.name)} ·
+          <span class="role role-${info.cls.role.toLowerCase()}">${info.cls.role}</span>
+          <span class="row-tag ${info.cls.row}">${info.cls.row} line</span></div>
+        <div class="rc-blurb">${escapeHtml(info.cls.blurb)}</div>
+        <div class="rc-ability"><b>${escapeHtml(info.cls.ability.name)}</b> —
+          ${escapeHtml(info.cls.ability.desc)}</div>
+        <div class="rc-traits">${info.traits.length
+    ? info.traits.map((t) => `<span class="trait-chip t${t.tier}"
+        title="${escapeHtml(t.desc)}">${escapeHtml(t.name)}</span>`).join('')
+    : '<span class="hint">No traits.</span>'}</div>
+        <button class="btn ${afford ? 'primary' : ''}" data-hire="${h.uid}" ${afford ? '' : 'disabled'}>
+          Hire — ${fmtInt(cost)}g</button>
+      </div>`;
+  }).join('')}</div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ${s.guild.gold >= reroll ? '' : 'disabled'}" id="btnReroll"
+        ${s.guild.gold >= reroll ? '' : 'disabled'}>Reroll unlocked — ${fmtInt(reroll)}g</button>
+      <span class="hint">Guild gold: <b class="gold">${fmtInt(s.guild.gold)}</b></span>
+    </div>`;
+
+  qs('#recruitBody').onclick = (e) => {
+    const hire = e.target.closest('[data-hire]');
+    if (hire) {
+      const res = recruit(hire.dataset.hire);
+      setStatus(res.msg);
+      if (res.ok) { renderRecruitBoard(); renderRosterHeader(); }
+      return;
+    }
+    const lock = e.target.closest('[data-lock]');
+    if (lock) { toggleRecruitLock(lock.dataset.lock); renderRecruitBoard(); }
+  };
+  qs('#btnReroll').onclick = () => {
+    setStatus(rerollRecruits().msg);
+    renderRecruitBoard();
+  };
 }
 
 export function renderRoster() {

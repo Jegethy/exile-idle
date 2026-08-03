@@ -20,7 +20,7 @@ import {
   wireTabs, wireTopBar, renderGuildBar, renderQuickStats, renderStatus, setStatus,
 } from './ui/shell.js';
 import { wireModals, openModal, closeModals, renderSlots, renderSettings } from './ui/modals.js';
-import { renderRoster, updateStaminaBars } from './ui/roster.js';
+import { renderRoster, updateStaminaBars, renderRecruitBoard } from './ui/roster.js';
 import { renderParties } from './ui/parties.js';
 import { renderRuns, updateRunBars, renderDispatch } from './ui/expeditions.js';
 import { renderRaids } from './ui/raids.js';
@@ -66,6 +66,7 @@ export function initUI() {
   on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
   on('log', () => { renderLog(); });
   on('saves', () => { renderSlots(); });
+  on('recruits', () => { renderRecruitBoard(); });
   on('loaded', () => { ui.craftRecipe = null; ui.equipTarget = null; renderAll(); });
 
   // Arriving at a panel refreshes it, so affordability and stamina are never

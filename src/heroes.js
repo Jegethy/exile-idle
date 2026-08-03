@@ -63,18 +63,99 @@ export function rollHero(opts = {}) {
 }
 
 /** Pays gold and adds a new hero to the roster. */
-export function recruit() {
-  const s = G.state;
-  const cost = recruitCost(s.heroes.length);
-  if (!spendGold(cost)) return { ok: false, msg: `Recruiting costs ${cost} gold.` };
+const BOARD_SIZE = 3;
 
-  const hero = rollHero();
+/**
+ * What one candidate costs: the roster-size curve from state.js, scaled by how
+ * good they are. Keeping the exponential curve underneath is the point — a
+ * rich guild still cannot simply buy twenty heroes.
+ */
+export function candidateCost(rosterSize, rarityId) {
+  return Math.floor(recruitCost(rosterSize) * (RARITY_BY_ID[rarityId]?.cost ?? 1));
+}
+
+/**
+ * Rerolling escalates within a sitting and resets when somebody is hired. A
+ * flat fee would launder the curve away — you could reroll cheaply until a
+ * Legendary appeared.
+ */
+export function rerollCost(rosterSize, rerolls) {
+  return Math.floor(recruitCost(rosterSize) * 0.45 * Math.pow(1.6, rerolls));
+}
+
+/**
+ * The candidates currently on offer, generating them if the board is empty.
+ * Locked candidates survive a reroll; everyone else is replaced.
+ */
+export function recruitBoard() {
+  const s = G.state;
+  s.recruits ??= { candidates: [], locked: [], rerolls: 0 };
+  const board = s.recruits;
+  while (board.candidates.length < BOARD_SIZE) board.candidates.push(rollHero());
+  return board;
+}
+
+/** Cost of each candidate on the board, in the same order. */
+export function boardCosts() {
+  const s = G.state;
+  return recruitBoard().candidates.map((h) => candidateCost(s.heroes.length, h.rarity));
+}
+
+/** Locks or unlocks a candidate so a reroll leaves them alone. */
+export function toggleRecruitLock(heroUid) {
+  const board = recruitBoard();
+  const i = board.locked.indexOf(heroUid);
+  if (i >= 0) board.locked.splice(i, 1);
+  else board.locked.push(heroUid);
+  emit('recruits');
+  return board.locked.includes(heroUid);
+}
+
+/**
+ * Replaces every unlocked candidate. The price climbs with each reroll of the
+ * same board, so this is a decision rather than a slot machine.
+ */
+export function rerollRecruits() {
+  const s = G.state;
+  const board = recruitBoard();
+  const cost = rerollCost(s.heroes.length, board.rerolls);
+  if (!spendGold(cost)) return { ok: false, msg: `Rerolling costs ${cost} gold.` };
+
+  board.candidates = board.candidates.map((h) => (
+    board.locked.includes(h.uid) ? h : rollHero()));
+  board.rerolls++;
+  emit('recruits'); emit('guild');
+  return { ok: true, msg: `Board rerolled for ${cost} gold.` };
+}
+
+/** Hires one candidate. The board refills and its reroll price resets. */
+export function recruit(heroUid) {
+  const s = G.state;
+  const board = recruitBoard();
+  const i = heroUid
+    ? board.candidates.findIndex((h) => h.uid === heroUid)
+    : 0;
+  if (i < 0) return { ok: false, msg: 'That candidate has already moved on.' };
+
+  const hero = board.candidates[i];
+  const cost = candidateCost(s.heroes.length, hero.rarity);
+  const r = RARITY_BY_ID[hero.rarity];
+  if (!spendGold(cost)) {
+    return { ok: false, msg: `${r.name} ${CLASS_BY_ID[hero.classId].name} costs ${cost} gold.` };
+  }
+
+  board.candidates.splice(i, 1);
+  const lockedAt = board.locked.indexOf(hero.uid);
+  if (lockedAt >= 0) board.locked.splice(lockedAt, 1);
+  // Hiring settles the board: the next reroll starts from the base price.
+  board.rerolls = 0;
+  recruitBoard();
+
   s.heroes.push(hero);
   s.stats.recruited++;
-  const r = RARITY_BY_ID[hero.rarity];
-  log(`Recruited ${hero.name}, ${r.name} ${CLASS_BY_ID[hero.classId].name}.`,
+  log(`Recruited ${hero.name}, ${r.name} ${CLASS_BY_ID[hero.classId].name}, for ${cost} gold.`,
     hero.rarity === 'common' || hero.rarity === 'uncommon' ? 'sys' : 'unique');
-  emit('roster');
+  emit('roster'); emit('recruits');
   return { ok: true, hero, msg: `${hero.name} joined the guild.` };
 }
 

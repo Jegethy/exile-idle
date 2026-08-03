@@ -1172,3 +1172,29 @@ body.splash-open { overflow:hidden; }
   font-size:10px; line-height:1.45;
 }
 .tt-ability b { color:var(--gold); }
+
+/* ---- Hiring hall ------------------------------------------------------- */
+.recruit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.recruit-card {
+  display:flex; flex-direction:column; gap:5px;
+  padding:9px 10px; border:1px solid var(--line); border-left-width:3px;
+  border-radius:3px; background:rgba(0,0,0,.22);
+}
+.recruit-card.locked { background:rgba(200,170,110,.07); border-color:var(--gold-dim); }
+.rc-top { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.rc-name { font-size:13px; color:var(--ink); }
+.rc-sub { font-size:10px; color:var(--ink-dim); }
+.rc-blurb { font-size:10px; color:var(--ink-dim); font-style:italic; line-height:1.4; }
+.rc-ability {
+  font-size:10px; line-height:1.45; color:var(--ink-dim);
+  padding-top:5px; border-top:1px solid var(--line);
+}
+.rc-ability b { color:var(--gold); }
+.rc-traits { display:flex; flex-wrap:wrap; gap:3px; margin-top:auto; padding-top:4px; }
+.trait-chip {
+  padding:1px 5px; border-radius:2px; font-size:9px;
+  border:1px solid var(--line-2); color:var(--ink-dim); background:rgba(0,0,0,.3);
+}
+.trait-chip.t2 { color:#7fb0e0; border-color:rgba(127,176,224,.35); }
+.trait-chip.t3 { color:var(--gold); border-color:rgba(200,170,110,.35); }
+@media (max-width:900px) { .recruit-grid { grid-template-columns:1fr; } }
