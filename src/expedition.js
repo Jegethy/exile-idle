@@ -177,6 +177,8 @@ export function recall(expeditionId) {
   if (i < 0) return false;
   const run = s.expeditions[i];
   bankHaul(run);
+  const party = partyById(run.partyId);
+  if (party) party.returnedAt = s.playtime;
   const r = run.rewards;
   log(`${partyName(run)} returns early from ${run.name} with ${fmt(r.gold)} gold · `
     + `${r.gear} items · ${r.materials} materials.`, 'loot');

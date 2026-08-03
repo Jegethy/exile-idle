@@ -5,6 +5,7 @@ import { FLASKS } from '../data/recipes.js';
 import { dispatch } from '../expedition.js';
 import { MAX_MEMBERS, createParty, deleteParty, partyById, partyMembers } from '../heroes.js';
 import { G, on, partySlots } from '../state.js';
+import { guildEffects } from '../data/upgrades.js';
 import { escapeHtml, fmt, qs } from '../util.js';
 import { confirmAction } from './modals.js';
 import { openHeroModal } from './roster.js';
@@ -32,6 +33,7 @@ export function renderParties() {
     return;
   }
 
+  const autoUnlocked = !!guildEffects(s.upgrades).autoDispatch;
   host.innerHTML = s.parties.map((p) => {
     const members = partyMembers(p);
     const running = s.expeditions.some((e) => e.partyId === p.id);
@@ -59,10 +61,22 @@ export function renderParties() {
         data-hero="${h.uid}"><i class="pm-dot"></i>${escapeHtml(h.name)}
         <small>Lv${h.level}</small></span>`).join('')}</div>
       ${flaskPicker(p)}
-      <div class="row">${running ? '<span class="tag out">On expedition</span>'
+      <div class="row">
+        ${autoUnlocked ? `<label class="party-auto" title="Re-run this party's last expedition without being told.
+Each party decides for itself, so one can farm while another waits for you.">
+          <input type="checkbox" data-partyauto="${p.id}" ${p.autoRedeploy !== false ? 'checked' : ''}>
+          <span>Auto-redeploy</span></label>` : ''}
+        ${running ? '<span class="tag out">On expedition</span>'
     : `<button class="btn tiny danger" data-delparty="${p.id}">Disband</button>`}</div>
     </div>`;
   }).join('');
+
+  host.onchange = (e) => {
+    const auto = e.target.closest('[data-partyauto]');
+    if (!auto) return;
+    const party = partyById(auto.dataset.partyauto);
+    if (party) party.autoRedeploy = auto.checked;
+  };
 
   host.onclick = (e) => {
     const del = e.target.closest('[data-delparty]');

@@ -207,6 +207,8 @@ export function finishRun(run, success) {
       : 'They were carrying nothing.', 'danger');
   }
 
+  if (party) party.returnedAt = s.playtime;
+
   const i = s.expeditions.indexOf(run);
   if (i >= 0) s.expeditions.splice(i, 1);
   emit('expeditions'); emit('roster'); emit('guild');

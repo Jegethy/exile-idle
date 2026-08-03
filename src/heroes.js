@@ -222,7 +222,17 @@ export function isDeployed(hero) {
 
 export function createParty(name) {
   const s = G.state;
-  const party = { id: uid('p'), name: name || `Party ${s.parties.length + 1}`, members: [] };
+  const party = {
+    id: uid('p'), name: name || `Party ${s.parties.length + 1}`, members: [],
+    // Whether this party re-runs its last expedition on its own. Per party
+    // rather than global: with fewer charters than parties, one global switch
+    // meant whichever party came first in the list took the free charter every
+    // time and the others never went out at all.
+    autoRedeploy: true,
+    // When it last came home, so the queue can be fair rather than ordered by
+    // whenever the party happened to be created.
+    returnedAt: 0,
+  };
   s.parties.push(party);
   emit('roster');
   return party;

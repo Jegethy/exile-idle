@@ -1224,3 +1224,10 @@ body.splash-open { overflow:hidden; }
 .mix-label { flex:0 0 auto; font-size:9px; color:var(--ink-faint); }
 .mix-label.brawlers { color:#c87a56; }
 .mix-label.casters  { color:#9a7fd0; }
+
+/* Each party opts in to running itself. */
+.party-auto {
+  display:inline-flex; align-items:center; gap:5px; margin-right:auto;
+  font-size:10px; color:var(--ink-dim); cursor:pointer;
+}
+.party-auto input { accent-color:var(--gold-dim); }

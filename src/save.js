@@ -61,6 +61,12 @@ export function deserialize(payload) {
 
   const fresh = createState(data.name ?? 'The Wayfarers');
   const state = defaults(data, fresh);
+  // When this save was written, so the loop can work out how long the guild
+  // has been left alone. Non-enumerable: it is a property of the file rather
+  // than of the guild, and must not be written back out.
+  Object.defineProperty(state, '__savedAt', {
+    value: payload.savedAt ?? 0, enumerable: false, writable: true, configurable: true,
+  });
   state.version = SAVE_VERSION;
   migrate(state);
 
