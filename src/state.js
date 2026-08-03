@@ -4,7 +4,7 @@ import { rng } from './rng.js';
 import { MATERIALS } from './data/materials.js';
 import { guildEffects } from './data/upgrades.js';
 
-export const SAVE_VERSION = 11;          // 10+ = Idle Guild; 11 = materials replace orbs
+export const SAVE_VERSION = 11;          // 10+ = Idle Guild; 11 = crafting materials
 export const BASE_VAULT_CAPACITY = 80;
 export const BASE_PARTY_SLOTS = 1;
 export const MAX_PARTY_SIZE = 5;

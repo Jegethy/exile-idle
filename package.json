@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "A guild-master idle RPG: recruit heroes, gear them from a shared vault, and run parties through dungeons.",
+  "type": "module",
   "scripts": {
     "start": "node serve.js",
     "test": "node tests/run.mjs"

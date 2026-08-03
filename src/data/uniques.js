@@ -12,7 +12,7 @@ export const UNIQUES = [
     flavour: 'It was sworn on a better blade than this.',
     mods: [
       m([30, 50], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
-      m([4, 8], (v) => `+${v} to Strength`, (b, v) => { b.str += v; }),
+      m([15, 30], (v) => `+${v} to Armour`, (b, v) => { b.flatArmour += v; }),
       m([10, 18], (v) => `+${v} to maximum Life`, (b, v) => { b.flatLife += v; }),
     ],
   },
@@ -29,7 +29,7 @@ export const UNIQUES = [
     id: 'shorewalkers', name: 'Shorewalkers', base: 'boot_ev', lvl: 3, weight: 100,
     flavour: 'The sand remembers every exile who made it inland.',
     mods: [
-      m([15, 20], (v) => `${v}% increased Movement Speed`, (b, v) => { b.moveSpeed += v; }),
+      m([15, 25], (v) => `${v}% increased Evasion Rating`, (b, v) => { b.incEvasion += v; }),
       m([20, 40], (v) => `+${v} to Evasion Rating`, (b, v) => { b.flatEvasion += v; }),
       m([1, 3], (v) => `Regenerate ${v} Life per second`, (b, v) => { b.lifeRegenFlat += v; }, 1),
     ],
@@ -56,9 +56,9 @@ export const UNIQUES = [
     id: 'wanderlust', name: 'Wanderlust', base: 'boot_es', lvl: 12, weight: 90,
     flavour: 'Wander far enough and you will find yourself.',
     mods: [
-      m([20, 25], (v) => `${v}% increased Movement Speed`, (b, v) => { b.moveSpeed += v; }),
-      m([5, 10], (v) => `+${v} to Dexterity`, (b, v) => { b.dex += v; }),
-      m([20, 30], (v) => `+${v} to maximum Mana`, (b, v) => { b.flatMana += v; }),
+      m([20, 30], (v) => `${v}% increased Energy Shield`, (b, v) => { b.incES += v; }),
+      m([20, 40], (v) => `+${v} to Evasion Rating`, (b, v) => { b.flatEvasion += v; }),
+      m([2, 4], (v) => `Regenerate ${v} Life per second`, (b, v) => { b.lifeRegenFlat += v; }, 1),
     ],
   },
   {
@@ -83,8 +83,8 @@ export const UNIQUES = [
     id: 'karui_ward', name: 'Karui Ward', base: 'amulet', lvl: 22, weight: 80,
     flavour: 'The Karui do not fear death. They outrun it.',
     mods: [
-      m([10, 15], (v) => `${v}% increased Movement Speed`, (b, v) => { b.moveSpeed += v; }),
-      m([20, 30], (v) => `+${v} to Strength`, (b, v) => { b.str += v; }),
+      m([8, 12], (v) => `${v}% increased Attack Speed`, (b, v) => { b.incAtkSpeed += v; }),
+      m([25, 40], (v) => `+${v} to maximum Life`, (b, v) => { b.flatLife += v; }),
       m([80, 140], (v) => `+${v} to Accuracy Rating`, (b, v) => { b.accuracy += v; }),
     ],
   },
@@ -121,7 +121,7 @@ export const UNIQUES = [
     mods: [
       m([600, 900], (v) => `${v}% increased Physical Damage`, (b, v) => { b.incPhys += v; }),
       m([0, 0], () => 'Deal no Elemental Damage', (b) => { b.noEle = 1; }),
-      m([10, 20], (v) => `+${v} to Strength`, (b, v) => { b.str += v; }),
+      m([10, 20], (v) => `${v}% increased Attack Speed`, (b, v) => { b.incAtkSpeed += v; }),
     ],
   },
   {
@@ -137,9 +137,8 @@ export const UNIQUES = [
     id: 'headhunter', name: 'Headhunter', base: 'amulet', lvl: 68, weight: 12,
     flavour: 'The trophies of a hundred hunts, worn as one.',
     mods: [
-      m([40, 55], (v) => `+${v} to Strength`, (b, v) => { b.str += v; }),
-      m([40, 55], (v) => `+${v} to Dexterity`, (b, v) => { b.dex += v; }),
-      m([30, 50], (v) => `${v}% increased Damage per Rare Monster killed (capped)`, (b, v) => { b.headhunter += v; }),
+      m([25, 40], (v) => `${v}% increased Damage`, (b, v) => { b.incDamage += v; }),
+      m([20, 35], (v) => `${v}% increased Quantity of Items found`, (b, v) => { b.incQuant += v; }),
       m([25, 40], (v) => `${v}% increased Rarity of Items found`, (b, v) => { b.incRarity += v; }),
     ],
   },

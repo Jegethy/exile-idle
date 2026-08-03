@@ -104,15 +104,6 @@ export const AFFIXES = [
     ),
   },
   {
-    id: 'mana', group: 'IncreasedMana', type: 'prefix', req: GEAR, weight: 90,
-    text: (v) => `+${v[0]} to maximum Mana`,
-    apply: (b, v) => { b.flatMana += v[0]; },
-    tiers: T(
-      [1, 'Beryl', 10, 19], [12, 'Cobalt', 20, 34], [24, 'Azure', 35, 49], [36, 'Sapphire', 50, 64],
-      [48, 'Lapis', 65, 79], [60, 'Opalescent', 80, 94], [72, 'Celestial', 95, 114], [83, 'Void-lit', 115, 139],
-    ),
-  },
-  {
     id: 'flat_armour', group: 'Armour', type: 'prefix', req: ['armour', 'shield'], weight: 90,
     text: (v) => `+${v[0]} to Armour`,
     apply: (b, v) => { b.flatArmour += v[0]; },
@@ -196,33 +187,6 @@ export const AFFIXES = [
     tiers: T([24, 'of the Rainbow', 5, 8], [45, 'of Variegation', 9, 12], [65, 'of the Prism', 13, 16], [84, 'of the Spectrum', 17, 21]),
   },
   {
-    id: 'str', group: 'Strength', type: 'suffix', req: ANY, weight: 95,
-    text: (v) => `+${v[0]} to Strength`,
-    apply: (b, v) => { b.str += v[0]; },
-    tiers: T([1, 'of the Brute', 8, 12], [11, 'of the Wrestler', 13, 17], [22, 'of the Bear', 18, 22],
-      [33, 'of the Lion', 23, 27], [44, 'of the Gorilla', 28, 32], [60, 'of the Goliath', 33, 40], [80, 'of the Titan', 41, 50]),
-  },
-  {
-    id: 'dex', group: 'Dexterity', type: 'suffix', req: ANY, weight: 95,
-    text: (v) => `+${v[0]} to Dexterity`,
-    apply: (b, v) => { b.dex += v[0]; },
-    tiers: T([1, 'of the Mongoose', 8, 12], [11, 'of the Lynx', 13, 17], [22, 'of the Fox', 18, 22],
-      [33, 'of the Falcon', 23, 27], [44, 'of the Panther', 28, 32], [60, 'of the Phantom', 33, 40], [80, 'of the Wind', 41, 50]),
-  },
-  {
-    id: 'int', group: 'Intelligence', type: 'suffix', req: ANY, weight: 95,
-    text: (v) => `+${v[0]} to Intelligence`,
-    apply: (b, v) => { b.int += v[0]; },
-    tiers: T([1, 'of the Pupil', 8, 12], [11, 'of the Student', 13, 17], [22, 'of the Prodigy', 18, 22],
-      [33, 'of the Augur', 23, 27], [44, 'of the Philosopher', 28, 32], [60, 'of the Sage', 33, 40], [80, 'of the Oracle', 41, 50]),
-  },
-  {
-    id: 'all_attr', group: 'AllAttributes', type: 'suffix', req: ['jewellery', 'armour'], weight: 30,
-    text: (v) => `+${v[0]} to all Attributes`,
-    apply: (b, v) => { b.str += v[0]; b.dex += v[0]; b.int += v[0]; },
-    tiers: T([20, 'of the Newt', 6, 9], [42, 'of the Cheetah', 10, 13], [64, 'of the Hydra', 14, 18], [84, 'of the Ancients', 19, 24]),
-  },
-  {
     id: 'atk_speed', group: 'AttackSpeed', type: 'suffix', req: ['weapon', 'gloves', 'quiver', 'ring'], weight: 80, dec: 0,
     text: (v) => `${v[0]}% increased Attack Speed`,
     apply: (b, v) => { b.incAtkSpeed += v[0]; },
@@ -261,13 +225,6 @@ export const AFFIXES = [
     apply: (b, v) => { b.lifeRegenFlat += v[0]; },
     tiers: T([1, 'of the Newt', 1, 3], [12, 'of the Lizard', 3.1, 7], [24, 'of the Cloud', 7.1, 14],
       [40, 'of the Bear', 14.1, 26], [60, 'of Rejuvenation', 26.1, 45], [80, 'of Regrowth', 45.1, 72]),
-  },
-  {
-    id: 'move_speed', group: 'MovementVelocity', type: 'suffix', req: ['boots'], weight: 100,
-    text: (v) => `${v[0]}% increased Movement Speed`,
-    apply: (b, v) => { b.moveSpeed += v[0]; },
-    tiers: T([1, 'of the Wind', 10, 14], [20, 'of the Gale', 15, 19], [40, 'of the Zephyr', 20, 24],
-      [60, 'of the Hurricane', 25, 29], [80, 'of the Cyclone', 30, 35]),
   },
   {
     id: 'rarity', group: 'ItemFoundRarity', type: 'suffix', req: ['helmet', 'jewellery', 'quiver', 'gloves'], weight: 45,

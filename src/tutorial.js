@@ -143,7 +143,7 @@ export const STEPS = [
   },
   {
     id: 'workshop',
-    tab: 'orbs', target: '#materialGrid',
+    tab: 'workshop', target: '#materialGrid',
     title: 'Materials and the Workshop',
     body: 'Eight families of material, three grades each. They come from salvage and from '
       + 'expeditions — and <b>where you send a party decides what you bring back</b>. The Dark '

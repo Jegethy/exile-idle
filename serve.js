@@ -2,13 +2,14 @@
 // serve.js — a tiny static file server using only Node built-ins.
 //
 // Idle Guild uses native ES modules, which browsers refuse to load over the
-// file:// protocol. Run `node serve.js` and open the printed URL.
+// file:// protocol. Run `npm start` (or `node serve.js`) and open the URL.
 
-const http = require('node:http');
-const fs = require('node:fs');
-const path = require('node:path');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = __dirname;
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.argv[2] || process.env.PORT || 8080);
 
 const TYPES = {

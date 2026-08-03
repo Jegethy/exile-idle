@@ -342,10 +342,3 @@ export function baseDescriptor(base) {
   return { category, subtype: defs.length ? defs.join(' / ') : base.class };
 }
 
-/** Attribute requirement flavour text (cosmetic — not enforced). */
-export function reqAttrs(base, ilvl) {
-  const attrs = ['str', 'dex', 'int'].filter((a) => base.tags.includes(a));
-  if (!attrs.length) return null;
-  const per = Math.round((ilvl * 1.5 + 10) / attrs.length);
-  return Object.fromEntries(attrs.map((a) => [a, per]));
-}

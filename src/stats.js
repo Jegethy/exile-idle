@@ -17,15 +17,14 @@ import { clamp } from './util.js';
 /** Every key the stat pipeline can touch, zeroed. */
 export function emptyBag() {
   return {
-    str: 0, dex: 0, int: 0,
     addPhysMin: 0, addPhysMax: 0, addFireMin: 0, addFireMax: 0,
     addColdMin: 0, addColdMax: 0, addLightMin: 0, addLightMax: 0,
     addChaosMin: 0, addChaosMax: 0,
     incDamage: 0, incPhys: 0, incFire: 0, incCold: 0, incLight: 0, incChaos: 0, incEle: 0,
     incAtkSpeed: 0, incCrit: 0, critMulti: 0, accuracy: 0, incAccuracy: 0,
     moreDamage: 0, moreEle: 0, moreFire: 0,
-    flatLife: 0, incLife: 0, flatMana: 0, incMana: 0,
-    flatES: 0, incES: 0, esRecharge: 0,
+    flatLife: 0, incLife: 0,
+    flatES: 0, incES: 0,
     flatArmour: 0, incArmour: 0, flatEvasion: 0, incEvasion: 0,
     // `block` is the untyped kind that applies to both; the other two are
     // what shield bases grant.
@@ -33,11 +32,9 @@ export function emptyBag() {
     localIncPhys: 0, localIncArmour: 0, localIncEvasion: 0, localIncES: 0,
     resFire: 0, resCold: 0, resLight: 0, resChaos: 0, maxRes: 0,
     penFire: 0, penCold: 0, penLight: 0,
-    lifeLeech: 0, lifeRegenFlat: 0, lifeRegenPct: 0, moveSpeed: 0,
+    lifeLeech: 0, lifeRegenFlat: 0, lifeRegenPct: 0,
     incRarity: 0, incQuant: 0, reflect: 0, damageTaken: 0,
     incHeal: 0, noES: 0, noEle: 0,
-    // Unused Exile Idle keys kept so unique items don't crash the probe.
-    moreArmour: 0, moreEvasion: 0, moreArmourLess: 0, headhunter: 0, moreLife: 0,
   };
 }
 
@@ -100,7 +97,7 @@ export function heroStats(hero, upgrades = {}) {
   const baseEvasion = (30 + lvl * 4.0) * m.evasion * rMult;
 
   const life = (baseLife + bag.flatLife) * (1 + bag.incLife / 100);
-  const es = (gearES + bag.flatES) * (1 + bag.incES / 100);
+  const es = bag.noES ? 0 : (gearES + bag.flatES) * (1 + bag.incES / 100);
   const armour = (baseArmour + gearArmour + bag.flatArmour) * (1 + bag.incArmour / 100);
   const evasion = (baseEvasion + gearEvasion + bag.flatEvasion) * (1 + bag.incEvasion / 100);
   const blockMelee = clamp(bag.block + bag.blockMelee, 0, BLOCK_CAP);

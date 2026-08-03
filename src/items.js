@@ -3,7 +3,7 @@
 import { rng } from './rng.js';
 import { uid, clamp } from './util.js';
 import {
-  BASE_BY_ID, BASES, baseNameFor, baseStatsFor, reqAttrs, slotAccepts, baseDescriptor,
+  BASE_BY_ID, BASES, baseNameFor, baseStatsFor, slotAccepts, baseDescriptor,
 } from './data/bases.js';
 import { AFFIX_BY_ID, eligibleAffixes, availableTiers, tierNumber } from './data/affixes.js';
 import { UNIQUE_BY_ID, uniquesFor } from './data/uniques.js';
@@ -23,16 +23,12 @@ export const AFFIX_CAPS = { normal: 0, magic: 1, rare: 3, unique: 0 };
 // ---------------------------------------------------------------------------
 
 export const IMPLICITS = [
-  { id: 'imp_str', req: ['amulet'], r: [10, 24], text: (v) => `+${v} to Strength`, apply: (b, v) => { b.str += v; } },
-  { id: 'imp_dex', req: ['amulet'], r: [10, 24], text: (v) => `+${v} to Dexterity`, apply: (b, v) => { b.dex += v; } },
-  { id: 'imp_int', req: ['amulet'], r: [10, 24], text: (v) => `+${v} to Intelligence`, apply: (b, v) => { b.int += v; } },
   { id: 'imp_life_pct', req: ['amulet'], r: [3, 6], text: (v) => `${v}% increased maximum Life`, apply: (b, v) => { b.incLife += v; } },
   { id: 'imp_critmulti', req: ['amulet'], r: [15, 25], text: (v) => `+${v}% to Critical Strike Multiplier`, apply: (b, v) => { b.critMulti += v; } },
   { id: 'imp_life', req: ['ring'], r: [15, 35], text: (v) => `+${v} to maximum Life`, apply: (b, v) => { b.flatLife += v; } },
   { id: 'imp_res_fire', req: ['ring'], r: [15, 30], text: (v) => `+${v}% to Fire Resistance`, apply: (b, v) => { b.resFire += v; } },
   { id: 'imp_res_cold', req: ['ring'], r: [15, 30], text: (v) => `+${v}% to Cold Resistance`, apply: (b, v) => { b.resCold += v; } },
   { id: 'imp_res_light', req: ['ring'], r: [15, 30], text: (v) => `+${v}% to Lightning Resistance`, apply: (b, v) => { b.resLight += v; } },
-  { id: 'imp_mana', req: ['ring'], r: [20, 45], text: (v) => `+${v} to maximum Mana`, apply: (b, v) => { b.flatMana += v; } },
   { id: 'imp_crit', req: ['weapon'], r: [15, 30], text: (v) => `${v}% increased Critical Strike Chance`, apply: (b, v) => { b.incCrit += v; } },
   { id: 'imp_acc', req: ['weapon'], r: [50, 150], text: (v) => `+${v} to Accuracy Rating`, apply: (b, v) => { b.accuracy += v; } },
   { id: 'imp_aspd', req: ['weapon'], r: [4, 9], text: (v) => `${v}% increased Attack Speed`, apply: (b, v) => { b.incAtkSpeed += v; } },
@@ -308,7 +304,6 @@ export function itemBaseStats(item) {
   }
   // Base block comes from the shield type; a bare unique brings its own.
   if (s.block && !bare) out.block = { ...s.block };
-  out.req = reqAttrs(base, item.ilvl);
   out.class = base.class;
   return out;
 }

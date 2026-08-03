@@ -117,7 +117,7 @@ function selectTab(nav, tabId) {
   qsa('.tab-body', panel).forEach((b) => b.classList.toggle('active', b.id === `tab-${tabId}`));
   if (tabId === 'hall') { renderHall(); renderCollection(); }
   // Refresh on entry so affordability never shows stale after a run.
-  if (tabId === 'orbs') { renderMaterials(); renderCraftPanel(); }
+  if (tabId === 'workshop') { renderMaterials(); renderCraftPanel(); }
   if (tabId === 'parties') renderParties();
 }
 
