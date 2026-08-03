@@ -2,23 +2,36 @@
 
 A browser-based idle RPG where you run an adventuring guild: recruit heroes,
 equip them from a shared vault, and send several parties into dungeons at once.
-Vanilla HTML, CSS and ES modules — **zero dependencies**.
+Vanilla HTML, CSS and ES modules — **the game ships zero runtime dependencies**.
+(Playwright is a devDependency, used only by the test suite.)
 
 Built on the deep itemisation engine from this repo's previous life as *Exile
-Idle* (a Path of Exile-style idle ARPG, preserved on `main`). Tiered prefix and
-suffix affixes, PoE-style crafting orbs and unique items all carried over — but
-now they equip a whole roster instead of one character, which is what makes the
-loot actually matter.
+Idle*, a Path of Exile-style idle ARPG. Tiered prefix and suffix affixes and
+unique items carried over — but they now equip a whole roster instead of one
+character, which is what makes the loot matter.
 
 ## Running
 
 Native ES modules can't be loaded from `file://`, so serve the folder over HTTP:
 
 ```bash
-node serve.js          # then open http://localhost:8080/
+npm start              # then open http://localhost:8080/
 ```
 
 Any static server works equally well (`python -m http.server`, `npx serve`, …).
+
+## Tests
+
+```bash
+npm install            # Playwright, for the headless browser
+npm test               # every suite
+npm test block         # only suites whose name matches
+```
+
+Suites live in `tests/` and drive the real game in headless Chromium: the stat
+sheet cache, the loot escrow, block by damage type, the tutorial's
+never-advance-without-you rule, save round-trips, panel rendering, and the
+dispatch layout budget at the window sizes that used to break it.
 
 ## The loop
 
@@ -29,6 +42,9 @@ Any static server works equally well (`python -m http.server`, `npx serve`, …)
    Gathering runs like the Dark Forest exist purely to stock the workshop.
 4. **Combat resolves automatically** — tanks soak, healers mend, damage classes
    kill. Fallen heroes sit out the rest of the run but are never lost.
+   Everything found is *carried* by the party, not banked as it drops: clear the
+   dungeon and it all comes home, wipe and every coin of it stays down there.
+   Recalling early keeps the haul and gives up only the completion chest.
 5. **Spend the returns.** Gold buys recruits and permanent Guild Hall upgrades;
    materials craft and improve gear, and brew flasks; equipment kits out the
    roster.
@@ -54,7 +70,7 @@ comes back here, so you can run several guilds without reloading the page.
 
 ## Tutorial
 
-A new guild opens into a fourteen-step guided tour. It darkens the screen except
+A new guild opens into a sixteen-step guided tour. It darkens the screen except
 for the element being explained, and the cut-out stays genuinely interactive —
 when it asks you to send your first expedition, you press the real button and it
 runs a real expedition.
@@ -119,9 +135,20 @@ party can be pushed; once that is second nature, buy it and the toggle appears
 on the Expeditions tab. Early runs are also deliberately short — dungeons reach
 their full wave count around Tier 8.
 
-**Itemisation** — Nine slots, 29 formula-driven bases, tiered affixes gated by
-item level and 19 uniques, all shared through one guild vault, so gearing is a
-genuine allocation problem across the whole roster.
+**Itemisation** — Nine slots, 29 formula-driven bases, 31 tiered affixes gated
+by item level and 20 uniques, all shared through one guild vault, so gearing is
+a genuine allocation problem across the whole roster. Every modifier an item can
+roll changes a number on the hero wearing it; there are no decorative stats.
+
+**Shields and block** — A blocked hit is prevented outright, and what a shield
+blocks depends on what it is made of: armour shields turn aside melee (to 30%),
+energy shield shields turn aside spells (to 30%), and evasion shields cover both
+but only halfway (15% each). Block scales toward those caps as the base
+improves, so shields have an upgrade path of their own. Enemies declare whether
+they swing or cast, and the expedition panel shows which — a party built against
+the Storm Wardens is not the party you want against the Pit Brutes. *The
+Bulwark* is the extreme case: 30% against both, and no armour, evasion or energy
+shield whatsoever.
 
 **Materials** — Eight families (metal, cloth, leather, bone, wood, stone,
 essence, herb) at three grades each. They come from expeditions and from
@@ -141,7 +168,7 @@ party and drunk on dispatch, buffing that whole expedition — armour, life,
 damage, attack speed, or the elixirs that raise item rarity and gold. Deciding
 which company gets the good one is the point.
 
-**Guild Hall** — Thirteen permanent upgrades. **Expedition Charters** are the
+**Guild Hall** — Fourteen permanent upgrades. **Expedition Charters** are the
 headline purchase: each one lets another party run concurrently, which changes
 how the game plays more than any stat.
 
@@ -182,13 +209,33 @@ src/
   items.js          item generation, affix rolling, naming
   inventory.js      guild vault, salvage, Guild Hall purchases
   save.js           slots, migration, export/import
-  ui.js             all rendering and interaction
+  sheets.js         the one way to rebuild cached hero stat sheets
   rng.js            seeded PRNG
   util.js           formatting and DOM helpers
   crafting.js       bench recipes and alchemy
+  ui.js             orchestrator: which event redraws which panel
+  ui/
+    state.js        transient interface state (selection, filters)
+    shell.js        tab strip, top bar, guild header, status line
+    modals.js       modal plumbing, confirm, save slots, settings
+    tooltip.js      the single floating tooltip and its markup
+    roster.js       roster list and hero sheet
+    parties.js      party building and flask assignment
+    expeditions.js  runs in the field and the dispatch board
+    raids.js        Seal-gated milestone bosses
+    hall.js         Guild Hall upgrades and the unique collection
+    vault.js        shared gear vault
+    workshop.js     materials, bench recipes, alchemy
+    log.js          guild log and its filters
   data/             bases, affixes, uniques, materials, recipes, monsters,
                     heroclasses, traits, dungeons, upgrades
+tests/              headless browser suites (npm test)
 ```
+
+A panel never imports another panel to redraw it — it emits, and `ui.js` decides
+what that means. What is left between panels is only ever an action (the vault
+applying a craft, the party board opening a hero sheet), which keeps the module
+graph acyclic.
 
 ## Controls
 
@@ -201,9 +248,10 @@ src/
 
 ## History
 
-`main` holds **Exile Idle**, a complete single-character PoE-style idle ARPG:
-206-node passive tree, 7 classes, 19 ascendancies, infinite map tiers. It works,
-but idle stripped away the two things that make PoE compelling — combat feel and
-the trade economy — leaving one excellent system rather than a game's worth of
-them. Idle Guild reuses roughly half that codebase against a structure that
-gives idle play something to actually decide.
+This repo began as **Exile Idle**, a complete single-character PoE-style idle
+ARPG: 206-node passive tree, 7 classes, 19 ascendancies, infinite map tiers. It
+worked, but idle stripped away the two things that make PoE compelling — combat
+feel and the trade economy — leaving one excellent system rather than a game's
+worth of them. Idle Guild reuses roughly half that codebase against a structure
+that gives idle play something to actually decide. Exile Idle remains in this
+repository's history rather than on a branch.
