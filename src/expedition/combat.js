@@ -293,7 +293,9 @@ function enemyAct(run, e) {
   taken *= (1 + (sheet.damageTaken + modFrom(target, 'damageTaken')) / 100);
   // A class's standing against this kind of attack. Warriors take less from a
   // blade and more from a spell; Paladins the other way about.
-  taken *= (1 - (sheet.schoolResist?.[incoming] ?? 0) / 100);
+  // The hero's own standing against this school, plus anything warding them.
+  const ward = modFrom(target, incoming === 'spell' ? 'spellResist' : 'meleeResist');
+  taken *= (1 - ((sheet.schoolResist?.[incoming] ?? 0) + ward) / 100);
 
   fireTrigger('takeHit', { run, self: target, target: e, amount: taken, kind: incoming });
   damageHero(run, target, taken);

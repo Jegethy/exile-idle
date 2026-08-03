@@ -245,20 +245,56 @@ The Inquisitor looks worst there and is not: three of them is the wrong test,
 because Zealotry does not stack with itself. One in a mixed party takes the
 clear rate from 87% to 97%.
 
-Tanks are a genuine trade rather than a gradient, which only shows when the
-content is not mixed:
+Tanks are a genuine trade rather than a gradient:
 
 | Forced content | Warrior | Paladin | Guardian |
 |---|---|---|---|
-| All melee | 92% | 33% | 88% |
-| All spell | 71% | 96% | 83% |
+| All melee | 100% | 63% | 96% |
+| All spell | 54% | 100% | 79% |
 
-Healers hold their stated niches. With a tank concentrating damage the Cleric
-loses 0.7 heroes a run and the Druid 1.6; take the tank away and the gap
-closes, because a party-wide heal-over-time is wasted on the healthy.
+Which one you want depends on the dungeon, and bringing the wrong one costs
+about a tier — a harder afternoon, never a locked door.
 
-**Known gap:** no dungeon is caster-heavy, so the Paladin has no home content
-and looks weaker than it is. Per-dungeon enemy composition is the fix.
+**Known gap:** the Druid does not have a demonstrable niche. It heals less than
+the Cleric and no scenario in the current content rewards a party-wide
+heal-over-time enough to compensate, because a party that is all hurt at once
+is usually a party that is about to die. It is a working third healer, not yet
+a distinct one. The likely fix is content that applies steady chip damage to
+everyone rather than spikes to the tank.
+
+## Why the dungeon blend matters
+
+Every dungeon mixes brawlers and spellcasters, but no two mix them the same
+way, and the blend is shown on the dispatch card.
+
+That variation is the whole point. A uniform blend everywhere would make the
+even-handed Guardian strictly the best tank in the game: the same expected
+result as a specialist, with lower variance. Varying the lean is what gives
+the Warrior and the Paladin somewhere to be the right answer.
+
+| Dungeon | Melee / Spell | Wants |
+|---|---|---|
+| The Wild Marches | 70 / 30 | Warrior |
+| The Deepmines | 62 / 38 | Warrior |
+| The Proving Arena | 55 / 45 | Warrior |
+| The Dark Forest | 45 / 55 | Guardian |
+| The Sunken Crypt | 35 / 65 | Guardian |
+| Silkmoth Hollow | 26 / 74 | Paladin |
+| The Arcane Vault | 20 / 80 | Paladin |
+
+Nothing is ever pure — a dungeon with no casters at all would leave one tank
+with nothing to do rather than a hard afternoon.
+
+Two things about this are less obvious than they look. A dungeon feels even to
+a *tank* at roughly 40/60 rather than 50/50, because melee can only reach the
+front row and so concentrates on whoever is standing there, while spells spread
+across the party by threat. Measured, melee puts about 1.44× as much damage
+through a tank as the same weight of spellcasting.
+
+And that same asymmetry means a melee-resistant tank protects the whole party
+by absorbing, while a spell-resistant one would only ever protect itself. No
+resistance number can balance that, which is why the Paladin's Consecrate wards
+the *party* against spells rather than merely hardening the Paladin.
 
 ## Project layout
 

@@ -101,6 +101,22 @@ export function updateRunBars() {
   }
 }
 
+/**
+ * What this dungeon fights with. Tank choice only matters if the player can
+ * see what they are walking into, so the blend is stated rather than learned
+ * by dying.
+ */
+function mixBar(mix) {
+  const m = mix?.melee ?? 50;
+  const s = mix?.spell ?? 50;
+  const lean = m >= 60 ? 'brawlers' : m <= 35 ? 'casters' : 'mixed';
+  return `<div class="dg-mix" title="${m}% melee, ${s}% spellcasters — a Warrior answers `
+    + `brawlers, a Paladin answers casters, a Guardian handles either">
+    <span class="mix-bar"><i style="width:${m}%"></i></span>
+    <span class="mix-label ${lean}">${m}% melee · ${s}% spell</span>
+  </div>`;
+}
+
 export function renderDispatch() {
   const s = G.state;
   const host = qs('#dispatchPanel');
@@ -137,6 +153,7 @@ export function renderDispatch() {
         </div>
         <div class="dg-blurb">${escapeHtml(d.blurb)}</div>
         <div class="dg-counter">${escapeHtml(d.counter)}</div>
+        ${mixBar(d.attackMix)}
         <div class="dg-rewards">
           ${rewardBar('Gold', d.rewards.gold)}${rewardBar('Gear', d.rewards.gear)}
           ${rewardBar('XP', d.rewards.xp)}${rewardBar('Mats', d.rewards.mats)}

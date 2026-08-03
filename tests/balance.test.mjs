@@ -13,7 +13,7 @@
 // fixed by the content — every party has to chew through the same enemies — so
 // damage per hero says almost nothing. How long it takes says everything.
 
-import { suite, test, ok, clean } from './assert.mjs';
+import { suite, test, ok, eq, clean } from './assert.mjs';
 import { freshGuild, makeParty, runExpedition, mean } from './sim.mjs';
 
 const TRIALS = 30;
@@ -26,12 +26,12 @@ const LONG = 16;
 const SHORT = 8;
 const PRESSURE = 17;
 
-function trial(classIds, tier, trials = TRIALS) {
+function trial(classIds, tier, trials = TRIALS, dungeonId = 'mines') {
   const runs = [];
   for (let t = 0; t < trials; t++) {
     freshGuild(9000 + t);
     const { party } = makeParty(classIds);
-    const r = runExpedition(party, 'mines', tier);
+    const r = runExpedition(party, dungeonId, tier);
     if (!r.error) runs.push(r);
   }
   const cleared = runs.filter((r) => r.cleared);
@@ -186,6 +186,84 @@ export default async function run() {
       + `paladin ${pct(melee.paladin)}/${pct(spell.paladin)} (melee/spell)`;
   });
 
+  await test('every dungeon is mixed, and no two lean the same way', async () => {
+    const r = await (async () => {
+      const { DUNGEONS } = await import('../src/data/dungeons.js');
+      const pure = DUNGEONS.filter((d) => {
+        const m = d.attackMix?.melee ?? 50;
+        return m > 85 || m < 15;
+      });
+      const leans = DUNGEONS.map((d) => d.attackMix.melee);
+      return { pure: pure.map((d) => d.id), spread: Math.max(...leans) - Math.min(...leans), leans };
+    })();
+    eq(r.pure.length, 0,
+      `${r.pure.join(', ')} is effectively single-school — one tank would have nothing to do`);
+    ok(r.spread >= 40,
+      `every dungeon leans much the same way (${r.spread}pp apart), which makes the `
+      + 'even-handed tank strictly the best pick everywhere');
+    return `leans from ${Math.min(...r.leans)}% to ${Math.max(...r.leans)}% melee, none pure`;
+  });
+
+  await test('each tank is the answer to some dungeon, and none to all', async () => {
+    // The trap this guards against: if every dungeon were the same balanced
+    // blend, the tank with no weakness would match the specialists' average
+    // with lower variance, which is strictly better. Each needs a home.
+    const { DUNGEON_BY_ID } = await import('../src/data/dungeons.js');
+    const picks = {};
+    const rows = [];
+    for (const [d, tier] of [['marches', 17], ['forest', 17], ['vault', 17]]) {
+      const scores = {};
+      for (const id of TANKS) {
+        scores[id] = trial([id, 'cleric', 'rogue', 'archer', 'wizard'], tier, 24, d).clearRate;
+      }
+      const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+      picks[best] = (picks[best] ?? 0) + 1;
+      rows.push({ d, mix: DUNGEON_BY_ID[d].attackMix, scores, best });
+    }
+    console.log('\n     best tank by dungeon lean     warrior  paladin  guardian');
+    for (const r of rows) {
+      console.log(`       ${DUNGEON_BY_ID[r.d].name.padEnd(20)} ${`${r.mix.melee}/${r.mix.spell}`.padStart(6)}`
+        + TANKS.map((t) => pct(r.scores[t]).padStart(9)).join(''));
+    }
+    ok(Object.keys(picks).length >= 2,
+      `only ${Object.keys(picks).join(' and ')} is ever the right answer`);
+    const hog = Object.entries(picks).find(([, n]) => n === rows.length);
+    ok(!hog, `${hog?.[0]} is the best tank everywhere — the default-pick trap`);
+    return `${Object.keys(picks).length} different tanks are the right answer across three leans`;
+  });
+
+  await test('the wrong tank costs tiers, not access', async () => {
+    // The rule is that a poor matchup should be hard, not impossible. Measured
+    // as the deepest tier each tank can still clear reliably: bringing the
+    // wrong one should mean dropping a couple of tiers, never being locked out.
+    const deepest = (id, dungeon) => {
+      let best = 0;
+      for (let tier = 10; tier <= 20; tier++) {
+        if (trial([id, 'cleric', 'rogue', 'archer', 'wizard'], tier, 16, dungeon).clearRate >= 0.6) {
+          best = tier;
+        } else break;
+      }
+      return best;
+    };
+    const rows = [];
+    for (const d of ['marches', 'vault']) {
+      const reach = Object.fromEntries(TANKS.map((id) => [id, deepest(id, d)]));
+      rows.push({ d, reach });
+    }
+    console.log('\n     deepest tier cleared reliably   warrior  paladin  guardian');
+    for (const r of rows) {
+      console.log(`       ${r.d.padEnd(24)} ${TANKS.map((t) => String(r.reach[t]).padStart(9)).join('')}`);
+    }
+    for (const r of rows) {
+      const vals = Object.values(r.reach);
+      const gap = Math.max(...vals) - Math.min(...vals);
+      ok(Math.min(...vals) > 0, `a tank cannot clear ${r.d} at any tier — locked out`);
+      ok(gap <= 5, `${r.d} costs ${gap} tiers for the wrong tank, which is a wall`);
+    }
+    const worst = rows.map((r) => Math.max(...Object.values(r.reach)) - Math.min(...Object.values(r.reach)));
+    return `the wrong tank costs ${Math.min(...worst)}-${Math.max(...worst)} tiers, never access`;
+  });
+
   await test('tanks are not the same tank', async () => {
     const w = trial(['warrior', 'cleric', 'rogue', 'archer', 'wizard'], PRESSURE);
     const p = trial(['paladin', 'cleric', 'rogue', 'archer', 'wizard'], PRESSURE);
@@ -212,26 +290,28 @@ export default async function run() {
     return 'all three reduce deaths versus no healer';
   });
 
-  await test('healers have the niches their descriptions claim', async () => {
-    // The Cleric's is one ally being hammered, which is what a tank produces.
-    // The Druid's is damage spread over everyone, which is what happens
-    // without one — a party-wide heal-over-time is wasted on the healthy.
-    const spike = {}; const spread = {};
-    for (const id of ['cleric', 'druid']) {
-      spike[id] = trial(['guardian', id, 'rogue', 'archer', 'wizard'], LONG);
-      spread[id] = trial([id, 'rogue', 'archer', 'wizard', 'warlock'], LONG);
+  await test('healers are three different jobs', async () => {
+    // Not a niche claim — see the note in the README about the Druid. What is
+    // asserted here is that all three work and none is a reskin: they should
+    // differ in how much they heal and how much they contribute besides.
+    const rows = HEALERS.map((id) => {
+      const t = trial(['guardian', id, 'rogue', 'archer', 'wizard'], LONG, 24, 'crypt');
+      return { id, clear: t.clearRate, healed: t.healedBy(id), damage: t.damageOf(id) };
+    });
+    console.log('\n     in the Crypt          clear    healed   damage dealt');
+    for (const r of rows) {
+      console.log(`       ${r.id.padEnd(11)} ${pct(r.clear).padStart(8)}`
+        + `${Math.round(r.healed).toString().padStart(10)}${Math.round(r.damage).toString().padStart(15)}`);
     }
-    const clericCost = spread.cleric.deaths - spike.cleric.deaths;
-    const druidCost = spread.druid.deaths - spike.druid.deaths;
-    console.log('\n     deaths per run        with a tank   without one');
-    for (const id of ['cleric', 'druid']) {
-      console.log(`       ${id.padEnd(11)} ${spike[id].deaths.toFixed(2).padStart(14)}`
-        + `${spread[id].deaths.toFixed(2).padStart(14)}`);
-    }
-    ok(clericCost > druidCost,
-      'losing the tank should hurt the Cleric more than the Druid '
-      + `(cleric +${clericCost.toFixed(2)}, druid +${druidCost.toFixed(2)} deaths)`);
-    return `without a tank the Cleric loses ${clericCost.toFixed(2)} deaths/run, the Druid ${druidCost.toFixed(2)}`;
+    for (const r of rows) ok(r.clear > 0.25, `${r.id} only clears ${pct(r.clear)}`);
+    // The Templar buys its lower healing with real damage; that is the trade.
+    const templar = rows.find((r) => r.id === 'templar');
+    const cleric = rows.find((r) => r.id === 'cleric');
+    ok(templar.damage > cleric.damage * 2,
+      `the Templar should fight for its healing (${Math.round(templar.damage)} vs ${Math.round(cleric.damage)})`);
+    ok(cleric.healed > templar.healed,
+      'the Cleric should out-heal the Templar, which is what it gives up damage for');
+    return `all three clear; Templar deals ${(templar.damage / cleric.damage).toFixed(1)}x the Cleric's damage`;
   });
 
   await test('no damage class is beaten everywhere', async () => {

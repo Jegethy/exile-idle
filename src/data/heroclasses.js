@@ -32,9 +32,9 @@ export const HERO_CLASSES = [
     id: 'warrior', name: 'Warrior', role: 'Tank', icon: 'shield',
     row: 'front', reach: 'melee', school: 'melee',
     blurb: 'A wall against anything holding a weapon. Steel turns steel, and does much less against a curse.',
-    mult: { life: 1.95, armour: 2.30, evasion: 0.40, damage: 0.60, aps: 0.90, heal: 0, threat: 6.0 },
+    mult: { life: 1.90, armour: 2.15, evasion: 0.42, damage: 0.60, aps: 0.90, heal: 0, threat: 6.0 },
     block: { melee: 15, spell: 0 },
-    resist: { melee: 8, spell: -24 },
+    resist: { melee: 24, spell: -22 },
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Bulwark Stance',
@@ -50,31 +50,55 @@ export const HERO_CLASSES = [
     id: 'paladin', name: 'Paladin', role: 'Tank', icon: 'chalice',
     row: 'front', reach: 'melee', school: 'melee',
     blurb: 'Faith turns aside what armour cannot. Softer to a blade than a Warrior, far harder to burn.',
-    mult: { life: 1.55, armour: 1.60, evasion: 0.50, damage: 0.65, aps: 0.90, heal: 0, threat: 5.4 },
+    mult: { life: 1.90, armour: 2.15, evasion: 0.42, damage: 0.65, aps: 0.90, heal: 0, threat: 6.0 },
     block: { melee: 0, spell: 15 },
-    resist: { melee: -8, spell: 30 },
+    resist: { melee: -16, spell: 28 },
     prefers: ['mace1h', 'sword1h', 'shield_int'],
     ability: {
       name: 'Consecrate',
-      desc: 'Turning a spell aside mends the Paladin over the next 4s.',
-      reactions: [{
-        trigger: 'block', key: 'consecrate',
-        run: (ctx) => {
-          if (ctx.kind !== 'spell') return;
-          applyEffect(ctx.self, {
-            id: 'consecrate', name: 'Consecrate', duration: 4,
-            hps: ctx.self.maxLife * 0.03 / 4,
-          });
+      desc: 'Wards the whole party against spells while the Paladin stands, and '
+        + 'turning a spell aside mends them over the next 4s.',
+      reactions: [
+        {
+          // A tank soaks melee for the party simply by standing in front of
+          // it. Nothing does that for spells, which pass the front line and
+          // spread by threat — so a spell-resistant tank protected only
+          // itself, and could never trade evenly with a melee-resistant one.
+          // The ward is what makes the Paladin the answer to a caster house
+          // rather than merely a hero who survives it.
+          trigger: 'combatStart', key: 'consecrate-ward',
+          run: (ctx) => {
+            for (const ally of ctx.run.combatants) {
+              if (ally.down) continue;
+              applyEffect(ally, {
+                id: `consecrate:${ctx.self.uid}`, name: 'Consecrated',
+                mods: { spellResist: 18 }, duration: Infinity, source: ctx.self.uid,
+              });
+            }
+          },
         },
-      }],
+        {
+          trigger: 'block', key: 'consecrate-mend',
+          run: (ctx) => {
+            if (ctx.kind !== 'spell') return;
+            applyEffect(ctx.self, {
+              id: 'consecrate-mend', name: 'Consecrate', duration: 4,
+              hps: ctx.self.maxLife * 0.03 / 4,
+            });
+          },
+        },
+      ],
     },
   },
   {
     id: 'guardian', name: 'Guardian', role: 'Tank', icon: 'tower',
     row: 'front', reach: 'melee', school: 'melee',
     blurb: 'No particular strength and no particular weakness — simply refuses to stop standing there.',
-    mult: { life: 1.80, armour: 2.00, evasion: 0.45, damage: 0.55, aps: 0.90, heal: 0, threat: 6.0 },
+    mult: { life: 1.90, armour: 2.15, evasion: 0.42, damage: 0.55, aps: 0.90, heal: 0, threat: 6.0 },
     block: { melee: 5, spell: 5 },
+    // Even-handed rather than simply unbuffed: a small bonus to both is what
+    // makes the middle of the range its home instead of nobody's.
+    resist: { melee: 9, spell: 9 },
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Second Wind',
@@ -110,7 +134,8 @@ export const HERO_CLASSES = [
     prefers: ['staff', 'wand', 'shield_dex'],
     ability: {
       name: 'Rejuvenation',
-      desc: 'Every 6s the whole party regains life over the following 6s.',
+      desc: 'Every 6s the whole party regains life over the following 6s, so much '
+        + 'of it is wasted on a party that is fine and none of it on one that is not.',
       reactions: [{
         trigger: 'hit', key: 'rejuv', cooldown: 6,
         bind(sheet) { this.power = sheet.healPower * 4.0; },

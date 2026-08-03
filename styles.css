@@ -1198,3 +1198,14 @@ body.splash-open { overflow:hidden; }
 .trait-chip.t2 { color:#7fb0e0; border-color:rgba(127,176,224,.35); }
 .trait-chip.t3 { color:var(--gold); border-color:rgba(200,170,110,.35); }
 @media (max-width:900px) { .recruit-grid { grid-template-columns:1fr; } }
+
+/* What a dungeon fights with — the reason one tank beats another. */
+.dg-mix { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+.mix-bar {
+  flex:1 1 auto; height:4px; border-radius:2px; overflow:hidden;
+  background:#6a54a8;                       /* the spell remainder */
+}
+.mix-bar i { display:block; height:100%; background:#b4603c; }   /* melee */
+.mix-label { flex:0 0 auto; font-size:9px; color:var(--ink-faint); }
+.mix-label.brawlers { color:#c87a56; }
+.mix-label.casters  { color:#9a7fd0; }

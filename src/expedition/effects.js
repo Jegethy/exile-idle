@@ -22,6 +22,9 @@ import { clamp } from '../util.js';
 export const MOD_KEYS = [
   'incDamage', 'incAtkSpeed', 'incArmour', 'incEvasion', 'incHeal',
   'blockMelee', 'blockSpell', 'damageTaken', 'lifeRegenPct', 'threat',
+  // Reduction against one school specifically, which is how a ward over the
+  // party differs from simply being sturdier.
+  'meleeResist', 'spellResist',
 ];
 
 /**

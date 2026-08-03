@@ -56,7 +56,7 @@ export function dispatch(partyId, dungeonId, tier) {
   s.expeditions.push(buildRun({
     partyId, members, tier,
     dungeonId, dungeon, name: dungeon.name,
-    totalWaves: wavesFor(dungeon, tier), profile: dungeon.monsters, flaskId,
+    totalWaves: wavesFor(dungeon, tier), profile: { ...dungeon.monsters, attackMix: dungeon.attackMix }, flaskId,
   }));
 
   log(`${party.name} sets out for ${dungeon.name} (Tier ${tier}).`

@@ -3,6 +3,7 @@
 import {
   ARCHETYPES, CHAMPION_TITLES, GUARDIAN_TITLES, MONSTER_RARITY,
 } from '../data/monsters.js';
+import { DEFAULT_ATTACK_MIX } from '../data/dungeons.js';
 import { rng } from '../rng.js';
 import { clamp, uid } from '../util.js';
 import {
@@ -14,8 +15,21 @@ function championName() {
   return `${rng.pick(CHAMPION_TITLES[0])}${rng.pick(CHAMPION_TITLES[1])}`;
 }
 
+/**
+ * Picks an archetype respecting the dungeon's melee/spell lean, so The Wild
+ * Marches really is full of brutes and The Arcane Vault really is full of
+ * casters — without either being pure, which would leave one tank with
+ * nothing to do rather than a hard afternoon.
+ */
+function pickArchetype(profile) {
+  const mix = profile.attackMix ?? DEFAULT_ATTACK_MIX;
+  const want = rng.float() * (mix.melee + mix.spell) < mix.melee ? 'melee' : 'spell';
+  const pool = ARCHETYPES.filter((a) => a.attack === want);
+  return pool.length ? rng.pick(pool) : rng.pick(ARCHETYPES);
+}
+
 export function makeEnemy(tier, profile, rarityId = null) {
-  const arch = rng.pick(ARCHETYPES);
+  const arch = pickArchetype(profile);
   const rarity = MONSTER_RARITY[rarityId ?? rng.weighted(Object.values(MONSTER_RARITY)).id];
 
   const life = tierScale(tier, MON_LIFE_BASE, MON_LIFE_GROWTH)
