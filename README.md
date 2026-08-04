@@ -277,6 +277,43 @@ That also makes the Druid the class most likely to come into its own alongside
 dungeon and raid modifiers, where damage is applied to the party as a whole
 rather than to whoever is holding the front.
 
+## Resources
+
+Healers used to cast on every turn for ever. Measured, a Cleric restored nearly
+three times the party's entire life pool over one tier-18 run, which is why
+out-sustaining content twenty levels above the party was possible — nothing
+ever ran out.
+
+Three kinds, because three groups of classes work differently:
+
+| | Classes | Behaviour |
+|---|---|---|
+| **Mana** | Cleric, Druid, Templar, Paladin, Wizard, Warlock, Inquisitor | A pool that drains and trickles back. Casting and healing spend it. |
+| **Rage** | Warrior, Guardian | Starts empty and is *built* by fighting — damage taken and dealt both feed it. |
+| **Energy** | Rogue, Archer | A small pool that refills quickly, spent on abilities. |
+
+**Ordinary attacks are always free.** A hero who cannot afford anything still
+swings — a party standing still while a healer regenerates is not a fight, it
+is a screensaver. What runs out is the *good* option, not every option.
+
+The pool was sized from measurement, not taste. A heal costs 4.5 of a
+hundred-point pool, so a full bar is about twenty-two casts and regeneration
+sustains a further 0.45 a second. A tier-14 run needs roughly thirteen casts
+and is untouched; a tier-18 run needs forty-seven and runs dry around halfway.
+Mana bites exactly where healing was doing the heavy lifting, and a party
+playing at its own level never notices it.
+
+What costs is a discrete, occasional effect. A passive conversion is what a
+class *is* — a Templar does not spend mana to be a Templar — and an aura raised
+at the start of a fight cannot cost rage, because rage is earned by fighting
+and there has not been any yet.
+
+One side effect worth recording: **mana restored the Cleric's intended
+identity**. Before it, the Cleric was the weakest healer under pressure; the
+mana cap rewards healing efficiently per cast, which is exactly what a big
+single-target heal is for. It is now the strongest, as its description always
+claimed.
+
 ## Level matters
 
 Every dungeon states the level of what lives in it, and that used to be

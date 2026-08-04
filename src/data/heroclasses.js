@@ -41,6 +41,7 @@ export const HERO_CLASSES = [
       desc: 'Blocking a blow adds 12% armour for 4s, stacking three times.',
       reactions: [{
         trigger: 'block', key: 'bulwark',
+        costs: 15,
         run: selfBuff('bulwark', 'Bulwark Stance', { incArmour: 12 }, 4,
           { onReapply: 'stack', maxStacks: 3 }),
       }],
@@ -122,6 +123,7 @@ export const HERO_CLASSES = [
       desc: 'When an ally falls below half life, healing is 60% stronger for 5s.',
       reactions: [{
         trigger: 'allyLow', key: 'intercession', cooldown: 8,
+        costs: 'ability',
         run: selfBuff('intercession', 'Intercession', { incHeal: 60 }, 5),
       }],
     },
@@ -142,6 +144,7 @@ export const HERO_CLASSES = [
         + 'for a blow rather than answering one.',
       reactions: [{
         trigger: 'hit', key: 'rejuv', cooldown: 5,
+        costs: 'ability',
         bind(sheet) { this.power = sheet.healPower * 6.0; },
         run(ctx) {
           // The overflow is the whole point. A party-wide heal-over-time lands
@@ -160,15 +163,17 @@ export const HERO_CLASSES = [
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Radiance',
-      desc: 'Damage dealt heals the most wounded ally for 85% of it, and everyone else for 30% over 3s.',
+      desc: 'Damage dealt heals the most wounded ally for 50% of it, and everyone else '
+        + 'for 18% over 3s. Costs mana on every swing, so a long fight runs it dry.',
       reactions: [{
         trigger: 'hit', key: 'radiance',
-        run: all(healWounded(0.85), (ctx) => {
+        costs: 4,
+        run: all(healWounded(0.50), (ctx) => {
           for (const ally of ctx.run.combatants) {
             if (ally.down || ally === ctx.healed) continue;
             applyEffect(ally, {
               id: `radiance:${ctx.self.uid}`, name: 'Radiance', duration: 3,
-              hps: (ctx.amount * 0.30) / 3, source: ctx.self.uid,
+              hps: (ctx.amount * 0.18) / 3, source: ctx.self.uid,
             });
           }
         }),
@@ -224,6 +229,7 @@ export const HERO_CLASSES = [
       desc: 'Hits burn the target for a further 35% of the damage over 3s.',
       reactions: [{
         trigger: 'hit', key: 'overload',
+        costs: 2,
         run: all(dotFromHit('overload', 'Overload', 0.35, 3),
           announce((ctx) => `${ctx.self.name}'s magic sets ${ctx.target.name} alight.`, 0.15)),
       }],
@@ -244,6 +250,7 @@ export const HERO_CLASSES = [
         // it should scale with how many enemies there are and do nothing at all
         // against one. On a cooldown it was too rare to be an identity.
         trigger: 'hit', key: 'contagion',
+        costs: 2,
         run: (ctx) => {
           for (const enemy of ctx.run.enemies) {
             if (enemy === ctx.target) continue;

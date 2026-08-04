@@ -1261,3 +1261,12 @@ body.splash-open { overflow:hidden; }
    you how many are running themselves. */
 .auto-box .auto-count { font-size:10px; color:var(--ink-faint); }
 .auto-box.on .auto-count { color:var(--gold); }
+
+/* Resource bars sit under the life bar, thinner and quieter — a healer running
+   dry is the reason a party is losing, and it should be visible without
+   competing with the health it is there to protect. */
+.bar.res { height:7px; margin-top:2px; }
+.bar.res span { font-size:8px; line-height:7px; }
+.bar.res.mana i   { background:linear-gradient(90deg,#3f6fb0,#5f9fd0); }
+.bar.res.rage i   { background:linear-gradient(90deg,#a04530,#d0644a); }
+.bar.res.energy i { background:linear-gradient(90deg,#a08a30,#d8c04a); }

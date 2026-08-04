@@ -17,6 +17,7 @@
 
 import { rng } from '../rng.js';
 import { clamp } from '../util.js';
+import { spend } from './resource.js';
 
 /** Modifier keys an effect may contribute. Anything else is ignored. */
 export const MOD_KEYS = [
@@ -176,6 +177,10 @@ export function fireTrigger(trigger, ctx) {
   if (!reactions?.length) return;
   for (const r of reactions) {
     if (r.chance != null && !rng.chance(r.chance)) continue;
+    // A class ability costs the hero's resource; an item's effect does not.
+    // Paying is checked after the roll and before the cooldown, so a reaction
+    // that could not be afforded has not burnt its cooldown either.
+    if (r.costs && !spend(ctx.self, r.costs)) continue;
     if (r.cooldown) {
       const until = ctx.self.cooldowns?.[r.key] ?? 0;
       if (ctx.run.elapsed < until) continue;

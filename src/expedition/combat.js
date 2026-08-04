@@ -9,6 +9,7 @@ import { makeEnemy, makeGuardian } from './enemies.js';
 import { finishRun, onEnemyKilled } from './rewards.js';
 import { fireTrigger, modFrom, tickEffects } from './effects.js';
 import { addWard, damageHero, healHero } from './vitals.js';
+import { canAfford, gain, spend, tickResource } from './resource.js';
 
 /** Advances every running expedition by `dt` seconds. */
 export function tickAll(dt) {
@@ -79,6 +80,7 @@ function tickRun(run, dt) {
 
   // --- Regeneration ---
   for (const c of alive) {
+    tickResource(c, dt);
     const sheet = G.sheets[c.uid];
     const pctRegen = (flaskFx(run).lifeRegenPct ?? 0) + modFrom(c, 'lifeRegenPct');
     const regen = (sheet?.regen ?? 0) + c.maxLife * pctRegen / 100;
@@ -176,12 +178,15 @@ function spawnWave(run) {
 // ---------------------------------------------------------------------------
 
 function heroAct(run, c, sheet) {
-  // Healers mend instead of attacking when someone is meaningfully hurt.
-  if (sheet.healPower > 0) {
+  // Healers mend instead of attacking when someone is meaningfully hurt — and
+  // only while they can pay for it. A healer with nothing left picks up their
+  // mace and joins in, which is worse for the party and better than watching
+  // somebody stand still.
+  if (sheet.healPower > 0 && canAfford(c, 'heal')) {
     const wounded = run.combatants
       .filter((x) => !x.down && x.life < x.maxLife * 0.92)
       .sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife))[0];
-    if (wounded) {
+    if (wounded && spend(c, 'heal')) {
       const power = sheet.healPower * (1 + modFrom(c, 'incHeal') / 100);
       const healed = healHero(wounded, power, c);
       fireTrigger('heal', { run, self: c, target: wounded, amount: healed });
@@ -236,6 +241,7 @@ export function swing(run, c, sheet, target, depth) {
   c.damageDealt = (c.damageDealt ?? 0) + total;
   if (sheet.leech > 0 && physDealt > 0) healHero(c, physDealt * sheet.leech / 100, c);
 
+  gain(c, 'onHit');
   const ctx = { run, self: c, sheet, target, amount: total, depth, repeat: false };
   fireTrigger('hit', ctx);
   if (crit) fireTrigger('crit', ctx);
@@ -244,6 +250,7 @@ export function swing(run, c, sheet, target, depth) {
   else if (rng.chance(0.05)) log(`${c.name} hits ${target.name} for ${fmt(total)}.`, 'hit');
 
   if (target.life <= 0) {
+    gain(c, 'onKill');
     fireTrigger('kill', { run, self: c, target });
     onEnemyKilled(run, target);
     return;
@@ -279,6 +286,7 @@ function enemyAct(run, e) {
   const chance = (incoming === 'spell' ? sheet.blockSpell : sheet.blockMelee)
     + modFrom(target, incoming === 'spell' ? 'blockSpell' : 'blockMelee');
   if (chance > 0 && rng.chance(chance / 100)) {
+    gain(target, 'onBlock');
     fireTrigger('block', { run, self: target, target: e, kind: incoming });
     if (rng.chance(0.06)) {
       log(`${target.name} blocks ${e.name}'s ${incoming === 'spell' ? 'spell' : 'blow'}.`, 'hit');
@@ -306,6 +314,7 @@ function enemyAct(run, e) {
   // ...and everything that hits you lands harder.
   taken *= levelGap(target.level ?? run.level, run.level).incoming;
 
+  gain(target, 'onTakeHit');
   fireTrigger('takeHit', { run, self: target, target: e, amount: taken, kind: incoming });
   damageHero(run, target, taken);
 

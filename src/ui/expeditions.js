@@ -3,6 +3,7 @@
 import {
   DUNGEON_CATEGORIES, dungeonsIn, expectedDuration, staminaCost, tierToLevel, wavesFor,
 } from '../data/dungeons.js';
+import { RESOURCES } from '../data/resources.js';
 import { guildEffects } from '../data/upgrades.js';
 import { dispatch, recall, runProgress } from '../expedition.js';
 import { canDispatch, partyById } from '../heroes.js';
@@ -70,10 +71,18 @@ export function updateRunBars() {
     if (pc) {
       pc.innerHTML = run.combatants.map((c) => {
         const pct = clamp((c.life / Math.max(1, c.maxLife)) * 100, 0, 100);
+        // The resource bar matters as much as the life bar: a healer at zero
+        // mana is the reason a party is dying, and without showing it that
+        // looks like the healer simply stopped working.
+        const res = c.resource;
+        const rpct = res ? clamp((res.cur / res.max) * 100, 0, 100) : 0;
+        const kind = res ? RESOURCES[res.kind] : null;
         return `<div class="cbt ${c.down ? 'down' : ''}">
           <div class="cbt-name">${escapeHtml(c.name)}<small>${c.role}</small></div>
           <div class="bar life"><i style="width:${pct}%"></i>
             <span>${c.down ? 'DOWN' : `${fmt(Math.max(0, c.life))} / ${fmt(c.maxLife)}`}</span></div>
+          ${res ? `<div class="bar res ${res.kind}" title="${kind.name}">
+            <i style="width:${rpct}%"></i><span>${kind.short} ${Math.round(res.cur)}</span></div>` : ''}
         </div>`;
       }).join('');
     }

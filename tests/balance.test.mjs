@@ -31,7 +31,11 @@ const SHORT = 8;
 // everything, so keeping a tank or a healer alive only means something when
 // the party is out of its depth.
 const PRESSURE = 16;
-const BEHIND = 7;
+// Recalibrated when resources arrived. Seven levels down used to leave a
+// party bruised; with a mana pool behind the healing it leaves them dead, and
+// a test where everything fails measures nothing. Four to six is the band that
+// still has signal in it.
+const BEHIND = 5;
 
 function trial(classIds, tier, trials = TRIALS, dungeonId = 'mines', behind = 0) {
   const runs = [];
