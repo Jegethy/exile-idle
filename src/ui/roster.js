@@ -5,7 +5,7 @@ import { RARITY_BY_ID } from '../data/heroclasses.js';
 import {
   BASE_STAMINA, assignToParty, boardCosts, dismiss, heroById, heroInfo, isDeployed,
   partyById, recruit, recruitBoard, rerollCost, rerollRecruits, removeFromParty,
-  toggleRecruitLock, unequipFromHero,
+  toggleRecruitLock, unequipFromHero, equipSkill,
 } from '../heroes.js';
 import { itemBaseStats } from '../items.js';
 import { G, emit, on } from '../state.js';
@@ -203,6 +203,14 @@ export function openHeroModal(heroUid) {
     ? info.traits.map((t) => `<div class="trait t${t.tier}"><b>${escapeHtml(t.name)}</b>${escapeHtml(t.desc)}</div>`).join('')
     : '<span class="hint">No traits.</span>'}</div>
 
+    <div class="section-head"><span>Skill</span>
+      <span class="hint">One of three</span>
+    </div>
+    <div class="skill-list" id="skillList">${info.skills.length
+    ? info.skills.map((s) => `<button class="skill ${hero.skill === s.id ? 'active' : ''}" data-skill="${s.id}">
+        <b>${escapeHtml(s.name)}</b><span>${escapeHtml(s.desc)}</span></button>`).join('')
+    : '<span class="hint">No skills.</span>'}</div>
+
     <div class="section-head"><span>Equipment</span>
       <div class="head-actions">
         <button class="btn tiny ${ui.equipTarget === hero.uid ? 'active' : ''}" id="btnGearFor">Gear from Vault</button>
@@ -236,6 +244,10 @@ export function openHeroModal(heroUid) {
 
     <div class="section-head"><span>Danger Zone</span></div>
     <div class="row"><button class="btn danger" id="btnDismiss" ${out ? 'disabled' : ''}>Dismiss Hero</button></div>`;
+
+  for (const btn of qs('#heroModalBody').querySelectorAll('[data-skill]')) {
+    btn.onclick = () => { equipSkill(hero, btn.dataset.skill); openHeroModal(hero.uid); };
+  }
 
   qs('#btnGearFor').onclick = () => {
     ui.equipTarget = ui.equipTarget === hero.uid ? null : hero.uid;

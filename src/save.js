@@ -4,6 +4,7 @@ import { G, SAVE_VERSION, createState, log, emit, vaultCapacity } from './state.
 import { rng } from './rng.js';
 import { uidCounter, setUidFloor, defaults } from './util.js';
 import { CLASS_BY_ID, RETIRED_CLASSES } from './data/heroclasses.js';
+import { grantMissingSkills } from './heroes.js';
 
 export const SLOT_COUNT = 3;
 const KEY = (slot) => `idleGuild.slot${slot}`;
@@ -80,6 +81,7 @@ function migrate(state) {
   const notes = [];
 
   const reclassed = {};
+  let taughtSkills = 0;
   for (const hero of state.heroes ?? []) {
     // The class rework retired three archetypes. Move those heroes to the
     // nearest survivor so an existing roster keeps its shape.
@@ -90,6 +92,16 @@ function migrate(state) {
     if (!CLASS_BY_ID[hero.classId]) hero.classId = 'rogue';
     if (hero.stamina === undefined) hero.stamina = 100;
     if (!Array.isArray(hero.traits)) hero.traits = [];
+    // Heroes recruited before skills existed roll theirs now, from the pool
+    // their class would have drawn from. Done after the reclass above, so a
+    // retired class draws from the pool of the class it became.
+    if (grantMissingSkills(hero)) taughtSkills++;
+    // A skill that has since been removed, or one the class was never
+    // eligible for, would silently do nothing. Fall back to a valid choice.
+    if (hero.skill && !hero.skills.includes(hero.skill)) hero.skill = hero.skills[0] ?? null;
+  }
+  if (taughtSkills) {
+    notes.push(`${taughtSkills} hero${taughtSkills === 1 ? '' : 'es'} learned skills. Check the roster — each has three to choose from.`);
   }
   for (const [from, n] of Object.entries(reclassed)) {
     notes.push(`${n} ${from}${n === 1 ? '' : 's'} became ${RETIRED_CLASSES[from]}s in the class rework.`);

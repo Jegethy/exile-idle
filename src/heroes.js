@@ -7,6 +7,7 @@ import {
   HERO_CLASSES, CLASS_BY_ID, HERO_RARITIES, RARITY_BY_ID, FIRST_NAMES, EPITHETS,
 } from './data/heroclasses.js';
 import { traitPoolFor, traitPerks, TRAIT_BY_ID } from './data/traits.js';
+import { skillPoolFor, SKILL_CHOICES, SKILL_BY_ID } from './data/skills.js';
 import { EQUIP_SLOTS, BASE_BY_ID } from './data/bases.js';
 import { addToVault } from './inventory.js';
 import { refreshSheets } from './sheets.js';
@@ -44,6 +45,11 @@ export function rollHero(opts = {}) {
   const pool = traitPoolFor(rarity.id);
   const traits = rng.sample(pool, Math.min(rarity.traits, pool.length)).map((t) => t.id);
 
+  // Three offered, one usable. Rarity buys more traits but not more skills:
+  // the choice is meant to be about the class you rolled, not the luck of it.
+  const skills = rng.sample(skillPoolFor(cls), Math.min(SKILL_CHOICES, skillPoolFor(cls).length))
+    .map((s) => s.id);
+
   const equipment = {};
   for (const s of EQUIP_SLOTS) equipment[s] = null;
 
@@ -55,6 +61,8 @@ export function rollHero(opts = {}) {
     level: opts.level ?? 1,
     xp: 0,
     traits,
+    skills,
+    skill: skills[0] ?? null,
     equipment,
     stamina: BASE_STAMINA,
     partyId: null,
@@ -402,6 +410,8 @@ export function heroInfo(hero) {
     cls: CLASS_BY_ID[hero.classId],
     rarity: RARITY_BY_ID[hero.rarity],
     traits: hero.traits.map((t) => TRAIT_BY_ID[t]).filter(Boolean),
+    skills: skillsOf(hero),
+    skill: equippedSkill(hero),
   };
 }
 
@@ -432,3 +442,45 @@ export function startingRoster() {
 }
 
 export { MAX_MEMBERS };
+
+// ---------------------------------------------------------------------------
+// Skills
+// ---------------------------------------------------------------------------
+
+/** The three a hero rolled, as definitions, skipping any since retired. */
+export function skillsOf(hero) {
+  return (hero?.skills ?? []).map((id) => SKILL_BY_ID[id]).filter(Boolean);
+}
+
+/** The one in use, or null. */
+export function equippedSkill(hero) {
+  return hero?.skill ? SKILL_BY_ID[hero.skill] ?? null : null;
+}
+
+/**
+ * Swaps which of a hero's three is active. Free and instant: a skill is a
+ * choice about how to play a hero, not a resource to be hoarded, and charging
+ * for it would only mean players never experiment.
+ */
+export function equipSkill(hero, skillId) {
+  if (skillId !== null && !hero.skills?.includes(skillId)) return false;
+  hero.skill = skillId;
+  refreshSheets();
+  emit('roster');
+  return true;
+}
+
+/**
+ * Gives an older hero the skills it was born too early for.
+ *
+ * Saves predate this system, so a returning player would otherwise find every
+ * hero with nothing to equip. Rolled fresh from the class pool, matching what
+ * a new hero of that class would have seen.
+ */
+export function grantMissingSkills(hero) {
+  if (hero.skills?.length) return false;
+  const pool = skillPoolFor(CLASS_BY_ID[hero.classId]);
+  hero.skills = rng.sample(pool, Math.min(SKILL_CHOICES, pool.length)).map((s) => s.id);
+  hero.skill = hero.skills[0] ?? null;
+  return true;
+}

@@ -111,7 +111,7 @@ biggest thing missing from the previous design.
 
 ## Systems
 
-**Heroes** — Eleven classes across three roles, each with a passive ability
+**Heroes** — Twelve classes across four roles, each with a passive ability
 that fires on its own. No clicking, no party micro-management: internally they
 are cooldowns and triggers on the combat effects layer.
 
@@ -133,6 +133,10 @@ are cooldowns and triggers on the combat effects layer.
 Five rarities from Common to Legendary set stat multipliers and how many
 **traits** a hero rolls — 28 traits across three tiers, from `Sturdy` to
 `Executioner`. Rogues bring back more gold; Treasure Hunters more still.
+
+Every hero also rolls three **skills** and equips one of them, drawn from a pool
+gated by what the class actually is — a Warlock is never offered something that
+only works in melee. See [Skills](#skills).
 
 **Positioning** — Where a hero stands follows from what they do. Melee heroes
 must be in the front row to reach anything, and the front row is the only row a
@@ -315,6 +319,52 @@ mana cap rewards healing efficiently per cast, which is exactly what a big
 single-target heal is for. It is now the strongest, as its description always
 claimed.
 
+## Skills
+
+Every hero rolls **three skills** on recruitment and may have **one** equipped.
+Swapping is free and instant — a skill is a decision about how to play a hero,
+not a resource to hoard, and charging for the swap would only mean nobody ever
+experiments.
+
+A skill is a *reaction*: the same `{ trigger, key, chance?, cooldown?, costs?,
+run }` shape used by class abilities and unique items. That is the whole reason
+the system was cheap to add — `reactionsFor()` gained three lines and the
+combat engine gained none.
+
+The pool is **shared and gated**, not per class. Twelve per-class lists would
+be twelve content pipelines all needing balance; instead a skill may state any
+of `role`, `school` and `reach`, and a hero only ever rolls skills whose every
+stated requirement it meets:
+
+| Requirement | Example | Who sees it |
+|---|---|---|
+| none | Second Wind | everyone |
+| `role: 'Tank'` | Iron Bulwark | Warrior, Paladin, Guardian |
+| `reach: 'melee'` | Riposte | melee classes of any role |
+| `school: 'spell'` | Kindling | casters, and hybrids |
+| `reach: 'melee', role: 'DPS'` | Flurry | Rogue, Inquisitor |
+
+This is what stops a Warlock — a ranged spellcaster — being offered two melee
+skills and one it can use, which is not a choice at all. Every class ends up
+with six to eleven eligible skills to draw its three from; a test asserts both
+that no class is ever offered something it cannot use and that none has fewer
+than four to choose between.
+
+Skills are also **Energy's and Rage's second spender**. Before them a Rogue's
+energy bought only an empowered swing and a tank's rage only its class ability;
+Flurry, Iron Bulwark, Challenging Shout and Last Stand give those pools
+somewhere else to go.
+
+Measured, a skill is a real lever and an uneven one. On a Templar, rolling one
+moved a crypt push from 40% to 53%; on a Cleric or Druid the healer skills
+raise healing by 5–19% but barely move the clear rate, because healing
+throughput is not what decides that particular push. Because a rolled skill is
+worth that much, **the balance harness strips them** along with traits — a
+class comparison should measure the class, not which of three a hero drew.
+
+Heroes recruited before this existed roll theirs on load, from the pool their
+class would have drawn from, and the guild log says so.
+
 ## Support
 
 A Bard occupies a slot a damage class would have had, so it has to be worth
@@ -322,14 +372,22 @@ more than a third of one. Measured, the answer is *no* when nothing is
 threatening the party and *yes* when something is — which makes it a decision
 rather than an upgrade:
 
-| Party | Clear time at level | Clear rate, pushed hard |
+| Party | Clear time at level | Clear rate, pushed eight levels down |
 |---|---|---|
-| Tank, healer, three damage | 26s | 50% |
-| Tank, healer, Bard, two damage | 30s | 60% |
+| Tank, healer, three damage | 26s | 17% |
+| Tank, healer, Bard, two damage | 28s | 25% |
 
 Its Marching Song raises the party's resource regeneration by 70%, which is why
 it could not exist before resources did — a class whose whole contribution is
 letting the healer keep casting has nothing to offer when casting is free.
+
+Those figures are averaged over three seed bases, and the depth matters. This
+claim was originally recorded at seven levels down, where it does not hold:
+swept across five seed bases the two parties sit within a point of each other
+and the winner alternates with the seed. The advantage appears at eight and
+widens from there. What holds at *every* depth tried is that the Bard's party
+loses fewer heroes — 3.14 against 3.54 at eight levels down, 0.48 against 0.74
+at five — which is the more honest statement of what it does.
 
 ## Level matters
 
@@ -443,7 +501,7 @@ src/
     workshop.js     materials, bench recipes, alchemy
     log.js          guild log and its filters
   data/             bases, affixes, uniques, materials, recipes, monsters,
-                    heroclasses, traits, dungeons, upgrades
+                    heroclasses, traits, skills, resources, dungeons, upgrades
 tests/              headless browser suites (npm test)
 ```
 

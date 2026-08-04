@@ -69,6 +69,11 @@ export function makeParty(classIds, { level = 40, ilvl = 40, rarity = 'common' }
     // Traits are noise for a class comparison — strip them so the figures
     // reflect the class rather than which perks happened to roll.
     hero.traits = [];
+    // Skills likewise, and for a stronger reason: they are a real lever.
+    // Measured on a Templar, a rolled skill moved a crypt push from 40% to
+    // 53%, so leaving them in means every class figure carries whichever of
+    // three a hero happened to draw. Tests that want one set it explicitly.
+    hero.skill = null;
     equipFor(hero, ilvl);
     G.state.heroes.push(hero);
     return hero;

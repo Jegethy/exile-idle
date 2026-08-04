@@ -21,7 +21,7 @@ import { spend } from './resource.js';
 
 /** Modifier keys an effect may contribute. Anything else is ignored. */
 export const MOD_KEYS = [
-  'incDamage', 'incAtkSpeed', 'incArmour', 'incEvasion', 'incHeal',
+  'incDamage', 'incAtkSpeed', 'incArmour', 'incEvasion', 'incHeal', 'incCrit',
   'blockMelee', 'blockSpell', 'damageTaken', 'lifeRegenPct', 'threat',
   // Reduction against one school specifically, which is how a ward over the
   // party differs from simply being sturdier.

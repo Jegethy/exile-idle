@@ -144,6 +144,8 @@ export function showHeroTooltip(hero, event) {
     ${line('Resistances', `${sheet.res.fire.value}/${sheet.res.cold.value}/${sheet.res.light.value}/${sheet.res.chaos.value}`)}
     ${info.cls.ability ? `<div class="tt-ability"><b>${escapeHtml(info.cls.ability.name)}</b> —
       ${escapeHtml(info.cls.ability.desc)}</div>` : ''}
+    ${info.skill ? `<div class="tt-ability"><b>${escapeHtml(info.skill.name)}</b> —
+      ${escapeHtml(info.skill.desc)}</div>` : ''}
     ${info.traits.length ? '<div class="tt-sep"></div>' : ''}
     ${info.traits.map((tr) => `<div class="tt-mod">${escapeHtml(tr.name)} — ${escapeHtml(tr.desc)}</div>`).join('')}
     <div class="tt-hint">Click for equipment and party assignment</div>`;

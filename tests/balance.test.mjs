@@ -37,10 +37,16 @@ const PRESSURE = 16;
 // still has signal in it.
 const BEHIND = 5;
 
-function trial(classIds, tier, trials = TRIALS, dungeonId = 'mines', behind = 0) {
+// Trials are seeded from one base, which makes a run reproducible but also
+// makes a marginal claim a claim about one sample. Two of these tests were
+// found asserting things that held at 9000 and nowhere else. Those now sweep
+// several bases; see multiTrial below.
+const SEED_BASES = [9000, 31000, 53000];
+
+function trial(classIds, tier, trials = TRIALS, dungeonId = 'mines', behind = 0, seedBase = 9000) {
   const runs = [];
   for (let t = 0; t < trials; t++) {
-    freshGuild(9000 + t);
+    freshGuild(seedBase + t);
     const { party } = partyForTier(classIds, tier, behind);
     const r = runExpedition(party, dungeonId, tier);
     if (!r.error) runs.push(r);
@@ -64,6 +70,24 @@ function trial(classIds, tier, trials = TRIALS, dungeonId = 'mines', behind = 0)
         .reduce((a, c) => a + c.damageDealt, 0);
       return total > 0 ? mine / total : 0;
     })),
+  };
+}
+
+/**
+ * The same trial across several seed bases, reported as means.
+ *
+ * Use this for any claim whose margin is small. A 53%-versus-60% result at one
+ * base says nothing — the same comparison swung both ways across five bases —
+ * whereas a consistent mean is a fact about the classes.
+ */
+function multiTrial(classIds, tier, trials, dungeonId = 'mines', behind = 0) {
+  const rs = SEED_BASES.map((s) => trial(classIds, tier, trials, dungeonId, behind, s));
+  const avg = (key) => mean(rs.map((r) => r[key]));
+  return {
+    clearRate: avg('clearRate'),
+    seconds: avg('seconds'),
+    deaths: avg('deaths'),
+    damageOf: (id) => mean(rs.map((r) => r.damageOf(id))),
   };
 }
 
@@ -110,10 +134,16 @@ export default async function run() {
     // made it real — a Rogue opens a wave on a full bar and finishes it on the
     // trickle, while an Archer's swing is priced at exactly what it
     // regenerates and so never runs short.
+    //
+    // What is asserted is the *direction*: the Rogue's lead is bigger in short
+    // waves than long ones. The stronger claim this test used to make — that
+    // the Archer draws level over a long wave — was measured across five seed
+    // bases at 1.09 to 1.20, mean 1.145, and is simply not true. The Archer
+    // narrows the gap; it does not close it.
     const short = {}; const long = {};
     for (const id of ['rogue', 'archer']) {
-      short[id] = trial(['guardian', 'cleric', id, id, id], SHORT).damageOf(id);
-      long[id] = trial(['guardian', 'cleric', id, id, id], LONG).damageOf(id);
+      short[id] = multiTrial(['guardian', 'cleric', id, id, id], SHORT, TRIALS).damageOf(id);
+      long[id] = multiTrial(['guardian', 'cleric', id, id, id], LONG, TRIALS).damageOf(id);
     }
     const shortRatio = short.rogue / short.archer;
     const longRatio = long.rogue / long.archer;
@@ -123,7 +153,7 @@ export default async function run() {
     ok(shortRatio > longRatio,
       `the Rogue should fare better in short waves (${shortRatio.toFixed(3)} vs ${longRatio.toFixed(3)})`);
     ok(shortRatio > 1, `the Rogue should out-damage the Archer in a short wave (${shortRatio.toFixed(2)})`);
-    ok(longRatio < 1.1, `the Archer should hold its own over a long wave (${longRatio.toFixed(2)})`);
+    ok(longRatio < 1.25, `the Archer should close some of the gap over a long wave (${longRatio.toFixed(2)})`);
     return `${shortRatio.toFixed(2)}x in short waves, ${longRatio.toFixed(2)}x in long ones`;
   });
 
@@ -158,13 +188,17 @@ export default async function run() {
     const dps = ['guardian', 'cleric', 'rogue', 'archer', 'wizard'];
     const bard = ['guardian', 'cleric', 'bard', 'rogue', 'archer'];
     const atLevel = { dps: trial(dps, LONG, 24), bard: trial(bard, LONG, 24) };
-    // Deeper than the suite's usual push: at five levels down both parties
-    // still clear comfortably and there is nothing for a Bard to save. The
-    // difference is consistent from six levels and widens from there.
-    const deep = BEHIND + 2;
+    // Deeper than the suite's usual push, and deeper than this test first
+    // looked. Swept across pressure levels and seed bases, the clear-rate
+    // advantage does not exist at five, six or seven levels down — both
+    // parties sit within a point of each other and the winner alternates with
+    // the seed. It appears at eight and widens: 15% against 24%, then 3%
+    // against 7%, then 1% against 6%. Fewer deaths, by contrast, hold at every
+    // level tried, which is the more honest statement of what a Bard does.
+    const deep = BEHIND + 3;
     const pushed = {
-      dps: trial(dps, LONG, 30, 'mines', deep),
-      bard: trial(bard, LONG, 30, 'mines', deep),
+      dps: multiTrial(dps, LONG, 24, 'mines', deep),
+      bard: multiTrial(bard, LONG, 24, 'mines', deep),
     };
     console.log('\n     party                 at level        pushed');
     console.log(`       three damage  ${atLevel.dps.seconds.toFixed(0).padStart(9)}s`

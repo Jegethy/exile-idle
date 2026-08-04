@@ -215,7 +215,7 @@ function heroAct(run, c, sheet) {
 export function swing(run, c, sheet, target, depth) {
   if (!target || target.life <= 0) return;
 
-  const crit = rng.chance(sheet.critChance / 100);
+  const crit = rng.chance((sheet.critChance * (1 + modFrom(c, 'incCrit') / 100)) / 100);
   const critMult = crit ? sheet.critMulti / 100 : 1;
   // Energy classes spend to hit harder. Affording it is a bonus, not a
   // requirement: the swing happens either way.
