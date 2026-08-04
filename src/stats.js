@@ -265,6 +265,9 @@ export function upgradeFor(hero, item, upgrades = {}, slotOverride = null) {
 const ROLE_WEIGHTS = {
   Tank: { dps: 0.15, life: 1.0, armour: 0.8, evasion: 0.3, es: 0.6, heal: 0, block: 12 },
   Healer: { dps: 0.2, life: 0.7, armour: 0.3, evasion: 0.2, es: 0.3, heal: 3.0, block: 2 },
+  // A Support contributes nothing directly, so what it wants is to keep
+  // standing and keep playing: survivability over output.
+  Support: { dps: 0.25, life: 0.9, armour: 0.4, evasion: 0.35, es: 0.4, heal: 0, block: 3 },
   DPS: { dps: 1.0, life: 0.25, armour: 0.1, evasion: 0.15, es: 0.1, heal: 0, block: 1 },
 };
 

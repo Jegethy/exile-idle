@@ -26,6 +26,9 @@ export const MOD_KEYS = [
   // Reduction against one school specifically, which is how a ward over the
   // party differs from simply being sturdier.
   'meleeResist', 'spellResist',
+  // How fast a hero's pool refills. This is what a support class trades its
+  // own damage for: it does not heal, it makes the healer able to keep going.
+  'resourceRegen',
 ];
 
 /**

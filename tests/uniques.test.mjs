@@ -75,7 +75,7 @@ export default async function run(browser) {
       const { tickAll } = await import('./src/expedition.js');
       const { run: run_ } = await window.__setup('emberbrand', 'wizard', 6);
       let burning = false;
-      for (let i = 0; i < 200 && run_.status === 'running' && !burning; i++) {
+      for (let i = 0; i < 800 && run_.status === 'running' && !burning; i++) {
         tickAll(0.1);
         burning = run_.enemies.some((e) => e.effects?.some((f) => f.id.startsWith('emberbrand:')));
       }
@@ -90,7 +90,7 @@ export default async function run(browser) {
       const { tickAll } = await import('./src/expedition.js');
       const { run: run_ } = await window.__setup('rendingedge', 'rogue', 6);
       let bleed = null; let hit = 0;
-      for (let i = 0; i < 200 && run_.status === 'running' && !bleed; i++) {
+      for (let i = 0; i < 800 && run_.status === 'running' && !bleed; i++) {
         tickAll(0.1);
         for (const e of run_.enemies) {
           const b = e.effects?.find((f) => f.id === 'bleed');

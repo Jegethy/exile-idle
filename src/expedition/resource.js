@@ -82,11 +82,17 @@ export function gain(c, event) {
   c.resource.cur = Math.min(c.resource.max, c.resource.cur + amount);
 }
 
-/** Passive regeneration. */
-export function tickResource(c, dt) {
+/**
+ * Passive regeneration, plus whatever is raising it.
+ *
+ * `bonus` is a percentage, supplied by the caller rather than read here — this
+ * module must not import the effects layer, which already imports it.
+ */
+export function tickResource(c, dt, bonus = 0) {
   const kind = kindOf(c);
   if (!kind || !kind.regen) return;
-  c.resource.cur = Math.min(c.resource.max, c.resource.cur + kind.regen * dt);
+  const rate = kind.regen * (1 + bonus / 100);
+  c.resource.cur = Math.min(c.resource.max, c.resource.cur + rate * dt);
 }
 
 /** Fraction full, for a bar. */

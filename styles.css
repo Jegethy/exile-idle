@@ -612,6 +612,7 @@ b.gold { color:var(--gold); }
 .role-tank   { color:#d0a24a; border-color:#5a4620; background:rgba(208,162,74,.10); }
 .role-dps    { color:#d0644a; border-color:#5a2c20; background:rgba(208,100,74,.10); }
 .role-healer { color:#c98ae0; border-color:#4a2c5a; background:rgba(201,138,224,.10); }
+.role-support{ color:#5fc8b8; border-color:#205a52; background:rgba(95,200,184,.10); }
 
 .tag {
   padding:1px 7px; border-radius:8px; font-size:10px;

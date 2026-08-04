@@ -181,6 +181,39 @@ export const HERO_CLASSES = [
     },
   },
 
+  // ---- Support ------------------------------------------------------------
+  {
+    id: 'bard', name: 'Bard', role: 'Support', icon: 'lute',
+    row: 'back', reach: 'ranged', school: 'spell',
+    support: true,
+    blurb: 'Fights barely harder than the tank does. What a Bard is for is '
+      + 'everyone else — a party with one keeps going long after a party '
+      + 'without one has run dry.',
+    mult: { life: 1.00, armour: 0.60, evasion: 0.85, damage: 0.55, aps: 0.95, heal: 0, threat: 0.8 },
+    prefers: ['wand', 'dagger', 'shield_dex'],
+    ability: {
+      name: 'Marching Song',
+      desc: 'While the Bard plays, the whole party regenerates 70% more of its '
+        + 'resource and 1% of its life every second.',
+      reactions: [{
+        // An aura, so it is raised at the start of a wave and costs nothing —
+        // rage would be unaffordable then, and a song is what the class is
+        // rather than something it casts.
+        trigger: 'combatStart', key: 'marching-song',
+        run: (ctx) => {
+          for (const ally of ctx.run.combatants) {
+            if (ally.down) continue;
+            applyEffect(ally, {
+              id: `song:${ctx.self.uid}`, name: 'Marching Song',
+              mods: { resourceRegen: 70, lifeRegenPct: 1.0 },
+              duration: Infinity, source: ctx.self.uid,
+            });
+          }
+        },
+      }],
+    },
+  },
+
   // ---- Damage -------------------------------------------------------------
   {
     id: 'rogue', name: 'Rogue', role: 'DPS', icon: 'dagger',
@@ -333,7 +366,7 @@ export const HERO_RARITIES = [
 export const RARITY_BY_ID = Object.fromEntries(HERO_RARITIES.map((r) => [r.id, r]));
 
 /** Roles used for party-composition hints. Damage is damage. */
-export const ROLES = ['Tank', 'Healer', 'DPS'];
+export const ROLES = ['Tank', 'Healer', 'Support', 'DPS'];
 
 // ---------------------------------------------------------------------------
 // Name generation

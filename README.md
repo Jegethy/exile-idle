@@ -128,6 +128,7 @@ are cooldowns and triggers on the combat effects layer.
 | **Wizard** | DPS | The highest damage and the lowest life in the guild. |
 | **Warlock** | DPS | The worst single target, and the only class that ignores how many enemies there are. |
 | **Inquisitor** | DPS | Mediocre at everything, and makes the whole party better. |
+| **Bard** | Support | Fights barely harder than the tank. Keeps everyone else going. |
 
 Five rarities from Common to Legendary set stat multipliers and how many
 **traits** a hero rolls — 28 traits across three tiers, from `Sturdy` to
@@ -313,6 +314,22 @@ identity**. Before it, the Cleric was the weakest healer under pressure; the
 mana cap rewards healing efficiently per cast, which is exactly what a big
 single-target heal is for. It is now the strongest, as its description always
 claimed.
+
+## Support
+
+A Bard occupies a slot a damage class would have had, so it has to be worth
+more than a third of one. Measured, the answer is *no* when nothing is
+threatening the party and *yes* when something is — which makes it a decision
+rather than an upgrade:
+
+| Party | Clear time at level | Clear rate, pushed hard |
+|---|---|---|
+| Tank, healer, three damage | 26s | 50% |
+| Tank, healer, Bard, two damage | 30s | 60% |
+
+Its Marching Song raises the party's resource regeneration by 70%, which is why
+it could not exist before resources did — a class whose whole contribution is
+letting the healer keep casting has nothing to offer when casting is free.
 
 ## Level matters
 

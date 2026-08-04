@@ -151,6 +151,37 @@ export default async function run() {
     return `${pct(withIt.clearRate)} clear with, ${pct(without.clearRate)} without`;
   });
 
+  await test('a Bard costs speed and buys survival', async () => {
+    // It occupies a slot a damage class would have had, so it has to be worth
+    // more than a third of one. The answer should be no when content is easy
+    // and yes when it is not — which is a decision rather than an upgrade.
+    const dps = ['guardian', 'cleric', 'rogue', 'archer', 'wizard'];
+    const bard = ['guardian', 'cleric', 'bard', 'rogue', 'archer'];
+    const atLevel = { dps: trial(dps, LONG, 24), bard: trial(bard, LONG, 24) };
+    // Deeper than the suite's usual push: at five levels down both parties
+    // still clear comfortably and there is nothing for a Bard to save. The
+    // difference is consistent from six levels and widens from there.
+    const deep = BEHIND + 2;
+    const pushed = {
+      dps: trial(dps, LONG, 30, 'mines', deep),
+      bard: trial(bard, LONG, 30, 'mines', deep),
+    };
+    console.log('\n     party                 at level        pushed');
+    console.log(`       three damage  ${atLevel.dps.seconds.toFixed(0).padStart(9)}s`
+      + `${pct(pushed.dps.clearRate).padStart(14)}`);
+    console.log(`       with a Bard   ${atLevel.bard.seconds.toFixed(0).padStart(9)}s`
+      + `${pct(pushed.bard.clearRate).padStart(14)}`);
+    ok(atLevel.bard.seconds > atLevel.dps.seconds,
+      'a Bard should cost clear speed when nothing is threatening the party');
+    ok(pushed.bard.clearRate > pushed.dps.clearRate,
+      `a Bard should pay for itself under pressure `
+      + `(${pct(pushed.bard.clearRate)} vs ${pct(pushed.dps.clearRate)})`);
+    ok(pushed.bard.deaths < pushed.dps.deaths,
+      'a Bard should keep more of the party standing');
+    return `${(atLevel.bard.seconds - atLevel.dps.seconds).toFixed(0)}s slower at level, `
+      + `${pct(pushed.bard.clearRate - pushed.dps.clearRate)} more clears when pushed`;
+  });
+
   // ---- Tanks -------------------------------------------------------------
   await test('every tank beats bringing none', async () => {
     const noTank = trial(['rogue', 'cleric', 'archer', 'wizard', 'warlock'], PRESSURE, TRIALS, 'mines', BEHIND);

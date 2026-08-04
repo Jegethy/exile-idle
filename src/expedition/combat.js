@@ -80,7 +80,7 @@ function tickRun(run, dt) {
 
   // --- Regeneration ---
   for (const c of alive) {
-    tickResource(c, dt);
+    tickResource(c, dt, modFrom(c, 'resourceRegen'));
     const sheet = G.sheets[c.uid];
     const pctRegen = (flaskFx(run).lifeRegenPct ?? 0) + modFrom(c, 'lifeRegenPct');
     const regen = (sheet?.regen ?? 0) + c.maxLife * pctRegen / 100;

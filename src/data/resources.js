@@ -88,6 +88,8 @@ export const CLASS_RESOURCE = {
   guardian: 'rage',
   paladin: 'mana',
 
+  bard: 'mana',
+
   cleric: 'mana',
   druid: 'mana',
   templar: 'mana',

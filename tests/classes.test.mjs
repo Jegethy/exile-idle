@@ -37,7 +37,7 @@ export default async function run(browser) {
       const problems = [];
       for (const c of HERO_CLASSES) {
         if (!c.ability?.reactions?.length) problems.push(`${c.id}: no ability`);
-        if (!['Tank', 'Healer', 'DPS'].includes(c.role)) problems.push(`${c.id}: role ${c.role}`);
+        if (!['Tank', 'Healer', 'Support', 'DPS'].includes(c.role)) problems.push(`${c.id}: role ${c.role}`);
         // A melee class in the back row could never attack anything.
         if (c.reach === 'melee' && c.row !== 'front') problems.push(`${c.id}: melee but back row`);
         for (const k of ['life', 'armour', 'damage', 'aps', 'threat']) {
@@ -53,7 +53,8 @@ export default async function run(browser) {
     eq(r.counts.Tank, 3, 'tanks');
     eq(r.counts.Healer, 3, 'healers');
     eq(r.counts.DPS, 5, 'damage classes');
-    return `3 tanks / 3 healers / 5 DPS, all with abilities`;
+    eq(r.counts.Support, 1, 'support classes');
+    return '3 tanks / 3 healers / 1 support / 5 DPS, all with abilities';
   });
 
   await test('melee enemies cannot reach the back row', async () => {
