@@ -66,12 +66,19 @@ export const RESOURCES = {
     name: 'Energy',
     short: 'EN',
     max: 100,
-    // Refills fast enough to be spent every few seconds, so a wave opens with
-    // an ability available and a long fight rations them.
-    regen: 12,
+    // Energy buys an *empowered* swing. It never prevents an ordinary one —
+    // gating the attack itself was tried and made the Rogue the slowest class
+    // in the game, because a hero who cannot afford to swing simply does not.
+    //
+    // Buying a bonus instead gives the same shape without the cliff: a wave
+    // opens on a full bar and every swing lands hard, then settles to whatever
+    // regeneration sustains. Priced per class, which is how the Rogue bursts
+    // and the Archer, on a cheaper and smaller bonus, keeps its up almost
+    // permanently.
+    regen: 13,
     start: 1,
-    gain: { onKill: 15 },
-    costs: { ability: 45 },
+    gain: { onKill: 20 },
+    costs: { empower: 22, ability: 40 },
   },
 };
 

@@ -135,7 +135,8 @@ function buildRun(opts) {
     };
     // Everything that can react to a moment in combat — the class's own
     // ability and any unique item worn — is indexed once, here.
-    initResource(c, hero.classId);
+    c.empowerBonus = cls?.empowerBonus ?? 0;
+    initResource(c, hero.classId, cls?.resourceCosts);
     return bindReactions(c, reactionsFor(hero, sheet));
   });
 

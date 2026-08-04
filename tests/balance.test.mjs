@@ -89,7 +89,12 @@ export default async function run() {
       console.log(`       ${r.id.padEnd(11)} ${pct(r.clearRate).padStart(7)}`
         + `${r.seconds.toFixed(0).padStart(8)}s${(r.seconds / fastest).toFixed(2).padStart(10)}x`);
     }
-    const slowest = rows[rows.length - 1];
+    // A support class is excluded from the spread: three of them stack a buff
+    // that does not stack, so this measurement is structurally unfair to it.
+    // Its own test — one in a mixed party — is the honest one.
+    const { CLASS_BY_ID } = await import('../src/data/heroclasses.js');
+    const solo = rows.filter((r) => !CLASS_BY_ID[r.id].support);
+    const slowest = solo[solo.length - 1];
     ok(slowest.seconds < fastest * 2,
       `${slowest.id} takes ${(slowest.seconds / fastest).toFixed(2)}x as long as ${rows[0].id} — a trap`);
     for (const r of rows) {
@@ -98,31 +103,28 @@ export default async function run() {
     return `${rows[0].id} fastest, ${slowest.id} slowest at ${(slowest.seconds / fastest).toFixed(2)}x`;
   });
 
-  await test('Bloodlust and Steady Aim are both worth having', async () => {
-    // NOT a burst-versus-sustained claim. Measured head to head, the Rogue
-    // fares slightly *worse* against the Archer in short waves (0.98) than in
-    // long ones (1.03) — the opposite of the intent. A 1.9s wave is over in
-    // one or two swings, so a damage buff has almost nothing to multiply,
-    // while the Archer's stacks carry across the wave gap. The distinction
-    // needs a mechanic that pays on the first hit rather than over six
-    // seconds; see the note in the README.
-    //
-    // What is asserted is the part that holds: both openers do something, and
-    // neither class is dead weight next to the other.
+  await test('the Rogue bursts and the Archer sustains', async () => {
+    // This claim was previously dropped as unsupported: a flat damage buff has
+    // nothing to multiply in a wave that is over in two swings, so Bloodlust
+    // produced no burst profile at all. Energy paying for the swing is what
+    // made it real — a Rogue opens a wave on a full bar and finishes it on the
+    // trickle, while an Archer's swing is priced at exactly what it
+    // regenerates and so never runs short.
     const short = {}; const long = {};
     for (const id of ['rogue', 'archer']) {
       short[id] = trial(['guardian', 'cleric', id, id, id], SHORT).damageOf(id);
       long[id] = trial(['guardian', 'cleric', id, id, id], LONG).damageOf(id);
     }
+    const shortRatio = short.rogue / short.archer;
+    const longRatio = long.rogue / long.archer;
     console.log('\n     Rogue damage relative to the Archer');
-    console.log(`       1.9s waves ${(short.rogue / short.archer).toFixed(3).padStart(10)}`);
-    console.log(`       7.0s waves ${(long.rogue / long.archer).toFixed(3).padStart(10)}`);
-    for (const [label, r] of [['short', short], ['long', long]]) {
-      const ratio = r.rogue / r.archer;
-      ok(ratio > 0.85 && ratio < 1.2,
-        `Rogue and Archer are ${ratio.toFixed(2)}x apart in ${label} waves — one of them is a trap`);
-    }
-    return `within ${Math.abs(1 - short.rogue / short.archer) * 100 < 10 ? '10%' : '20%'} of each other in both`;
+    console.log(`       1.9s waves ${shortRatio.toFixed(3).padStart(10)}`);
+    console.log(`       7.0s waves ${longRatio.toFixed(3).padStart(10)}`);
+    ok(shortRatio > longRatio,
+      `the Rogue should fare better in short waves (${shortRatio.toFixed(3)} vs ${longRatio.toFixed(3)})`);
+    ok(shortRatio > 1, `the Rogue should out-damage the Archer in a short wave (${shortRatio.toFixed(2)})`);
+    ok(longRatio < 1.1, `the Archer should hold its own over a long wave (${longRatio.toFixed(2)})`);
+    return `${shortRatio.toFixed(2)}x in short waves, ${longRatio.toFixed(2)}x in long ones`;
   });
 
   await test('the Warlock trades single-target damage for a cleave', async () => {

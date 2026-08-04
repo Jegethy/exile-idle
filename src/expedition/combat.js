@@ -217,8 +217,13 @@ export function swing(run, c, sheet, target, depth) {
 
   const crit = rng.chance(sheet.critChance / 100);
   const critMult = crit ? sheet.critMulti / 100 : 1;
+  // Energy classes spend to hit harder. Affording it is a bonus, not a
+  // requirement: the swing happens either way.
+  const empowered = spend(c, 'empower');
+  const bonus = empowered ? (c.empowerBonus ?? 0) : 0;
+
   const dmgMult = (1
-    + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage')) / 100)
+    + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage') + bonus) / 100)
     // Fighting above your level takes the edge off everything you swing.
     * levelGap(c.level ?? run.level, run.level).outgoing;
 

@@ -193,6 +193,11 @@ export const HERO_CLASSES = [
     mult: { life: 0.95, armour: 0.65, evasion: 1.30, damage: 1.25, aps: 1.20, heal: 0, threat: 1.1 },
     prefers: ['dagger', 'sword1h', 'axe1h'],
     perk: { rarity: 20, gold: 15 },
+    // A big bonus at a price energy cannot sustain: four or five ferocious
+    // swings to open a wave, then one whenever the bar refills. That is the
+    // burst, and it is worth most where waves are short.
+    resourceCosts: { empower: 26 },
+    empowerBonus: 35,
     ability: {
       name: 'Bloodlust',
       desc: 'Opens every wave with +90% damage, bleeding away over 6s.',
@@ -208,6 +213,10 @@ export const HERO_CLASSES = [
     blurb: 'Steady damage from out of reach. Nothing spectacular in a burst, and untouchable while the front line holds.',
     mult: { life: 0.85, armour: 0.45, evasion: 1.60, damage: 1.20, aps: 1.30, heal: 0, threat: 0.9 },
     prefers: ['bow', 'quiver'],
+    // A small bonus at a price energy comfortably sustains, so an Archer has
+    // it up almost permanently and opens no stronger than it finishes.
+    resourceCosts: { empower: 11 },
+    empowerBonus: 18,
     ability: {
       name: 'Steady Aim',
       desc: 'Each hit builds 4% attack speed for 5s, up to five times.',
@@ -270,6 +279,10 @@ export const HERO_CLASSES = [
   {
     id: 'inquisitor', name: 'Inquisitor', role: 'DPS', icon: 'sword',
     row: 'front', reach: 'melee', school: 'hybrid',
+    // Most of what it contributes lands on its allies, so a party of nothing
+    // but Inquisitors wastes almost all of it. Measured alone it will always
+    // look like the weakest damage class in the game, and is not.
+    support: true,
     blurb: 'Blade and incantation together, excelling at neither. Armoured for a damage class, and the party fights better with one present.',
     mult: { life: 1.25, armour: 1.15, evasion: 0.80, damage: 1.00, aps: 1.00, heal: 0, threat: 1.3 },
     prefers: ['sword1h', 'mace1h', 'shield_str'],

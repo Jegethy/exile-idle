@@ -7,8 +7,14 @@
 
 import { resourceFor } from '../data/resources.js';
 
-/** Gives a combatant its pool, at whatever fraction its kind opens with. */
-export function initResource(combatant, classId) {
+/**
+ * Gives a combatant its pool, at whatever fraction its kind opens with.
+ *
+ * `overrides` are the class's own prices, copied onto the combatant rather
+ * than looked up later — this module must not import class data, or the data
+ * and the engine end up importing each other in a circle.
+ */
+export function initResource(combatant, classId, overrides = null) {
   const kind = resourceFor(classId);
   if (!kind) {
     combatant.resource = null;
@@ -18,6 +24,7 @@ export function initResource(combatant, classId) {
     kind: kind.id,
     max: kind.max,
     cur: kind.max * kind.start,
+    costs: { ...kind.costs, ...(overrides ?? {}) },
   };
   return combatant;
 }
@@ -25,6 +32,17 @@ export function initResource(combatant, classId) {
 /** The definition behind a combatant's pool, or null. */
 export function kindOf(combatant) {
   return combatant?.resource ? resourceFor(combatant.classId) : null;
+}
+
+/**
+ * What an action costs this combatant. A class may price its own actions,
+ * which is how two classes sharing a resource can behave differently: an
+ * Archer's swing costs exactly what its energy regenerates, so it never runs
+ * short; a Rogue's costs nearly twice that, so it opens fast and tapers.
+ */
+function costOf(c, action) {
+  if (typeof action === 'number') return action;
+  return c.resource?.costs?.[action] ?? 0;
 }
 
 /**
@@ -37,7 +55,7 @@ export function kindOf(combatant) {
 export function spend(c, action) {
   const kind = kindOf(c);
   if (!kind) return true;                    // no pool: everything is free
-  const cost = typeof action === 'number' ? action : kind.costs[action];
+  const cost = costOf(c, action);
   if (!cost) return true;                    // not priced
   if (c.resource.cur < cost) return false;
   c.resource.cur -= cost;
@@ -48,7 +66,7 @@ export function spend(c, action) {
 export function canAfford(c, action) {
   const kind = kindOf(c);
   if (!kind) return true;
-  const cost = typeof action === 'number' ? action : kind.costs[action];
+  const cost = costOf(c, action);
   return !cost || c.resource.cur >= cost;
 }
 

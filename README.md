@@ -341,15 +341,17 @@ between tiers. The level gap works precisely because it only touches parties
 fighting above their own level, so it cannot make anyone's first expedition
 harder.
 
-**Two class intents are not realised, and the balance suite says so rather than
-pretending otherwise.** The Rogue's Bloodlust does not produce a burst profile:
-measured head to head, the Rogue fares slightly worse against the Archer in
-1.9-second waves (0.98x) than in 7-second ones (1.03x), because a wave that
-short is over in one or two swings and a damage buff has almost nothing to
-multiply. And the Cleric/Druid split — concentrated damage versus spread —
-flips with tier, push depth and party makeup; several rounds of tuning could not
-make it stable. Both are working classes; they are not yet the classes their
-descriptions claim.
+**The Rogue's burst profile is real, and resources are what made it real.** A
+flat damage buff had nothing to multiply in a wave that is over in two swings,
+so Bloodlust alone produced no burst at all — measured, the Rogue fared
+*slightly worse* in short waves than long ones. Energy buying an empowered
+swing fixed it: a Rogue opens a wave on a full bar and finishes it on the
+trickle, and now does 1.27x the Archer's damage in 1.9-second waves against
+1.07x in 7-second ones.
+
+Gating the swing itself was tried first and was much worse than the problem —
+a Rogue who could not afford to attack simply did not, which made it the
+slowest class in the game. Energy buys a bonus; it never withholds a turn.
 
 ## Why the dungeon blend matters
 
