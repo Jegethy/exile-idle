@@ -90,13 +90,13 @@ export function makeParty(classIds, { level = 40, ilvl = 40, rarity = 'common' }
  * @returns {{cleared: boolean, seconds: number, waves: number,
  *   contribution: object[]}}
  */
-export function runExpedition(party, dungeonId, tier) {
+export function runExpedition(party, dungeonId, tier, contractId = null) {
   for (const uid of party.members) {
     const hero = G.state.heroes.find((h) => h.uid === uid);
     if (hero) hero.stamina = 100;
   }
   const before = G.state.stats.runs;
-  const res = dispatch(party.id, dungeonId, tier);
+  const res = dispatch(party.id, dungeonId, tier, contractId);
   if (!res.ok) return { error: res.msg };
 
   const run = G.state.expeditions[0];

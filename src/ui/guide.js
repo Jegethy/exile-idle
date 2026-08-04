@@ -14,6 +14,8 @@ import { TRAITS } from '../data/traits.js';
 import { SKILLS, skillPoolFor, SKILL_CHOICES } from '../data/skills.js';
 import { RESOURCES, CLASS_RESOURCE } from '../data/resources.js';
 import { DUNGEONS, RAIDS } from '../data/dungeons.js';
+import { MODIFIERS } from '../data/modifiers.js';
+import { CONTRACT_RARITIES, CONTRACT_MIN_TIER, contractChance } from '../contracts.js';
 import { SLOTS } from '../data/bases.js';
 import { FAMILIES, MATERIALS } from '../data/materials.js';
 import { RECIPES, FLASKS } from '../data/recipes.js';
@@ -340,6 +342,69 @@ function pageRaids() {
         s ? `You hold <b class="c-echo">${s.guild.echoes ?? 0}</b>.` : '')));
 }
 
+function pageContracts() {
+  const bad = MODIFIERS.filter((m) => !m.boon);
+  const good = MODIFIERS.filter((m) => m.boon);
+  const reqLabel = (m) => {
+    if (m.restrict) return '<span class="g-req">restriction</span>';
+    if (m.profile) return '<span class="g-req">enemies</span>';
+    if (m.reactions) return '<span class="g-req">reactive</span>';
+    return '<span class="g-req">party</span>';
+  };
+
+  return section('Sealed Contracts',
+    p('Past Tier 20 the game runs out of things to give you: every affix has reached its top',
+      'tier, the last unique has entered the drop pool, and the final raid has fallen. Contracts',
+      'are what exists after that.'),
+    p('A contract is <b>not a difficulty setting</b> — tier is already an unbounded difficulty',
+      'slider. What tier cannot do is make a fight <i>different</i>. A contract that bans casters',
+      'wants a different party than one where everything casts, which is the only thing that',
+      'brings a bench of twelve classes back into use.'),
+    section('How they work',
+      defs([
+        ['<b>They drop</b>', `From cleared expeditions at Tier ${CONTRACT_MIN_TIER} and above — `
+          + `${Math.round(contractChance(CONTRACT_MIN_TIER) * 100)}% there, rising to `
+          + `${Math.round(contractChance(30) * 100)}% deep. Often enough that a bad one is a shrug.`],
+        ['<b>They fix the run</b>', 'A contract states its own dungeon and tier. You bring a party; '
+          + 'you do not choose where it goes.'],
+        ['<b>They are spent on departure</b>', 'Win or lose. A contract you can retry until it works '
+          + 'is not a decision about whether your party is ready.'],
+        ['<b>They can be refused</b>', 'A contract banning a class your party contains is turned away '
+          + 'before anyone spends stamina, and is not consumed.'],
+        ['<b>They can be discarded</b>', 'No confirmation. Some contracts are meant to be waved away.'],
+      ])),
+    section('Rarity',
+      p('Rarity decides how many modifiers and upsides a contract carries, and sets the floor on the',
+        'item quantity and rarity it grants. Danger adds on top of that floor, so a mild Legendary',
+        'is still worth running and a brutal Common is still worth considering.'),
+      table(['Rarity', 'Modifiers', 'Upsides', 'Quantity', 'Rarity'],
+        CONTRACT_RARITIES.map((r) => [
+          `<b class="${r.cls}">${esc(r.name)}</b>`,
+          String(r.mods),
+          r.boonChance === 0 ? 'none' : (r.boonChance < 1 ? `${r.boons} (half the time)` : String(r.boons)),
+          `+${r.quantity}%`, `+${r.rarity}%`,
+        ])),
+      p('<b>Quantity</b> is how many items fall out; <b>rarity</b> is how good they are. Both apply to',
+        'everything a run drops, not only the completion chest.')),
+    section('Danger',
+      p('Every modifier carries a <b>danger</b> value, and the sum is what the contract pays on —',
+        'gold, materials, experience, and further quantity and rarity on top of the floor above.',
+        'Upsides subtract from it, so a contract handing out free damage pays less than one that does not.'),
+      p('Danger is <b>measured, not guessed</b>. Each modifier was run headlessly at Tier 16 against a',
+        'party geared for it and priced on what it actually cost: how much longer the run took —',
+        'throughput is what matters in an idle game, so a modifier that only inflates enemy life is',
+        'expensive — plus how often it turned a clear into a wipe.'),
+      p('<b>Not every contract is worth running.</b> Some combinations lose on throughput no matter how',
+        'well they pay, and are meant to be looked at once and discarded. <i>Thornskin</i> is the',
+        'clearest example: measured, it more than doubles the length of a run.')),
+    section(`Modifiers (${bad.length})`,
+      table(['Modifier', 'Kind', 'Danger', 'Effect'],
+        bad.map((m) => [`<b>${esc(m.name)}</b>`, reqLabel(m), String(m.danger), esc(m.desc)]))),
+    section(`Upsides (${good.length})`,
+      table(['Upside', 'Danger', 'Effect'],
+        good.map((m) => [`<b class="g-good">${esc(m.name)}</b>`, String(m.danger), esc(m.desc)]))));
+}
+
 function pageResources() {
   return section('Resources',
     p('Healers used to cast on every turn for ever, which is why out-sustaining content twenty',
@@ -425,6 +490,7 @@ const PAGES = [
   { id: 'items', label: 'Items', render: pageItems },
   { id: 'expeditions', label: 'Expeditions', render: pageExpeditions },
   { id: 'raids', label: 'Raids', render: pageRaids },
+  { id: 'contracts', label: 'Contracts', render: pageContracts },
   { id: 'resources', label: 'Resources', render: pageResources },
   { id: 'crafting', label: 'Crafting', render: pageCrafting },
   { id: 'guild', label: 'Guild Hall', render: pageGuild },

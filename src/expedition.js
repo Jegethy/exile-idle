@@ -24,9 +24,15 @@ import {
 
 import { CLASS_BY_ID } from './data/heroclasses.js';
 import { makeRaidBoss } from './expedition/enemies.js';
-import { bindReactions } from './expedition/effects.js';
+import { bindReactions, applyEffect } from './expedition/effects.js';
 import { initResource } from './expedition/resource.js';
 import { reactionsFor } from './expedition/abilities.js';
+import {
+  applyModifiersToProfile, reactionsFrom, curseFrom, findFrom, barredMembers,
+} from './data/modifiers.js';
+import {
+  contractById, consumeContract, rewardMultFor, modsOf, findBaseFor,
+} from './contracts.js';
 import { bankHaul } from './expedition/rewards.js';
 import { tickAll } from './expedition/combat.js';
 
@@ -34,9 +40,17 @@ import { tickAll } from './expedition/combat.js';
 export { tickAll };
 
 /** Sends a party into a dungeon. Returns { ok, msg }. */
-export function dispatch(partyId, dungeonId, tier) {
+/**
+ * Sends a party out. `contractId` runs the expedition under a sealed
+ * contract, which fixes the dungeon and tier to the contract's own and
+ * imposes its modifiers — the contract is spent whether or not they clear it.
+ */
+export function dispatch(partyId, dungeonId, tier, contractId = null) {
   const s = G.state;
   const party = partyById(partyId);
+  const contract = contractId ? contractById(contractId) : null;
+  if (contractId && !contract) return { ok: false, msg: 'That contract is gone.' };
+  if (contract) { dungeonId = contract.dungeonId; tier = contract.tier; }
   const dungeon = DUNGEON_BY_ID[dungeonId];
   if (!party || !dungeon) return { ok: false, msg: 'Unknown party or dungeon.' };
   if (s.expeditions.length >= partySlotLimit()) {
@@ -48,19 +62,56 @@ export function dispatch(partyId, dungeonId, tier) {
   if (!check.ok) return check;
 
   const members = partyMembers(party);
+
+  // Composition bans are checked before a single point of stamina is spent, so
+  // a refused contract costs nothing and the contract itself is not consumed.
+  if (contract) {
+    const barred = barredMembers(contract.mods, members, (id) => CLASS_BY_ID[id]);
+    if (barred.length) {
+      const who = [...new Set(barred.map((b) => b.hero.name))].join(', ');
+      const why = [...new Set(barred.map((b) => b.mod.name))].join(', ');
+      return { ok: false, msg: `${why}: ${who} cannot enter.` };
+    }
+  }
+
   for (const hero of members) hero.stamina -= staminaCostFor(hero, cost);
 
   // A flask is drunk on the way out, not saved for a rainy day.
   let flaskId = null;
   if (party.flask && spendFlask(party.flask, 1)) flaskId = party.flask;
 
+  const mods = contract?.mods ?? [];
+  const profile = applyModifiersToProfile(
+    { ...dungeon.monsters, attackMix: dungeon.attackMix }, mods,
+  );
+
   s.expeditions.push(buildRun({
     partyId, members, tier,
     dungeonId, dungeon, name: dungeon.name,
-    totalWaves: wavesFor(dungeon, tier), profile: { ...dungeon.monsters, attackMix: dungeon.attackMix }, flaskId,
+    totalWaves: wavesFor(dungeon, tier), profile, flaskId,
+    contractId: contract?.id ?? null, mods,
+    rewardMult: contract ? rewardMultFor(contract) : 1,
+    // A contract's quantity and rarity come from two places: the floor its
+    // own rarity sets, and whatever its boons add on top.
+    find: contract
+      ? (() => {
+        const base = findBaseFor(contract);
+        const boons = findFrom(mods);
+        return {
+          ...boons,
+          quantity: boons.quantity + base.quantity,
+          rarity: boons.rarity + base.rarity,
+        };
+      })()
+      : null,
   }));
 
+  // Spent on departure, not on success. A contract you can retry until it
+  // works is not a decision about whether your party is ready for it.
+  if (contract) consumeContract(contract.id);
+
   log(`${party.name} sets out for ${dungeon.name} (Tier ${tier}).`
+    + (contract ? ` Under contract: ${modsOf(contract).map((m) => m.name).join(', ')}.` : '')
     + (flaskId ? ` They carry ${FLASK_BY_ID[flaskId].name}.` : ''), 'sys');
   emit('expeditions'); emit('roster');
   return { ok: true, msg: `${party.name} dispatched.` };
@@ -137,8 +188,23 @@ function buildRun(opts) {
     // ability and any unique item worn — is indexed once, here.
     c.empowerBonus = cls?.empowerBonus ?? 0;
     initResource(c, hero.classId, cls?.resourceCosts);
-    return bindReactions(c, reactionsFor(hero, sheet));
+    // A contract's reactions ride along with the hero's own, because they
+    // are the same shape — which is the reason modifiers cost the combat
+    // engine nothing at all.
+    return bindReactions(c, [...reactionsFor(hero, sheet), ...reactionsFrom(opts.mods ?? [])]);
   });
+
+  // A curse is a single permanent effect rather than a stat edit, so it
+  // shows in the same list as everything else acting on a hero and cannot
+  // be mistaken for their own sheet.
+  const curse = curseFrom(opts.mods ?? []);
+  if (Object.keys(curse).length) {
+    for (const c of combatants) {
+      applyEffect(c, {
+        id: 'contract-curse', name: 'Contract', mods: curse, duration: Infinity,
+      });
+    }
+  }
 
   return {
     id: uid('x'),
@@ -151,6 +217,10 @@ function buildRun(opts) {
     ilvl: tierToIlvl(opts.tier),
     level: tierToLevel(opts.tier),
     profile: opts.profile,
+    find: opts.find ?? null,
+    contractId: opts.contractId ?? null,
+    mods: opts.mods ?? [],
+    rewardMult: opts.rewardMult ?? 1,
     wave: 0,
     totalWaves: opts.totalWaves,
     enemies: [],

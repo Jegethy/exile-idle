@@ -21,7 +21,10 @@ import { spend } from './resource.js';
 
 /** Modifier keys an effect may contribute. Anything else is ignored. */
 export const MOD_KEYS = [
-  'incDamage', 'incAtkSpeed', 'incArmour', 'incEvasion', 'incHeal', 'incCrit',
+  'incDamage', 'incAtkSpeed', 'incArmour', 'incEvasion', 'incHeal', 'incCrit', 'incAccuracy',
+  // Written only by contract modifiers so far, but ordinary keys: a unique
+  // or a class ability could use any of them tomorrow.
+  'critMulti', 'missChance', 'cooldownMult', 'capHeal', 'resAll', 'ignoreThreat',
   'blockMelee', 'blockSpell', 'damageTaken', 'lifeRegenPct', 'threat',
   // Reduction against one school specifically, which is how a ward over the
   // party differs from simply being sturdier.
@@ -187,7 +190,9 @@ export function fireTrigger(trigger, ctx) {
     if (r.cooldown) {
       const until = ctx.self.cooldowns?.[r.key] ?? 0;
       if (ctx.run.elapsed < until) continue;
-      ctx.self.cooldowns[r.key] = ctx.run.elapsed + r.cooldown;
+      // A contract can stretch every cooldown in the run at once.
+      const stretch = 1 + modFrom(ctx.self, 'cooldownMult') / 100;
+      ctx.self.cooldowns[r.key] = ctx.run.elapsed + r.cooldown * stretch;
     }
     r.run(ctx);
   }

@@ -10,6 +10,7 @@
 // and the reaction vocabulary can use it without a cycle.
 
 import { G, emit, log } from '../state.js';
+import { modFrom } from './effects.js';
 import { fireTrigger } from './effects.js';
 
 /**
@@ -69,7 +70,12 @@ export function damageHero(run, c, amount, from = null) {
  */
 export function healHero(c, amount, from = null) {
   if (c.down || amount <= 0) return 0;
-  const healed = Math.min(amount, c.maxLife - c.life);
+  // A contract can put a ceiling on how far a hero may be mended. Expressed as
+  // a fraction of maximum life; healing above it simply does not land, which
+  // is what makes a heal-capped run a damage race rather than an endurance one.
+  const cap = modFrom(c, 'capHeal');
+  const ceiling = cap > 0 ? c.maxLife * (cap / 100) : c.maxLife;
+  const healed = Math.min(amount, Math.max(0, ceiling - c.life));
   c.life += healed;
   if (from) from.healingDone = (from.healingDone ?? 0) + healed;
   if (c.life >= c.maxLife * 0.5) c.wasLow = false;

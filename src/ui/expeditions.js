@@ -1,15 +1,22 @@
 // expeditions — Runs in the field, and the dispatch board that starts them.
 
 import {
-  DUNGEON_CATEGORIES, dungeonsIn, expectedDuration, staminaCost, tierToLevel, wavesFor,
+  DUNGEON_BY_ID, DUNGEON_CATEGORIES, dungeonsIn, expectedDuration, staminaCost,
+  tierToLevel, wavesFor,
 } from '../data/dungeons.js';
 import { RESOURCES } from '../data/resources.js';
 import { guildEffects } from '../data/upgrades.js';
 import { dispatch, recall, runProgress } from '../expedition.js';
-import { canDispatch, partyById } from '../heroes.js';
-import { G, on, partySlots } from '../state.js';
+import { canDispatch, partyById, partyMembers } from '../heroes.js';
+import { G, on, emit, partySlots } from '../state.js';
 import { clamp, escapeHtml, fmt, fmtTime, qs } from '../util.js';
 import { setStatus } from './shell.js';
+import {
+  CONTRACT_CAP, rewardMultFor, findBaseFor, rarityOf, downsidesOf, boonsOf,
+  consumeContract,
+} from '../contracts.js';
+import { barredMembers } from '../data/modifiers.js';
+import { CLASS_BY_ID } from '../data/heroclasses.js';
 import { ui } from './state.js';
 
 // ===========================================================================
@@ -148,6 +155,7 @@ export function renderDispatch() {
       <span class="hint">${free} charter${free === 1 ? '' : 's'} free</span>
       ${autoDispatchControl()}
     </div>
+    ${contractShelf(idleParties, free)}
     <div class="dungeon-filters">${DUNGEON_CATEGORIES.map((c) => {
     const n = dungeonsIn(c.id).length;
     return `<button class="btn tiny ${ui.dungeonFilter === c.id ? 'active' : ''}"
@@ -180,6 +188,28 @@ export function renderDispatch() {
       : '<span class="hint">All parties are busy.</span>'}</div>
       </div>`;
   }).join('')}${shown.length ? '' : '<div class="empty-note">Nothing in this category yet.</div>'}</div>`;
+
+  const shelf = host.querySelector('#contractShelf');
+  if (shelf) {
+    shelf.onclick = (e) => {
+      const drop = e.target.closest('[data-discard]');
+      if (drop) {
+        // No confirmation. A bad contract is meant to be waved away without
+        // ceremony, and another is always coming.
+        consumeContract(drop.dataset.discard);
+        renderDispatch();
+        return;
+      }
+      const b = e.target.closest('[data-contract]');
+      if (!b || b.disabled) return;
+      const res = dispatch(b.dataset.party, null, null, b.dataset.contract);
+      setStatus(res.msg);
+      // A contract fixes its own dungeon and tier, so there is no last-run to
+      // remember: auto-redeploy would have nothing to repeat.
+      renderDispatch();
+      emit('expeditions');
+    };
+  }
 
   host.querySelector('.dungeon-filters').onclick = (e) => {
     const b = e.target.closest('[data-dfilter]');
@@ -232,4 +262,68 @@ function rewardBar(label, mult) {
   const pct = clamp((mult / 2.5) * 100, 6, 100);
   return `<div class="rw"><label>${label}</label>
     <div class="rw-track"><i class="${mult >= 1.8 ? 'strong' : ''}" style="width:${pct}%"></i></div></div>`;
+}
+
+
+// ===========================================================================
+// Contracts
+// ===========================================================================
+
+/**
+ * The shelf of sealed contracts, shown only once one has been found.
+ *
+ * Hidden while empty on purpose: a permanent empty box on the busiest panel in
+ * the game teaches nothing except that something is missing.
+ */
+function contractShelf(idleParties, free) {
+  const list = G.state.contracts ?? [];
+  if (!list.length) return '';
+
+  const order = { legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 };
+  const sorted = list.slice().sort(
+    (a, b) => (order[b.rarity] ?? 0) - (order[a.rarity] ?? 0) || b.danger - a.danger,
+  );
+  return `<div class="contract-shelf" id="contractShelf">
+    <div class="cs-head">
+      <span class="dispatch-label">Sealed Contracts</span>
+      <span class="hint">${list.length}/${CONTRACT_CAP} · spent when the party leaves, win or lose</span>
+    </div>
+    <div class="cs-list">${sorted.map((c) => {
+    const dungeon = DUNGEON_BY_ID[c.dungeonId];
+    const rar = rarityOf(c);
+    const find = findBaseFor(c);
+    const bad = downsidesOf(c);
+    const good = boonsOf(c);
+    const blocked = free <= 0 || !idleParties.length;
+    return `<div class="contract ${rar.cls}">
+        <div class="ct-top">
+          <span class="ct-name">${escapeHtml(dungeon?.name ?? 'Unknown')} <b>T${c.tier}</b></span>
+          <span class="ct-rarity">${escapeHtml(rar.name)}</span>
+        </div>
+        <div class="ct-find">
+          <span title="More items drop">+${Math.round(find.quantity)}% quantity</span>
+          <span title="Items that drop are better">+${Math.round(find.rarity)}% rarity</span>
+          <span title="Gold, materials and experience" class="ct-mult">×${rewardMultFor(c).toFixed(2)}</span>
+        </div>
+        ${bad.length ? `<ul class="ct-mods bad">${bad.map((m) => `<li><b>${escapeHtml(m.name)}</b>
+          ${escapeHtml(m.desc)}</li>`).join('')}</ul>` : ''}
+        ${good.length ? `<ul class="ct-mods good">${good.map((m) => `<li><b>${escapeHtml(m.name)}</b>
+          ${escapeHtml(m.desc)}</li>`).join('')}</ul>` : ''}
+        <div class="ct-foot">${idleParties.map((p) => {
+      const check = canDispatch(p, staminaCost(c.tier));
+      const barred = barredMembers(c.mods, partyMembers(p), (id) => CLASS_BY_ID[id]);
+      const off = blocked || !check.ok || barred.length > 0;
+      const why = barred.length
+        ? `${[...new Set(barred.map((x) => x.mod.name))].join(', ')}: `
+          + `${[...new Set(barred.map((x) => x.hero.name))].join(', ')} cannot enter`
+        : (check.ok ? `Send ${p.name}` : check.msg);
+      return `<button class="btn tiny ${off ? '' : 'primary'}" data-contract="${c.id}"
+            data-party="${p.id}" ${off ? 'disabled' : ''} title="${escapeHtml(why)}"
+            >Send ${escapeHtml(p.name)}</button>`;
+    }).join('') || '<span class="hint">All parties are busy.</span>'}
+          <button class="btn tiny danger" data-discard="${c.id}" title="Destroy this contract">Discard</button>
+        </div>
+      </div>`;
+  }).join('')}</div>
+  </div>`;
 }

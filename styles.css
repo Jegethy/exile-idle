@@ -1354,3 +1354,42 @@ body.splash-open { overflow:hidden; }
 .g-table .t1 { color:var(--r-normal,#b9b6ae); }
 .g-table .t2 { color:var(--r-magic,#6f9fd8); }
 .g-table .t3 { color:var(--r-rare,#d4c46a); }
+
+/* --- Sealed contracts ---------------------------------------------------
+   Sits above the dungeon grid because it is the thing you came to spend, and
+   is absent entirely until one drops -- an empty box on the busiest panel in
+   the game teaches nothing except that something is missing. Downsides and
+   upsides are two separate lists, colour-coded, because the single question a
+   player asks of a contract is "is this worth it". */
+.contract-shelf {
+  margin:0 0 10px; padding:10px; border-radius:4px;
+  border:1px solid var(--line-2); background:rgba(127,214,196,.04);
+}
+.cs-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.cs-list { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); }
+.contract {
+  padding:9px 11px; border-radius:3px;
+  border:1px solid var(--line-2); border-left-width:3px; background:var(--bg-2);
+}
+.contract.r-normal { border-left-color:var(--r-normal); }
+.contract.r-magic { border-left-color:var(--r-magic); }
+.contract.r-rare { border-left-color:var(--r-rare); }
+.contract.r-epic { border-left-color:var(--r-epic,#a970d8); }
+.contract.r-unique { border-left-color:var(--r-unique); }
+.ct-top { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.ct-name { font-size:13px; color:var(--ink); }
+.ct-rarity { font-size:11px; letter-spacing:.6px; text-transform:uppercase; color:var(--ink-faint); }
+.contract.r-magic .ct-rarity { color:var(--r-magic); }
+.contract.r-rare .ct-rarity { color:var(--r-rare); }
+.contract.r-epic .ct-rarity { color:var(--r-epic,#a970d8); }
+.contract.r-unique .ct-rarity { color:var(--r-unique); }
+.ct-find { display:flex; flex-wrap:wrap; gap:4px 10px; margin:5px 0 6px; font-size:11px; color:var(--echo); }
+.ct-find .ct-mult { color:var(--gold); font-weight:600; }
+.ct-mods { list-style:none; margin:0 0 6px; padding:0; display:grid; gap:3px; }
+.ct-mods li { font-size:11px; line-height:1.4; padding-left:9px; position:relative; color:var(--ink-faint); }
+.ct-mods li::before { content:''; position:absolute; left:0; top:6px; width:3px; height:3px; border-radius:50%; }
+.ct-mods.bad li b { color:#d9705c; }
+.ct-mods.bad li::before { background:#d9705c; }
+.ct-mods.good li b { color:#6fbf5f; }
+.ct-mods.good li::before { background:#6fbf5f; }
+.ct-foot { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }

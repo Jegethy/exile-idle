@@ -66,6 +66,7 @@ export function initUI() {
   on('upgrades', () => { renderHall(); renderQuickStats(); renderDispatch(); });
   on('sheets', () => { renderRoster(); renderParties(); });
   on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
+  on('contracts', () => { renderDispatch(); });
   on('log', () => { renderLog(); });
   on('saves', () => { renderSlots(); });
   on('recruits', () => { renderRecruitBoard(); });

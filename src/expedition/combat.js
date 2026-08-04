@@ -199,7 +199,15 @@ function heroAct(run, c, sheet) {
   if (!target) return;
   if (!canReachEnemies(c)) return;
 
-  if (!rng.chance(hitChance(sheet.accuracy, target.evasion))) {
+  // A flat miss chance is not the same thing as low accuracy: accuracy is
+  // fought off by evasion, this is not fought off by anything.
+  const fumble = modFrom(c, 'missChance');
+  if (fumble > 0 && rng.chance(fumble / 100)) {
+    if (rng.chance(0.05)) log(`${c.name} swings wide.`, 'hit');
+    return;
+  }
+  const acc = sheet.accuracy * (1 + modFrom(c, 'incAccuracy') / 100);
+  if (!rng.chance(hitChance(acc, target.evasion))) {
     if (rng.chance(0.05)) log(`${c.name} misses ${target.name}.`, 'hit');
     return;
   }
@@ -216,7 +224,9 @@ export function swing(run, c, sheet, target, depth) {
   if (!target || target.life <= 0) return;
 
   const crit = rng.chance((sheet.critChance * (1 + modFrom(c, 'incCrit') / 100)) / 100);
-  const critMult = crit ? sheet.critMulti / 100 : 1;
+  const critMult = crit
+    ? Math.max(1, (sheet.critMulti * (1 + modFrom(c, 'critMulti') / 100)) / 100)
+    : 1;
   // Energy classes spend to hit harder. Affording it is a bonus, not a
   // requirement: the swing happens either way.
   const empowered = spend(c, 'empower');
@@ -279,7 +289,12 @@ function enemyAct(run, e) {
   // A melee attacker is held at the front line until the front line is gone,
   // at which point there is nothing between it and the back row.
   const reachable = reachableTo(e, alive);
-  const target = rng.weighted(reachable, (c) => (G.sheets[c.uid]?.threat ?? 1));
+  // Contract modifiers can make threat irrelevant, which is what stops a
+  // tank from being the answer to everything: flatten every weight and the
+  // blow lands wherever it pleases.
+  const target = rng.weighted(reachable, (c) => (modFrom(c, 'ignoreThreat') > 0
+    ? 1
+    : (G.sheets[c.uid]?.threat ?? 1)));
   const sheet = G.sheets[target.uid];
   if (!sheet) return;
 
@@ -308,7 +323,10 @@ function enemyAct(run, e) {
     const armour = sheet.armour
       * (1 + ((flaskFx(run).incArmour ?? 0) + modFrom(target, 'incArmour')) / 100);
     if (type === 'phys') taken += raw * (1 - armourReduction(armour, raw));
-    else taken += raw * (1 - (sheet.res[type]?.value ?? 0) / 100);
+    else {
+      const shaved = (sheet.res[type]?.value ?? 0) * (1 + modFrom(target, 'resAll') / 100);
+      taken += raw * (1 - shaved / 100);
+    }
   }
   taken *= (1 + (sheet.damageTaken + modFrom(target, 'damageTaken')) / 100);
   // A class's standing against this kind of attack. Warriors take less from a

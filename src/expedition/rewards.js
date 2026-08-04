@@ -6,6 +6,7 @@
 import { DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl } from '../data/dungeons.js';
 import { gradeForIlvl, materialOf } from '../data/materials.js';
 import { guildEffects } from '../data/upgrades.js';
+import { maybeDropContract } from '../contracts.js';
 import { grantHeroXp, heroById, partyById } from '../heroes.js';
 import { addMaterial, addToVault } from '../inventory.js';
 import { createItem, rollUnique } from '../items.js';
@@ -29,7 +30,8 @@ export function onEnemyKilled(run, enemy) {
   // --- Gold ---
   const gold = Math.round(
     (1.6 + run.tier * 1.15) * enemy.dropMult * focus.gold
-    * (1 + (gu.gold + partyGold + (flaskFind(run).gold ?? 0)) / 100),
+    * (1 + (gu.gold + partyGold + (flaskFind(run).gold ?? 0) + (run.find?.gold ?? 0)) / 100)
+    * (run.rewardMult ?? 1),
   );
   run.haul.gold += gold;
   run.rewards.gold += gold;
@@ -48,15 +50,17 @@ export function onEnemyKilled(run, enemy) {
   // A guild equips a whole roster, not one character: five heroes across nine
   // slots is ~45 slots to fill, so the drop rate has to be far higher than a
   // single-character game would use or nobody ever gets a weapon.
-  const quant = 1 + (gu.quantity + partyBonus(run, 'quantity')) / 100;
-  const rarityBonus = gu.rarity + partyRarity + (flaskFind(run).rarity ?? 0);
+  const quant = 1 + (gu.quantity + partyBonus(run, 'quantity') + (run.find?.quantity ?? 0)) / 100;
+  const rarityBonus = gu.rarity + partyRarity + (flaskFind(run).rarity ?? 0)
+    + (run.find?.rarity ?? 0);
   let gearRolls = 0.22 * enemy.dropMult * focus.gear * quant;
   let n = Math.floor(gearRolls);
   if (rng.chance(gearRolls - n)) n++;
   for (let k = 0; k < Math.min(n, 5); k++) dropGear(run, rarityBonus, enemy.isBoss);
 
   // --- Materials ---
-  let matChance = 0.30 * enemy.dropMult * (focus.mats ?? 1) * quant * (1 + gu.materials / 100);
+  let matChance = 0.30 * enemy.dropMult * (focus.mats ?? 1) * quant
+    * (1 + (gu.materials + (run.find?.materials ?? 0)) / 100);
   let o = Math.floor(matChance);
   if (rng.chance(matChance - o)) o++;
   for (let k = 0; k < Math.min(o, 8); k++) dropMaterial(run);
@@ -86,7 +90,8 @@ function dropMaterial(run) {
 
 function dropGear(run, rarityBonus, fromBoss) {
   const roll = rng.float() * 100;
-  const uniqueCut = (fromBoss ? 2.2 : 0.45) * (1 + rarityBonus / 250);
+  const uniqueCut = (fromBoss ? 2.2 : 0.45) * (1 + rarityBonus / 250)
+    * (1 + (run.find?.unique ?? 0) / 100);
   const rareCut = uniqueCut + 8 * (1 + rarityBonus / 100);
   const magicCut = rareCut + 32 * (1 + rarityBonus / 200);
 
@@ -188,6 +193,7 @@ export function finishRun(run, success) {
     if (run.raidId) grantRaidRewards(run);
     else grantClearBonus(run);
     bankHaul(run);
+    maybeDropContract(run);
 
     const r = run.rewards;
     log(`${name}: ${fmt(r.gold)} gold · ${r.gear} items · ${r.materials} materials · `
@@ -228,15 +234,26 @@ function grantClearBonus(run) {
 
   // Completion chest, weighted by the dungeon's focus.
   const bonusMult = 1 + s.progress.bonusMult / 100;
-  const gold = Math.round((40 + run.tier * 26) * dungeon.rewards.gold * bonusMult * (1 + gu.gold / 100));
+  // A contract pays on every axis rather than only on gold. Paying on gold
+  // alone would make contracts a gold faucet that a gear-hunting guild could
+  // reasonably ignore, which is the opposite of giving deep tiers a purpose.
+  const cm = run.rewardMult ?? 1;
+  const gold = Math.round((40 + run.tier * 26) * dungeon.rewards.gold * bonusMult * (1 + gu.gold / 100) * cm);
   run.haul.gold += gold;
   run.rewards.gold += gold;
 
-  const mats = Math.max(2, Math.round((dungeon.rewards.mats ?? 1) * 3 * bonusMult * (1 + gu.materials / 100)));
+  const mats = Math.max(2, Math.round((dungeon.rewards.mats ?? 1) * 3 * bonusMult
+    * (1 + (gu.materials + (run.find?.materials ?? 0)) / 100) * cm));
   for (let i = 0; i < mats; i++) dropMaterial(run);
 
-  const gearCount = Math.max(2, Math.round(dungeon.rewards.gear * 2.5 * bonusMult));
-  for (let i = 0; i < gearCount; i++) dropGear(run, gu.rarity, true);
+  // Quantity and rarity are separate axes, exactly as they are on a Path of
+  // Exile map: quantity is how many items fall out, rarity is how good they
+  // are. A contract raises both, which is what makes one hard run worth more
+  // than two easy ones rather than merely equal to them.
+  const quantity = 1 + ((run.find?.quantity ?? 0) / 100);
+  const gearCount = Math.max(2, Math.round(dungeon.rewards.gear * 2.5 * bonusMult * cm * quantity));
+  const rarity = gu.rarity + (run.find?.rarity ?? 0);
+  for (let i = 0; i < gearCount; i++) dropGear(run, rarity, true);
 
   // Raid Seals from deep expeditions.
   if (run.tier >= 4) {

@@ -478,6 +478,77 @@ by absorbing, while a spell-resistant one would only ever protect itself. No
 resistance number can balance that, which is why the Paladin's Consecrate wards
 the *party* against spells rather than merely hardening the Paladin.
 
+## Sealed Contracts
+
+Tier 20 is where the game runs out of things to give you: every affix reaches
+its top tier at item level 85, the last unique enters the drop pool there, and
+the final raid falls two tiers later. Contracts are what exists after that.
+
+A contract is **not a hard-mode toggle**. Tier is already an unbounded
+difficulty slider — anyone wanting a harder fight can press +. What tier cannot
+do is make a fight *different*. Once a guild has found its best five heroes,
+composition is solved for ever, and twelve classes, three tanks with opposed
+resistances and a whole skill system quietly stop mattering. A contract that
+bans casters wants a different party than one where everything casts.
+
+They are objects, not a switch: they drop, they sit in a shelf above the
+dispatch board, they are spent on departure whether or not the party clears.
+That buys a drop rate to tune, somewhere for deep tiers to pay out that is not
+more gold, and a choice made one run at a time.
+
+| Rarity | Modifiers | Upsides | Quantity | Rarity |
+|---|---|---|---|---|
+| Common | 1 | — | +15% | +15% |
+| Uncommon | 1 | 1, half the time | +30% | +34% |
+| Rare | 2 | 1 | +46% | +54% |
+| Epic | 2 | 2 | +64% | +76% |
+| Legendary | 3 | 3 | +88% | +104% |
+
+Quantity is how many items fall out, rarity is how good they are, and both
+apply to everything a run drops rather than only the completion chest — most
+items come from kills, so applying them to the chest alone made the headline
+numbers nearly decorative.
+
+### Danger is measured, not guessed
+
+Every modifier carries a `danger` value, and the sum is what the contract pays
+on top of its rarity floor. Each was run headlessly at Tier 16 against a party
+geared for it and priced on what it actually cost: **how much longer the run
+took** — throughput is what matters in an idle game, so a modifier that only
+inflates enemy life is expensive — plus how often it turned a clear into a wipe.
+
+Three things that measurement caught, none of which were guessable:
+
+- **Thornskin at 10% reflect was an auto-loss**, not a modifier: 19% clear and
+  runs three times longer, priced at 26. Reduced to 4%, repriced at 90, and
+  kept deliberately unprofitable — see below.
+- **A Common contract measured at 0.84×** the loot-per-minute of not running one
+  at all, making the whole bottom of the ladder junk. The rarity floor alone
+  does not cover even a mild modifier; danger had to pay for itself.
+- **An Epic paid less than a Rare**, because its second upside subtracted more
+  danger than its higher floor added. Upside values were halved.
+
+The ladder now measures, in loot value per minute against an unmodified run:
+
+| Common | Uncommon | Rare | Epic | Legendary |
+|---|---|---|---|---|
+| ×1.19 | ×1.54 | ×1.5–1.9 | ×1.98 | ×2.1–3.3 |
+
+### Not every contract is worth running
+
+Some combinations lose on throughput no matter how well they pay, and are meant
+to be looked at once and discarded — which is why discarding takes no
+confirmation and contracts drop often enough (16% at Tier 8, rising to 42%)
+that a bad one is a shrug rather than an hour of regret. *Thornskin* is the
+clearest case: it is priced high and still loses.
+
+Restrictions are the other half of the design. A contract may ban a class, a
+reach or a school, and is **refused before anyone spends stamina** — the
+contract is not consumed, and the refusal names who cannot enter. The twelve
+per-class bans collapse to a single entry in the roll pool: left as twelve they
+were nearly half of it, and measured, almost every contract banned somebody,
+turning occasional flavour into a permanent tax on a shallow roster.
+
 ## The handbook
 
 A **Guide** button sits beside Settings, and the tutorial's penultimate step
@@ -530,6 +601,7 @@ src/
     tooltip.js      the single floating tooltip and its markup
     roster.js       roster list and hero sheet
     guide.js        the Guild Handbook, generated from the data modules
+  contracts.js      sealed contracts: rolling, storing, pricing
     parties.js      party building and flask assignment
     expeditions.js  runs in the field and the dispatch board
     raids.js        Seal-gated milestone bosses
@@ -538,7 +610,8 @@ src/
     workshop.js     materials, bench recipes, alchemy
     log.js          guild log and its filters
   data/             bases, affixes, uniques, materials, recipes, monsters,
-                    heroclasses, traits, skills, resources, dungeons, upgrades
+                    heroclasses, traits, skills, resources, modifiers, dungeons,
+                    upgrades
 tests/              headless browser suites (npm test)
 ```
 
