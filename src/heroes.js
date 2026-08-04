@@ -484,3 +484,60 @@ export function grantMissingSkills(hero) {
   hero.skill = hero.skills[0] ?? null;
   return true;
 }
+
+/**
+ * Echo Stones a reroll costs, by how good the hero is.
+ *
+ * Better heroes cost more because they are the ones worth optimising: a
+ * Legendary is the hero you will still be using in fifty hours, so paying five
+ * stones to fix its skills is a decision, while a Common is cheap enough to
+ * fiddle with. Flat pricing would make the Legendary the *only* sensible
+ * target and everything else a waste of a stone.
+ */
+export const REROLL_COST = {
+  common: 1, uncommon: 1, rare: 2, epic: 3, legendary: 5,
+};
+
+export function rerollCostFor(hero) {
+  return REROLL_COST[hero?.rarity] ?? 1;
+}
+
+/** Whether the guild can pay for one, and has anything to reroll. */
+export function canRerollSkills(hero) {
+  const pool = skillPoolFor(CLASS_BY_ID[hero?.classId]);
+  return !!hero
+    && pool.length > SKILL_CHOICES
+    && (G.state?.guild.echoes ?? 0) >= rerollCostFor(hero);
+}
+
+/**
+ * Spends Echo Stones to redraw a hero's three skills.
+ *
+ * The equipped skill survives if it comes up again, which is not generosity —
+ * it stops a reroll aimed at the other two slots from silently changing how a
+ * hero fights. If it does not, the first of the new three takes over, because
+ * a hero with an empty skill slot is a hero quietly running at less than full
+ * strength.
+ */
+export function rerollSkills(hero) {
+  if (!hero) return { ok: false, msg: 'No hero.' };
+  const cost = rerollCostFor(hero);
+  if ((G.state.guild.echoes ?? 0) < cost) {
+    return { ok: false, msg: `Needs ${cost} Echo Stone${cost === 1 ? '' : 's'}.` };
+  }
+  const pool = skillPoolFor(CLASS_BY_ID[hero.classId]);
+  if (pool.length <= SKILL_CHOICES) {
+    return { ok: false, msg: `A ${CLASS_BY_ID[hero.classId]?.name} has no other skills to draw.` };
+  }
+
+  G.state.guild.echoes -= cost;
+  const was = hero.skill;
+  hero.skills = rng.sample(pool, SKILL_CHOICES).map((s) => s.id);
+  hero.skill = hero.skills.includes(was) ? was : hero.skills[0];
+
+  refreshSheets();
+  log(`${hero.name} retrains: ${hero.skills.map((id) => SKILL_BY_ID[id].name).join(', ')}.`, 'craft');
+  emit('roster');
+  emit('guild');
+  return { ok: true, kept: hero.skill === was };
+}

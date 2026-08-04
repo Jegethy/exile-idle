@@ -365,6 +365,22 @@ class comparison should measure the class, not which of three a hero drew.
 Heroes recruited before this existed roll theirs on load, from the pool their
 class would have drawn from, and the guild log says so.
 
+### Rerolling
+
+**Echo Stones** redraw a hero's three, and raid bosses are their only source.
+That is the point of them: a boss whose unique you have collected and whose
+first-kill bonus you have banked was otherwise a stat check with nothing behind
+it. Every kill pays, first kills pay double, and deeper bosses pay more — 2, 3,
+4, 6 and 10 by tier.
+
+The price scales with the hero, because better heroes are the ones worth
+optimising: 1 stone for a Common or Uncommon, 2 for a Rare, 3 for an Epic, 5 for
+a Legendary. Flat pricing would make the Legendary the only sensible target and
+every other reroll a waste.
+
+If the equipped skill comes up again it stays equipped, so a reroll aimed at the
+other two slots never silently changes how a hero fights.
+
 ## Support
 
 A Bard occupies a slot a damage class would have had, so it has to be worth
@@ -462,6 +478,26 @@ by absorbing, while a spell-resistant one would only ever protect itself. No
 resistance number can balance that, which is why the Paladin's Consecrate wards
 the *party* against spells rather than merely hardening the Paladin.
 
+## The handbook
+
+A **Guide** button sits beside Settings, and the tutorial's penultimate step
+points at it. Twelve tabbed pages — Basics, Classes, Roles & Rows, Stats &
+Terms, Traits, Skills, Items, Expeditions, Raids, Resources, Crafting, Guild
+Hall — with the body scrolling rather than the page, and tables scrolling
+inside themselves so nothing ever pushes the window sideways.
+
+Almost all of it is **generated from the data modules**. The class table reads
+`HERO_CLASSES`, the trait page reads `TRAITS`, the skill page reads `SKILLS` and
+computes each class's eligible pool live. A hand-typed reference is wrong the
+first time a multiplier changes and nobody notices for a month; a generated one
+cannot drift, and tests assert that every trait, skill, class, dungeon, raid and
+upgrade actually appears with its effect text.
+
+What is written by hand is the part data cannot state for itself: why loot is
+all-or-nothing, why the level gap is consulted in both directions, why ordinary
+attacks are free when a resource runs dry, and what `ehp` and `ilvl` actually
+mean.
+
 ## Project layout
 
 ```
@@ -493,6 +529,7 @@ src/
     modals.js       modal plumbing, confirm, save slots, settings
     tooltip.js      the single floating tooltip and its markup
     roster.js       roster list and hero sheet
+    guide.js        the Guild Handbook, generated from the data modules
     parties.js      party building and flask assignment
     expeditions.js  runs in the field and the dispatch board
     raids.js        Seal-gated milestone bosses

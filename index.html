@@ -32,6 +32,7 @@
     <div id="quickStats">
       <div class="qs" title="Gold"><label>GOLD</label><b id="qsGold" class="c-gold">0</b></div>
       <div class="qs" title="Raid Seals"><label>SEALS</label><b id="qsSeals" class="c-seal">0</b></div>
+      <div class="qs" title="Echo Stones — reroll a hero's skills"><label>ECHOES</label><b id="qsEchoes" class="c-echo">0</b></div>
       <div class="qs" title="Heroes in the guild"><label>HEROES</label><b id="qsHeroes">0</b></div>
       <div class="qs" title="Expeditions running / charters owned"><label>PARTIES</label><b id="qsParties">0/1</b></div>
       <div class="qs" title="Highest tier cleared"><label>TIER</label><b id="qsTier">0</b></div>
@@ -40,6 +41,7 @@
     <div id="topActions">
       <button class="btn" id="btnSave" title="Save now (auto-saves every 30s)">Save</button>
       <button class="btn" id="btnSaves">Saves</button>
+      <button class="btn" id="btnGuide" title="Game guide and glossary">Guide</button>
       <button class="btn" id="btnSettings">Settings</button>
     </div>
   </header>
@@ -266,6 +268,11 @@
         Your current guild is saved first.</p>
       <div class="row"><button class="btn" id="btnTitle">Return to Title Screen</button></div>
     </div>
+  </div>
+
+  <div class="modal guide hidden" id="modalGuide">
+    <header><h2>Guild Handbook</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body" id="guideBody"></div>
   </div>
 
   <div class="modal hidden" id="modalSettings">

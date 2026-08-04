@@ -70,7 +70,7 @@ export function createState(name = 'The Wayfarers') {
     createdAt: Date.now(),
     playtime: 0,
 
-    guild: { level: 1, xp: 0, gold: 250, seals: 0 },
+    guild: { level: 1, xp: 0, gold: 250, seals: 0, echoes: 0 },
 
     heroes: [],              // roster; see heroes.js
     parties: [],             // { id, name, members: [heroUid] }

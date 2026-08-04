@@ -107,6 +107,8 @@ function migrate(state) {
     notes.push(`${n} ${from}${n === 1 ? '' : 's'} became ${RETIRED_CLASSES[from]}s in the class rework.`);
   }
 
+  if (state.guild && state.guild.echoes === undefined) state.guild.echoes = 0;
+
   // A save that has already played is past the tutorial, whatever it says.
   if (!state.tutorial) state.tutorial = { step: 0, done: true, skipped: false };
   if (!state.tutorial.done && (state.stats?.runs ?? 0) > 0) state.tutorial.done = true;

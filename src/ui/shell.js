@@ -33,13 +33,14 @@ export function gotoTab(tabId) {
 }
 
 /**
- * @param {{saves: () => void, settings: () => void}} handlers - supplied by the
+ * @param {{saves: () => void, settings: () => void, guide: () => void}} handlers - supplied by the
  *   orchestrator, so the top bar does not have to import the modals it opens.
  */
 export function wireTopBar(handlers) {
   qs('#btnSave').onclick = () => Save.saveToSlot(G.slot);
   qs('#btnSaves').onclick = handlers.saves;
   qs('#btnSettings').onclick = handlers.settings;
+  qs('#btnGuide').onclick = handlers.guide;
 }
 
 export function renderStatus() {
@@ -71,6 +72,7 @@ export function renderQuickStats() {
   if (!s) return;
   qs('#qsGold').textContent = fmt(s.guild.gold);
   qs('#qsSeals').textContent = s.guild.seals ?? 0;
+  qs('#qsEchoes').textContent = s.guild.echoes ?? 0;
   qs('#qsHeroes').textContent = s.heroes.length;
   qs('#qsParties').textContent = `${s.expeditions.length}/${partySlots()}`;
   qs('#qsTier').textContent = s.progress.highestTier;

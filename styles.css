@@ -588,6 +588,7 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 :root {
   --gold-coin:#e0b74a;
   --seal:#c98ae0;
+  --echo:#7fd6c4;
   --h-common:#b8b4ac;
   --h-uncommon:#6fbf5f;
   --h-rare:#5f8fd0;
@@ -597,6 +598,7 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 
 .c-gold { color:var(--gold-coin); }
 .c-seal { color:var(--seal); }
+.c-echo { color:var(--echo); }
 b.gold { color:var(--gold); }
 
 .panel-head {
@@ -1289,3 +1291,66 @@ body.splash-open { overflow:hidden; }
   border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .skill.active b::after { content: ' ¹3'; color: var(--accent); }
+
+/* --- Guild Handbook -----------------------------------------------------
+   Wider than other modals because most of its content is tabular, and the
+   body scrolls rather than the page. Tabs wrap on narrow windows instead of
+   scrolling sideways -- a tab strip you have to scroll to discover is a tab
+   strip whose later tabs nobody opens. */
+.modal.guide { width:min(920px,95vw); }
+.g-tabs {
+  display:flex; flex-wrap:wrap; gap:4px; margin:-4px 0 14px;
+  position:sticky; top:-14px; z-index:2; padding:10px 0 8px;
+  background:linear-gradient(180deg,#15151b 78%,rgba(21,21,27,0));
+}
+.g-tab {
+  padding:5px 10px; font:inherit; font-size:12px; cursor:pointer;
+  color:var(--ink-faint); background:var(--bg-2);
+  border:1px solid var(--line); border-radius:3px;
+}
+.g-tab:hover { color:var(--ink); border-color:var(--line-2); }
+.g-tab.active { color:var(--gold); border-color:var(--gold-dim); background:rgba(200,170,110,.08); }
+
+.g-page { font-size:13px; line-height:1.55; }
+.g-h {
+  font-size:12px; letter-spacing:1.2px; text-transform:uppercase;
+  color:var(--gold); margin:18px 0 8px; font-weight:600;
+}
+.g-page > .g-h:first-child { margin-top:0; }
+.g-p { margin:0 0 10px; color:var(--ink); }
+.g-steps { margin:0 0 10px; padding-left:20px; color:var(--ink); }
+.g-steps li { margin-bottom:5px; }
+
+.g-defs { margin:0 0 10px; display:grid; grid-template-columns:auto 1fr; gap:5px 12px; }
+.g-defs dt { color:var(--gold); white-space:nowrap; }
+.g-defs dd { margin:0; color:var(--ink-faint); }
+
+/* Tables can outgrow a narrow window; they scroll inside themselves so the
+   modal body never scrolls sideways. */
+.g-scroll { overflow-x:auto; margin:0 0 10px; }
+.g-table { width:100%; border-collapse:collapse; font-size:12px; }
+.g-table th {
+  text-align:left; padding:5px 9px; white-space:nowrap;
+  color:var(--ink-faint); font-weight:500; font-size:11px;
+  letter-spacing:.6px; text-transform:uppercase;
+  border-bottom:1px solid var(--line-2);
+}
+.g-table td { padding:6px 9px; vertical-align:top; border-bottom:1px solid var(--line); color:var(--ink-faint); }
+.g-table tr:last-child td { border-bottom:0; }
+.g-table td b { color:var(--ink); }
+
+.g-good { color:var(--good,#6fbf5f); }
+.g-bad { color:var(--bad,#c95c4a); }
+.g-any { color:var(--ink-faint); font-style:italic; }
+.g-req {
+  display:inline-block; padding:1px 6px; border-radius:3px; font-size:11px;
+  background:var(--bg-3,var(--bg-2)); border:1px solid var(--line); color:var(--ink-faint);
+}
+.g-chips { display:flex; flex-wrap:wrap; gap:5px; margin:0 0 10px; }
+.g-chip {
+  padding:3px 9px; border-radius:3px; font-size:12px;
+  background:var(--bg-2); border:1px solid var(--line); color:var(--ink-faint);
+}
+.g-table .t1 { color:var(--r-normal,#b9b6ae); }
+.g-table .t2 { color:var(--r-magic,#6f9fd8); }
+.g-table .t3 { color:var(--r-rare,#d4c46a); }

@@ -53,10 +53,12 @@ export const STEPS = [
   {
     id: 'heroSheet',
     target: '#heroModalBody',
-    title: 'Traits and Equipment',
+    title: 'Traits, Skills and Equipment',
     body: '<b>Traits</b> are rolled when a hero is recruited and never change — they are the '
-      + 'reason one Rare Ranger is worth more than another.'
-      + '<br><br>Below them are nine equipment slots. <b>Gear from Vault</b> lets you fill them '
+      + 'reason one Rare Templar is worth more than another.'
+      + '<br><br>Every hero also rolls three <b>skills</b> and may have one equipped. Swapping is '
+      + 'free, so try them. Only a Raid boss can redraw the three.'
+      + '<br><br>Below those are nine equipment slots. <b>Gear from Vault</b> lets you fill them '
       + 'from the guild\'s shared stock, with tooltips showing the difference for that hero.',
     advance: 'next',
     onExit: () => closeAnyModal(),
@@ -183,6 +185,18 @@ export const STEPS = [
       + '<br><br>That is deliberate. Sending the first several expeditions by hand is how you learn '
       + 'which dungeon pays what and how far your party can be pushed. Once that is second nature, '
       + 'buy it and let idle parties repeat their last run on their own.',
+    advance: 'next',
+  },
+  {
+    id: 'guide',
+    target: '#btnGuide',
+    title: 'The Handbook',
+    body: 'Everything this tour skipped is in here — and there is a lot of it.'
+      + '<br><br>Twelve pages covering every class and what its passive does, all 28 traits, all '
+      + 'the skills and who can roll them, what <b>ehp</b> and <b>ilvl</b> actually mean, how '
+      + 'dungeons differ, and what a raid is for.'
+      + '<br><br>It is written from the game\'s own data, so it is never out of date. Open it '
+      + 'whenever something is unexplained.',
     advance: 'next',
   },
   {

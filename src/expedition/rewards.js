@@ -275,6 +275,17 @@ function grantRaidRewards(run) {
   }
   for (let i = 0; i < 4; i++) dropGear(run, 120, true);
 
+  // Echo Stones are what a raid is *for*, once its unique is collected and its
+  // first-kill bonus banked. Without them a boss you have killed five times is
+  // a stat check with nothing behind it. Doubled on a first kill, so the
+  // encounter you have not beaten is always the best one to attempt.
+  const echoes = (def.reward.echoes ?? 0) * (first ? 2 : 1);
+  if (echoes) {
+    s.guild.echoes = (s.guild.echoes ?? 0) + echoes;
+    run.rewards.echoes = (run.rewards.echoes ?? 0) + echoes;
+    log(`${def.name} yields ${echoes} Echo Stone${echoes === 1 ? '' : 's'}.`, 'boss');
+  }
+
   if (first) {
     s.progress.bonusMult += def.reward.bonus;
     log(`${def.name} has fallen for the first time! Guild rewards permanently +${def.reward.bonus}%.`, 'unique');

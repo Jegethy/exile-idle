@@ -19,6 +19,7 @@ import { ui } from './ui/state.js';
 import {
   wireTabs, wireTopBar, renderGuildBar, renderQuickStats, renderStatus, setStatus,
 } from './ui/shell.js';
+import { openGuide } from './ui/guide.js';
 import { wireModals, openModal, closeModals, renderSlots, renderSettings } from './ui/modals.js';
 import { renderRoster, updateStaminaBars, renderRecruitBoard } from './ui/roster.js';
 import { renderParties } from './ui/parties.js';
@@ -42,6 +43,7 @@ export function initUI() {
   wireTopBar({
     saves: () => { renderSlots(); openModal('modalSaves'); },
     settings: () => { renderSettings(); openModal('modalSettings'); },
+    guide: () => openGuide(),
   });
   wireModals();
   wireVaultActions();

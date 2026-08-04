@@ -21,11 +21,14 @@ export function renderRaids() {
     <div class="map-banner" style="margin-bottom:10px">
       <div class="map-banner-top">
         <span class="map-title">Raids</span>
-        <span class="map-meta"><b class="c-seal">${seals}</b> Raid Seals</span>
+        <span class="map-meta"><b class="c-seal">${seals}</b> Raid Seals
+          · <b class="c-echo">${s.guild.echoes ?? 0}</b> Echo Stones</span>
       </div>
       <p class="hint" style="margin-top:6px">Seals drop from Tier 4+ expeditions. Raids are pure stat
         checks with guaranteed payouts, and every first kill permanently raises guild rewards —
-        currently <b class="gold">+${s.progress.bonusMult}%</b>.</p>
+        currently <b class="gold">+${s.progress.bonusMult}%</b>.
+        <br>Every kill also yields <b class="c-echo">Echo Stones</b>, the only way to reroll a hero's
+        three skills. First kills pay double.</p>
     </div>
   ` + RAIDS.map((r) => {
     const unlocked = s.progress.highestTier >= r.tier;
@@ -42,6 +45,7 @@ export function renderRaids() {
         <span>Costs <b>${r.seals} Seal${r.seals === 1 ? '' : 's'}</b></span>
         <span>Unique <b>${Math.round(r.reward.uniqueChance * 100)}%</b></span>
         <span>First kill <b class="gold">+${r.reward.bonus}% rewards</b></span>
+        <span><b class="c-echo">${r.reward.echoes}</b> Echoes${kills ? '' : ' ×2'}</span>
       </div>
       <div class="row">${!unlocked
       ? `<span class="hint">Clear a Tier ${r.tier} dungeon to unlock.</span>`

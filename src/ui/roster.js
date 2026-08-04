@@ -5,7 +5,8 @@ import { RARITY_BY_ID } from '../data/heroclasses.js';
 import {
   BASE_STAMINA, assignToParty, boardCosts, dismiss, heroById, heroInfo, isDeployed,
   partyById, recruit, recruitBoard, rerollCost, rerollRecruits, removeFromParty,
-  toggleRecruitLock, unequipFromHero, equipSkill,
+  toggleRecruitLock, unequipFromHero, equipSkill, rerollSkills, rerollCostFor,
+  canRerollSkills,
 } from '../heroes.js';
 import { itemBaseStats } from '../items.js';
 import { G, emit, on } from '../state.js';
@@ -204,7 +205,12 @@ export function openHeroModal(heroUid) {
     : '<span class="hint">No traits.</span>'}</div>
 
     <div class="section-head"><span>Skill</span>
-      <span class="hint">One of three</span>
+      <div class="head-actions">
+        <span class="hint">One of three</span>
+        <button class="btn tiny" id="btnRerollSkills" ${canRerollSkills(hero) ? '' : 'disabled'}
+          title="Redraw all three from this class's pool">Reroll
+          <b class="c-echo">${rerollCostFor(hero)}</b></button>
+      </div>
     </div>
     <div class="skill-list" id="skillList">${info.skills.length
     ? info.skills.map((s) => `<button class="skill ${hero.skill === s.id ? 'active' : ''}" data-skill="${s.id}">
@@ -248,6 +254,25 @@ export function openHeroModal(heroUid) {
   for (const btn of qs('#heroModalBody').querySelectorAll('[data-skill]')) {
     btn.onclick = () => { equipSkill(hero, btn.dataset.skill); openHeroModal(hero.uid); };
   }
+
+  // Rerolling destroys two skills the player may have been using, so it asks
+  // first and names what it costs. It is confirmed rather than undoable
+  // because the roll is random — an undo would just be a free reroll.
+  qs('#btnRerollSkills').onclick = () => {
+    const cost = rerollCostFor(hero);
+    confirmAction(
+      'Reroll skills?',
+      `This draws three new skills for ${hero.name} and discards the current three. `
+      + `Costs ${cost} Echo Stone${cost === 1 ? '' : 's'}.`,
+      () => {
+        const res = rerollSkills(hero);
+        setStatus(res.ok
+          ? `${hero.name} retrained.${res.kept ? ' Kept the equipped skill.' : ''}`
+          : res.msg);
+        if (res.ok) openHeroModal(hero.uid);
+      },
+    );
+  };
 
   qs('#btnGearFor').onclick = () => {
     ui.equipTarget = ui.equipTarget === hero.uid ? null : hero.uid;
