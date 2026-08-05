@@ -1,6 +1,7 @@
 // workshop — Crafting materials, the bench recipes and the alchemy stand.
 
-import { brew, craft } from '../crafting.js';
+import { brew, craft, craftRepeat } from '../crafting.js';
+import { hasPrivilege, REPEAT_CRAFTS } from '../charter.js';
 import { FAMILIES, MATERIAL_BY_ID, familyMaterials } from '../data/materials.js';
 import { FLASKS, RECIPES, flaskCost } from '../data/recipes.js';
 import { findItem, hasMaterials } from '../inventory.js';
@@ -92,10 +93,15 @@ export function renderCraftPanel() {
         <div class="rc-name">${escapeHtml(r.name)}</div>
         <div class="rc-desc">${escapeHtml(r.desc)}</div>
       </div>`).join('')}</div>
-
+    ${repeatRow()}
   `;
 
   host.onclick = (e) => {
+    if (e.target.closest('#btnCraftRepeat')) {
+      ui.craftRepeat = !ui.craftRepeat;
+      renderCraftPanel();
+      return;
+    }
     const rec = e.target.closest('[data-recipe]');
     if (!rec) return;
     selectRecipe(ui.craftRecipe === rec.dataset.recipe ? null : rec.dataset.recipe);
@@ -136,10 +142,36 @@ export function renderAlchemy() {
   };
 }
 
+/**
+ * The Master's Bench switch.
+ *
+ * A mode rather than a second button beside every recipe, because the recipe
+ * is chosen here and applied over on the vault — a per-recipe button would
+ * have to ask "which item?" all over again. Warp is excluded from it outright:
+ * the one-way gamble repeated ten times is not a convenience, it is a way to
+ * destroy ten items by mistake.
+ */
+function repeatRow() {
+  if (!hasPrivilege('repeatCraft')) return '';
+  const r = ui.craftRecipe ? RECIPES.find((x) => x.id === ui.craftRecipe) : null;
+  const allowed = !r || !r.risky;
+  return `<div class="row repeat-row">
+    <button class="btn tiny ${ui.craftRepeat && allowed ? 'active' : ''}" id="btnCraftRepeat"
+      ${allowed ? '' : 'disabled'}>Repeat ×${REPEAT_CRAFTS}</button>
+    <span class="hint">${allowed
+    ? 'Runs the recipe until it lands ten times, the materials run out, or the item can take no more.'
+    : 'Warp is one-way, so it is never repeated.'}</span>
+  </div>`;
+}
+
 export function applyCraft(uid) {
   const item = findItem(uid);
   if (!item) return;
-  const res = craft(ui.craftRecipe, item);
+  const recipe = RECIPES.find((x) => x.id === ui.craftRecipe);
+  const repeat = ui.craftRepeat && hasPrivilege('repeatCraft') && !recipe?.risky;
+  const res = repeat
+    ? craftRepeat(ui.craftRecipe, item, REPEAT_CRAFTS)
+    : craft(ui.craftRecipe, item);
   setStatus(res.msg);
   if (!res.ok) return;
   emit('vault'); renderMaterials(); renderCraftPanel();

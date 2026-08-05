@@ -97,6 +97,9 @@ export function createState(name = 'The Wayfarers') {
     // One-off things that have happened, for Feats of Strength.
     feats: {},
 
+    // Charter privileges the guild has been told about; see charter.js.
+    charter: { granted: {} },
+
     stats: {
       runs: 0, runsFailed: 0, kills: 0, heroDeaths: 0,
       gearFound: 0, uniquesFound: 0, goldEarned: 0, recruited: 0, raidKills: 0,
@@ -116,6 +119,16 @@ export function createState(name = 'The Wayfarers') {
       autoSalvageNormal: true,
       autoSalvageMagic: false,
       autoSalvageRare: false,
+      // Every Charter automation defaults to off. Unlocking one puts the
+      // switch on the wall; it does not flip it. Automation that starts
+      // spending your gold or rewriting a party's orders unasked is
+      // indistinguishable from a bug. See data/charter.js.
+      salvageSpare: false,
+      autoEquip: false,
+      standingAccounts: false,
+      reserves: false,
+      autoContract: false,
+      pushOrders: false,
       // Composition warnings are advice, not rules — an over-geared party
       // farming old content does not need a tank, and should not be nagged.
       hideCompWarnings: false,

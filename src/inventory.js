@@ -7,6 +7,8 @@ import { MATERIAL_BY_ID, materialOf, gradeForIlvl, salvageFamilies } from './dat
 import { BASE_BY_ID } from './data/bases.js';
 import { UPGRADE_BY_ID, upgradeCost } from './data/upgrades.js';
 import { refreshSheets } from './sheets.js';
+import { bestUpgrade } from './stats.js';
+import { automationOn } from './charter.js';
 
 export function vaultCount() { return G.state.vault.length; }
 export function vaultFull() { return G.state.vault.length >= vaultCapacity(); }
@@ -55,7 +57,27 @@ function shouldAutoSalvage(item) {
   if (item.rarity === 'normal' && set.autoSalvageNormal) return true;
   if (item.rarity === 'magic' && set.autoSalvageMagic) return true;
   if (item.rarity === 'rare' && set.autoSalvageRare) return true;
+  if (item.rarity !== 'unique' && automationOn('salvageSpare') && improvesNobody(item)) return true;
   return false;   // uniques are never auto-salvaged
+}
+
+/**
+ * Discerning Eye: does this item beat what *anybody* on the roster is wearing?
+ *
+ * The rarity switches above are blunt — "salvage every Rare" throws away the
+ * one that would have re-armed a Wizard along with the ninety that would not.
+ * This asks the question the player is actually asking, and it is deliberately
+ * conservative: any hero it would improve at all saves it, and a hero in the
+ * field counts, because they will not be for long.
+ *
+ * The cost is a stat sheet per hero per drop. Measured against the alternative
+ * — a vault that fills every ten minutes — it is the cheap option.
+ */
+function improvesNobody(item) {
+  const heroes = G.state.heroes ?? [];
+  if (!heroes.length) return false;
+  const best = bestUpgrade(heroes, item, G.state.upgrades);
+  return !best || best.delta <= 0;
 }
 
 export function toggleLock(uid) {

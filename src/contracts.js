@@ -18,12 +18,21 @@ import { DUNGEON_BY_ID, DUNGEONS } from './data/dungeons.js';
 import {
   dangerOf, downsidePoolFor, boonPoolFor, MODIFIER_BY_ID,
 } from './data/modifiers.js';
+import { contractCap, BASE_CONTRACT_CAP } from './charter.js';
+
+// Re-exported so callers ask contracts.js how many fit, not the charter.
+export { contractCap };
 
 /** Contracts start dropping here. Below it, tier itself is still teaching. */
 export const CONTRACT_MIN_TIER = 8;
 
-/** How many a guild may hold. Enough to choose between; not enough to hoard. */
-export const CONTRACT_CAP = 16;
+/**
+ * How many a guild may hold. Enough to choose between; not enough to hoard.
+ *
+ * The Sealed Archive privilege raises it to 24 — see charter.js, which owns
+ * the number so two privileges cannot disagree about the ceiling.
+ */
+export const CONTRACT_CAP = BASE_CONTRACT_CAP;
 
 /**
  * Contract rarity: how many modifiers it carries, how many upsides, and the
@@ -129,7 +138,7 @@ export function storeContract(contract) {
   if (!contract) return false;
   const s = G.state;
   if (!Array.isArray(s.contracts)) s.contracts = [];
-  if (s.contracts.length >= CONTRACT_CAP) {
+  if (s.contracts.length >= contractCap()) {
     let worstAt = 0;
     for (let i = 1; i < s.contracts.length; i++) {
       if (s.contracts[i].danger < s.contracts[worstAt].danger) worstAt = i;

@@ -252,18 +252,27 @@ export function upgradeFor(hero, item, upgrades = {}, slotOverride = null) {
   let after;
   try { after = heroStats(hero, upgrades); } finally { hero.equipment[slot] = saved; }
 
-  const w = ROLE_WEIGHTS[before.role] ?? ROLE_WEIGHTS.DPS;
-  const score = (sheet) => sheet.dps * w.dps
+  const a = sheetScore(before);
+  const b = sheetScore(after);
+  return { delta: a > 0 ? (b - a) / a : 0, before, after, slot };
+}
+
+/**
+ * A stat sheet as one number, weighted by what the hero's role wants.
+ *
+ * Exported because two things need to agree on it: the upgrade marker in the
+ * vault, and the outfitter that acts on it. If they used different scores, the
+ * marker would recommend items the Best Gear button then refused to take.
+ */
+export function sheetScore(sheet) {
+  const w = ROLE_WEIGHTS[sheet.role] ?? ROLE_WEIGHTS.DPS;
+  return sheet.dps * w.dps
     + sheet.life * w.life
     + sheet.armour * w.armour
     + sheet.evasion * w.evasion
     + sheet.es * w.es
     + sheet.healPower * w.heal
     + (sheet.blockMelee + sheet.blockSpell) * w.block;
-
-  const a = score(before);
-  const b = score(after);
-  return { delta: a > 0 ? (b - a) / a : 0, before, after, slot };
 }
 
 /** What each role is actually shopping for. */

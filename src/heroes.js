@@ -14,6 +14,7 @@ import { refreshSheets } from './sheets.js';
 import { createItem } from './items.js';
 import { guildEffects } from './data/upgrades.js';
 import { recordFeat } from './achievements.js';
+import { recruitBoardSize } from './charter.js';
 
 export const BASE_STAMINA = 100;
 
@@ -71,9 +72,6 @@ export function rollHero(opts = {}) {
   };
 }
 
-/** Pays gold and adds a new hero to the roster. */
-const BOARD_SIZE = 3;
-
 /**
  * What one candidate costs: the roster-size curve from state.js, scaled by how
  * good they are. Keeping the exponential curve underneath is the point — a
@@ -100,7 +98,10 @@ export function recruitBoard() {
   const s = G.state;
   s.recruits ??= { candidates: [], locked: [], rerolls: 0 };
   const board = s.recruits;
-  while (board.candidates.length < BOARD_SIZE) board.candidates.push(rollHero());
+  // Word of Mouth and Open Doors widen this; see data/charter.js. A board that
+  // has already been generated keeps whoever is standing on it, so a privilege
+  // arriving mid-sitting adds a candidate rather than replacing the lot.
+  while (board.candidates.length < recruitBoardSize()) board.candidates.push(rollHero());
   return board;
 }
 

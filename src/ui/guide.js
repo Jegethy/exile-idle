@@ -25,6 +25,7 @@ import { SLOTS } from '../data/bases.js';
 import { FAMILIES, MATERIALS } from '../data/materials.js';
 import { RECIPES, FLASKS } from '../data/recipes.js';
 import { UPGRADES } from '../data/upgrades.js';
+import { PRIVILEGES } from '../data/charter.js';
 import { RARITY, AFFIX_CAPS } from '../items.js';
 import { REROLL_COST } from '../heroes.js';
 import { G } from '../state.js';
@@ -515,6 +516,32 @@ function pageGuild() {
     section('The four jobs', p(ROLES.join(', ') + '.')));
 }
 
+function pageCharter() {
+  const level = G.state?.guild?.level ?? 1;
+  return section('The Guild Charter',
+    p('Your <b>Guild Level</b> is the bar at the very top of the screen. It goes up as your',
+      'parties come home, and at certain levels the guild earns a <b>privilege</b>.'),
+    p('Privileges are free. You do not buy them and you do not choose between them — reach the',
+      'level and it is yours. They are also never about damage or gold. What they do is save you',
+      'work: filling equipment slots, running the same expedition again, buying the next upgrade.',
+      'The Guild Hall sells numbers for gold; the charter hands time back for playing.'),
+    p('You can see the whole list on the <b>Guild Hall</b> tab, including the ones you have not',
+      `reached yet. You are Guild Level <b>${level}</b>.`),
+    table(['Level', 'Privilege', 'What it does'],
+      PRIVILEGES.map((x) => [
+        String(x.level),
+        `<b>${esc(x.name)}</b>`,
+        x.desc,
+      ])),
+    section('Switches',
+      p('Anything that spends your gold or changes where a party is going arrives switched',
+        '<b>off</b>. Turn it on beside the privilege in the Guild Hall when you want it. Nothing',
+        'starts making decisions for you without being asked.'),
+      p('None of them can do something you could not do yourself. Push Orders will not open a',
+        'tier you have not unlocked, and a contract that would turn one of your heroes away at',
+        'the door is left on the board.')));
+}
+
 // ---------------------------------------------------------------------------
 // The modal
 // ---------------------------------------------------------------------------
@@ -533,6 +560,7 @@ const PAGES = [
   { id: 'resources', label: 'Mana & Rage', render: pageResources },
   { id: 'crafting', label: 'Crafting', render: pageCrafting },
   { id: 'guild', label: 'Guild Hall', render: pageGuild },
+  { id: 'charter', label: 'The Charter', render: pageCharter },
 ];
 
 let current = 'basics';

@@ -16,6 +16,8 @@ import { closeModals, confirmAction, openModal } from './modals.js';
 import { gotoTab, setStatus } from './shell.js';
 import { R, ui } from './state.js';
 import { hideTooltip, moveTooltip, showHeroTooltip, showItemTooltip } from './tooltip.js';
+import { hasPrivilege } from '../charter.js';
+import { gearUpHero } from '../outfit.js';
 
 // ===========================================================================
 // Roster
@@ -219,6 +221,8 @@ export function openHeroModal(heroUid) {
 
     <div class="section-head"><span>Equipment</span>
       <div class="head-actions">
+        ${hasPrivilege('equipBest') ? `<button class="btn tiny" id="btnBestGear" ${out ? 'disabled' : ''}
+          title="Fill every slot with the best the vault holds. Locked items are left alone.">Best Gear</button>` : ''}
         <button class="btn tiny ${ui.equipTarget === hero.uid ? 'active' : ''}" id="btnGearFor">Gear from Vault</button>
       </div>
     </div>
@@ -273,6 +277,17 @@ export function openHeroModal(heroUid) {
       },
     );
   };
+
+  const bestBtn = qs('#btnBestGear');
+  if (bestBtn) {
+    bestBtn.onclick = () => {
+      const n = gearUpHero(hero.uid);
+      setStatus(n
+        ? `${hero.name}: ${n} slot${n === 1 ? '' : 's'} improved.`
+        : `${hero.name} is already carrying the best the vault holds.`);
+      openHeroModal(hero.uid);
+    };
+  }
 
   qs('#btnGearFor').onclick = () => {
     ui.equipTarget = ui.equipTarget === hero.uid ? null : hero.uid;

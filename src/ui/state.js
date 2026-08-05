@@ -8,6 +8,9 @@ import { RARITY } from '../items.js';
 
 export const ui = {
   craftRecipe: null,
+  // Master's Bench: run the selected recipe up to ten times on one click.
+  // Held here rather than on the recipe so it survives switching between them.
+  craftRepeat: false,
   equipTarget: null,     // heroUid the vault is currently gearing
   benchTarget: null,     // partyId the bench adds to on click
   dispatchTier: 1,

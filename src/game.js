@@ -4,10 +4,13 @@ import { G, createState, log, emit, on } from './state.js';
 import { rng } from './rng.js';
 import * as Save from './save.js';
 import { tickAll, dispatch } from './expedition.js';
+import { staminaCost } from './data/dungeons.js';
 import { restAll, startingRoster, createParty, assignToParty } from './heroes.js';
 import { refreshSheets } from './sheets.js';
 import { tickReports, partyIsReading, clearReports } from './reports.js';
 import { tickAchievements, backfill } from './achievements.js';
+import { tickCharter, backfillCharter, offlineHours } from './charter.js';
+import { autoUpgradePass, reservesPass, redeployOrders } from './orders.js';
 
 export { refreshSheets };
 import { guildEffects } from './data/upgrades.js';
@@ -35,7 +38,6 @@ const REDEPLOY_DELAY = 1.5;
 const HEARTBEAT_MS = 1000;
 const CATCH_STEP = 0.5;
 const CATCH_BUDGET_MS = 1500;    // never block the page longer than this
-const MAX_OFFLINE_HOURS = 12;
 // The tutorial's demonstration expedition runs accelerated. A full-length run
 // is far too long to sit through, but 5x was too fast to actually watch — the
 // fight was over before the step describing it had been read. 3x lands around
@@ -98,6 +100,7 @@ export function enterGuild(slot) {
   // A guild that has been running for hours should be credited for what it
   // already did, silently, rather than greeted by twenty pop-ups.
   backfill();
+  backfillCharter();
   log(`Welcome back to ${G.state.name}.`, 'sys');
   last = performance.now();
   runOfflineProgress();
@@ -129,7 +132,8 @@ function runOfflineProgress() {
     return;
   }
 
-  const capped = Math.min(away, MAX_OFFLINE_HOURS * 3600);
+  const hours = offlineHours(s);
+  const capped = Math.min(away, hours * 3600);
   const before = { gold: s.guild.gold, runs: s.stats.runs, gear: s.stats.gearFound };
   const { simulated, dropped } = catchUp(capped);
   // Hours of catch-up finish dozens of runs, each of which files a report.
@@ -143,7 +147,7 @@ function runOfflineProgress() {
   log(`While you were away (${fmtAway(simulated)}): ${runs} expedition${runs === 1 ? '' : 's'}, `
     + `${fmtInt(gold)} gold, ${gear} items.`, 'loot');
   if (dropped > 60 || away > capped) {
-    log(`Offline progress is capped at ${MAX_OFFLINE_HOURS} hours.`, 'sys');
+    log(`Offline progress is capped at ${hours} hours.`, 'sys');
   }
 }
 
@@ -204,7 +208,9 @@ function simulate(dt, quiet = false) {
   // seconds to read should last five seconds however fast the game is running.
   tickReports(dt);
   tickAchievements(dt);
+  tickCharter(dt);
   handleRedeploy(dt);
+  autoUpgradePass(dt);
 
   if (quiet) return;
   autosaveTimer += dt;
@@ -302,7 +308,16 @@ function handleRedeploy(dt) {
     // launches instantly and the report is replaced by a progress bar before
     // anyone could read it.
     if (partyIsReading(party.id)) continue;
-    dispatch(party.id, party.lastRun.dungeonId, party.lastRun.tier);
+
+    // Where to, and with what. Push Orders may move the tier and Standing
+    // Seals may attach a contract; with neither privilege this is exactly the
+    // last run repeated. See orders.js.
+    const orders = redeployOrders(party);
+    if (!orders) continue;
+    // Reserve Roster gets its say before the stamina check, since relieving an
+    // exhausted hero is the whole point of it.
+    reservesPass(party, staminaCost(orders.tier));
+    dispatch(party.id, orders.dungeonId, orders.tier, orders.contractId);
   }
 }
 

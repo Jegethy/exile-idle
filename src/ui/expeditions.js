@@ -12,7 +12,7 @@ import { G, on, emit, partySlots } from '../state.js';
 import { clamp, escapeHtml, fmt, fmtTime, qs } from '../util.js';
 import { setStatus } from './shell.js';
 import {
-  CONTRACT_CAP, rewardMultFor, findBaseFor, rarityOf, downsidesOf, boonsOf,
+  contractCap, rewardMultFor, findBaseFor, rarityOf, downsidesOf, boonsOf,
   consumeContract,
 } from '../contracts.js';
 import { barredMembers } from '../data/modifiers.js';
@@ -293,7 +293,7 @@ function contractShelf(idleParties, free) {
   return `<div class="contract-shelf" id="contractShelf">
     <div class="cs-head">
       <span class="dispatch-label">Sealed Contracts</span>
-      <span class="hint">${list.length}/${CONTRACT_CAP} · spent when the party leaves, win or lose</span>
+      <span class="hint">${list.length}/${contractCap()} · spent when the party leaves, win or lose</span>
     </div>
     <div class="cs-list">${sorted.map((c) => {
     const dungeon = DUNGEON_BY_ID[c.dungeonId];

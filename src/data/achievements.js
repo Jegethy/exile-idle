@@ -26,6 +26,8 @@
 // before an achievement existed is credited correctly the first time it is
 // checked, and no counter can drift from the thing it counts.
 
+import { PRIVILEGES, privilegesUpTo } from './charter.js';
+
 export const CATEGORIES = [
   { id: 'general', name: 'General', icon: 'banner' },
   { id: 'expeditions', name: 'Expeditions', icon: 'sword' },
@@ -254,6 +256,21 @@ const hallOne = [
   },
 ];
 
+// Charter privileges are earned by guild level rather than bought, which is
+// why they sit beside the upgrades rather than in a category of their own: the
+// Guild Hall is where a player goes to make the guild itself better, and both
+// halves of that are on the one screen.
+const charter = chain({
+  base: 'charter', category: 'hall', icon: 'banner',
+  progress: (s) => privilegesUpTo(s.guild?.level ?? 1).length,
+  rungs: [
+    [1, 'Articles Signed', 'Earn a charter privilege.'],
+    [4, 'A Working Guild', 'Earn 4 charter privileges.'],
+    [8, 'Well Chartered', 'Earn 8 charter privileges.'],
+    [PRIVILEGES.length, 'The Charter Complete', 'Earn every charter privilege.'],
+  ],
+});
+
 // ---------------------------------------------------------------------------
 // General
 // ---------------------------------------------------------------------------
@@ -379,7 +396,7 @@ export const ACHIEVEMENTS = [
   ...raidKills, ...raidRoster,
   ...tiers,
   ...crafted, ...brewed, ...salvaged,
-  ...upgrades, ...hallOne,
+  ...upgrades, ...hallOne, ...charter,
   ...feats,
 ];
 

@@ -146,6 +146,34 @@ export function craft(recipeId, item) {
   return ok(msg);
 }
 
+/**
+ * Runs a recipe over and over — the Master's Bench privilege.
+ *
+ * Stops the moment it cannot continue rather than reporting a failure, because
+ * "it ran seven times and then the essence ran out" is the answer, not an
+ * error. Warp is excluded by the caller and not here: this module does not
+ * know what a privilege is, and a one-way gamble repeated ten times is a
+ * design decision rather than an arithmetic one.
+ *
+ * @returns {{ok: boolean, msg: string, times: number}}
+ */
+export function craftRepeat(recipeId, item, times) {
+  let done = 0;
+  let last = '';
+  for (let i = 0; i < times; i++) {
+    const res = craft(recipeId, item);
+    if (!res.ok) break;
+    last = res.msg;
+    done++;
+  }
+  if (!done) return { ...canAfford(recipeId, item), times: 0 };
+  return {
+    ok: true,
+    msg: done === 1 ? last : `${last} (×${done})`,
+    times: done,
+  };
+}
+
 /** Refine on a unique rerolls each preset mod within its range. */
 function refineUnique(item) {
   const u = UNIQUE_BY_ID[item.uniqueId];

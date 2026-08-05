@@ -293,13 +293,14 @@ export default async function run(browser) {
     const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
       const { checkAchievements, takePending } = await import('./src/achievements.js');
-      const { pumpToasts, clearToasts } = await import('./src/ui/achievements.js');
+      const { pumpAchievementToasts } = await import('./src/ui/achievements.js');
+      const { pumpToasts, clearToasts } = await import('./src/ui/toast.js');
       clearToasts();
       takePending();
       G.state.achievements = { unlocked: {} };
       G.state.stats.crafted = 1;
       checkAchievements();
-      pumpToasts();
+      pumpAchievementToasts(); pumpToasts();
       const layer = document.querySelector('#toastLayer');
       const toast = layer?.querySelector('.ach-toast');
       const out = {
@@ -310,7 +311,7 @@ export default async function run(browser) {
         icon: !!toast?.querySelector('svg'),
       };
       out.shown = document.querySelectorAll('#toastLayer .ach-toast').length;
-      const { queuedToasts } = await import('./src/ui/achievements.js');
+      const { queuedToasts } = await import('./src/ui/toast.js');
       out.queued = queuedToasts();
       toast?.click();
       out.afterClick = document.querySelectorAll('#toastLayer .ach-toast').length;
@@ -332,14 +333,15 @@ export default async function run(browser) {
     const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
       const { checkAchievements, takePending } = await import('./src/achievements.js');
-      const { pumpToasts, clearToasts } = await import('./src/ui/achievements.js');
+      const { pumpAchievementToasts } = await import('./src/ui/achievements.js');
+      const { pumpToasts, clearToasts } = await import('./src/ui/toast.js');
       const { closeModals } = await import('./src/ui/modals.js');
       closeModals();
       clearToasts(); takePending();
       G.state.achievements = { unlocked: {} };
       G.state.stats.salvaged = 20;
       checkAchievements();
-      pumpToasts();
+      pumpAchievementToasts(); pumpToasts();
       const toast = document.querySelector('.ach-toast');
       const t = toast.getBoundingClientRect();
       const overlaps = (sel) => {

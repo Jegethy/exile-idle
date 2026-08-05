@@ -11,6 +11,9 @@ import { guildEffects } from '../data/upgrades.js';
 import { maybeDropContract } from '../contracts.js';
 import { addReport, reports } from '../reports.js';
 import { recordFeat } from '../achievements.js';
+import { automationOn } from '../charter.js';
+import { autoEquipHaul } from '../outfit.js';
+import { noteOutcome } from '../orders.js';
 import { grantHeroXp, heroById, partyById } from '../heroes.js';
 import { addMaterial, addToVault } from '../inventory.js';
 import { createItem, rollUnique } from '../items.js';
@@ -193,6 +196,9 @@ export function finishRun(run, success) {
   run.status = success ? 'complete' : 'failed';
   const party = partyById(run.partyId);
   const name = party?.name ?? 'The party';
+  // What walked in the door, for Standing Kit to look through once the run is
+  // properly over.
+  let banked = [];
 
   if (success) {
     s.stats.runs++;
@@ -205,6 +211,7 @@ export function finishRun(run, success) {
     if (run.contractRarity === 'legendary') recordFeat('legendaryContract');
     if (run.raidId) grantRaidRewards(run);
     else grantClearBonus(run);
+    banked = run.haul.items.slice();
     bankHaul(run);
     maybeDropContract(run);
 
@@ -228,6 +235,9 @@ export function finishRun(run, success) {
   }
 
   if (party) party.returnedAt = s.playtime;
+  // Recorded whether or not Push Orders is on, so switching it on mid-session
+  // reads a streak that is already true rather than starting from nothing.
+  noteOutcome(party, success);
 
   // Built here, while the combatants still exist. A party that will redeploy
   // on its own gets a countdown; one that will not waits to be dismissed.
@@ -237,6 +247,12 @@ export function finishRun(run, success) {
 
   const i = s.expeditions.indexOf(run);
   if (i >= 0) s.expeditions.splice(i, 1);
+
+  // Standing Kit runs last, and the ordering is the whole trick: until the run
+  // is out of s.expeditions its own members still read as deployed, so a party
+  // would be barred from equipping the gear it had just carried home.
+  if (success && banked.length && automationOn('autoEquip')) autoEquipHaul(banked);
+
   emit('expeditions'); emit('roster'); emit('guild');
 }
 

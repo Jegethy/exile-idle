@@ -1591,3 +1591,62 @@ body.splash-open { overflow:hidden; }
   .toast-glow { animation:none; opacity:.7; }
   .ach-toast { transition:opacity .2s; transform:none; }
 }
+
+/* --- The Guild Charter --------------------------------------------------
+   Sits above the Guild Hall's upgrade list, which is the point: the shop that
+   sells numbers for gold, and the ladder that hands time back for playing. */
+.charter-head {
+  display:flex; align-items:center; gap:14px; padding:10px 12px; margin-bottom:8px;
+  border:1px solid var(--gold-dim); border-radius:4px;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(200,170,110,.10),rgba(0,0,0,0));
+}
+.charter-rank {
+  flex:0 0 auto; display:grid; place-items:center; width:66px; height:66px;
+  border:2px solid var(--gold-dim); border-radius:4px;
+  background:radial-gradient(circle at 50% 34%,rgba(200,170,110,.18),rgba(0,0,0,.30));
+}
+.rank-label { font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); }
+.rank-value { font-size:26px; font-weight:700; color:var(--gold); line-height:1.05; }
+.charter-progress { flex:1 1 auto; min-width:0; display:grid; gap:5px; }
+.charter-line { font-size:12px; color:var(--ink); }
+
+.charter-list { display:grid; gap:6px; }
+.charter {
+  display:flex; align-items:center; gap:11px; padding:8px 11px;
+  border:1px solid var(--line); border-left-width:3px; border-radius:4px;
+  background:var(--bg-2);
+}
+.charter.held { border-left-color:var(--gold); background:rgba(200,170,110,.055); }
+.charter.locked { opacity:.6; }
+.charter-icon {
+  width:32px; height:32px; flex:0 0 auto; padding:6px; border-radius:4px;
+  border:1px solid var(--line-2); color:var(--ink-faint); background:var(--bg-3,#101016);
+}
+.charter.held .charter-icon { color:var(--gold); border-color:var(--gold-dim); }
+.charter-body { flex:1 1 auto; min-width:0; }
+.charter-top { display:flex; align-items:baseline; gap:8px; }
+.charter-name { font-weight:600; font-size:13px; }
+.charter-kind {
+  font-size:9px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint);
+}
+.charter-desc { font-size:11.5px; color:var(--ink-dim); margin-top:2px; }
+.charter-side { flex:0 0 auto; display:grid; gap:4px; justify-items:center; }
+.charter-level {
+  min-width:44px; text-align:center; padding:3px 6px; border-radius:3px;
+  font-size:11px; font-weight:600; color:var(--ink-faint);
+  border:1px solid var(--line-2); background:var(--bg-3,#101016);
+}
+.charter.held .charter-level { color:var(--gold); border-color:var(--gold-dim); }
+.charter-switch {
+  display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;
+  color:var(--ink-faint);
+}
+.charter-switch input { cursor:pointer; }
+
+/* A charter toast is the same shape as an achievement's, without the points
+   badge -- a privilege is not worth a number, and putting one there would
+   invite the comparison. */
+.ach-toast.charter-toast .toast-kicker { color:var(--gold-dim); }
+
+.repeat-row { align-items:center; gap:9px; margin-top:8px; }
+.repeat-row .hint { flex:1 1 0; min-width:0; }

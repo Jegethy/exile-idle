@@ -229,6 +229,18 @@ export const STEPS = [
     advance: 'next',
   },
   {
+    id: 'charter',
+    tab: 'hall', target: '#charterPanel',
+    title: 'The Guild Charter',
+    body: 'Above the upgrades is the other half of the guild, and it costs nothing.'
+      + '<br><br>The bar at the very top of the screen is your <b>Guild Level</b>. It fills as '
+      + 'your parties come home, and at certain levels the charter grants a <b>privilege</b>.'
+      + '<br><br>None of them make your heroes stronger. What they do is save you work — filling '
+      + 'equipment slots, sending a party out again, buying the next upgrade. The list here shows '
+      + 'every one, including the ones you have not reached yet.',
+    advance: 'next',
+  },
+  {
     id: 'standingOrders',
     tab: 'expeditions', target: '#autoDispatchBox',
     title: 'Doing It Yourself',

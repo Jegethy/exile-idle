@@ -70,7 +70,7 @@ comes back here, so you can run several guilds without reloading the page.
 
 ## Tutorial
 
-A new guild opens into a sixteen-step guided tour. It darkens the screen except
+A new guild opens into a twenty-two step guided tour. It darkens the screen except
 for the element being explained, and the cut-out stays genuinely interactive —
 when it asks you to send your first expedition, you press the real button and it
 runs a real expedition.
@@ -225,6 +225,12 @@ which company gets the good one is the point.
 headline purchase: each one lets another party run concurrently, which changes
 how the game plays more than any stat.
 
+**The Guild Charter** — Fourteen privileges granted by Guild Level, free and in
+a fixed order. Where the Guild Hall sells numbers for gold, the Charter hands
+time back for playing: an outfitter that fills nine slots in one press, a
+salvage rule that reads the roster before binning a drop, and eventually
+parties that pick their own tier. See [The Charter](#the-charter).
+
 **Raids** — Five milestone bosses gated by tier and Raid Seals. Pure stat checks
 with guaranteed payouts; every first kill permanently raises guild rewards.
 
@@ -241,6 +247,104 @@ nobody telling it what to do next has nothing to get on with.
 
 **Saving** — Three localStorage slots, auto-save every 30 seconds, plus base64
 export/import and `.json` download/upload.
+
+## The Charter
+
+Guild Level was the largest number on the screen and the only one that did
+nothing. It had a bar across the top bar, it appeared in save filenames, and no
+other line of code read it.
+
+The Charter is what it buys. Fourteen privileges, granted at fixed levels, and
+every one of them **operational** rather than statistical — the division is the
+whole design:
+
+| | Costs | Sells |
+|---|---|---|
+| **Guild Hall** | Gold | Numbers. Rarity, damage, stamina, party slots. |
+| **The Charter** | Nothing — it is earned by playing | Time back. Work you no longer do by hand. |
+
+| Level | Privilege | What it does |
+|---|---|---|
+| 2 | Quartermaster's Eye | **Best Gear** on a hero: fills every slot from the vault |
+| 3 | Requisition Orders | **Gear Up** a whole party at once |
+| 5 | Discerning Eye | Auto-salvage gains *anything that improves nobody* |
+| 7 | Word of Mouth | A fourth candidate in the Hiring Hall |
+| 9 | The Longer Watch | Offline progress 12h → 18h |
+| 11 | Standing Kit | Gear that comes home better than what a hero wears equips itself |
+| 13 | Master's Bench | **×10** on a bench recipe |
+| 15 | Standing Accounts | The Guild Hall buys its own cheapest rank |
+| 17 | Sealed Archive | The contract board holds 24 instead of 16 |
+| 19 | Open Doors | A fifth candidate |
+| 21 | Reserve Roster | An exhausted hero is relieved from the bench rather than waited on |
+| 24 | The Long Watch | Offline progress 18h → 24h |
+| 27 | Standing Seals | A party on its own orders spends a contract that fits them |
+| 30 | Push Orders | A party climbs a tier on three clean clears, and falls back on a wipe |
+
+The levels were placed against measured guild experience, not guessed. Guild XP
+is 12% of the party's, so a Deepmines clear pays 2,157 at Tier 8, 8,605 at Tier
+20 and 18,821 at Tier 30, against a level curve of 1.075 per level.
+
+At a modest twenty-five runs a tier, simply *climbing* the ladder carries a
+guild to roughly Level 7 by Tier 8, Level 10 by Tier 12, Level 15 by Tier 20
+and Level 22 by Tier 36 — so everything up to the Sealed Archive arrives on the
+way up. The last three rungs are not reachable by climbing at all; they want
+farming, which is the point of putting the automation there. Four parties on
+Tier 30 turn over about 6.8M guild XP an hour, which is Level 21 in an hour of
+it and Level 30 in an evening.
+
+**Nothing was moved behind a gate.** Every privilege is new capability, so a
+save from before the Charter loses nothing and is credited silently on load for
+whatever its level already earned. A test asserts a level 1 guild still has its
+three candidates, its sixteen contracts and its twelve offline hours.
+
+### Automation you have to ask for
+
+Six privileges carry a switch, and every one of them arrives **off**. Unlocking
+one puts the switch on the wall; it does not flip it. Automation that starts
+spending your gold or rewriting a party's orders unasked is indistinguishable
+from a bug.
+
+The harder rule, and the one the tests are really about: **an automation may
+only do something you could have done from the interface a moment earlier.**
+Push Orders cannot open a tier that is still locked. Standing Seals will not
+spend a contract the party would be turned away from at the door. Reserve
+Roster cannot field a hero who is already out. An automation that can do more
+than you can is not convenience, it is a second player.
+
+Three of them read the guild's own state rather than a counter, so switching
+one on mid-session works immediately: Push Orders reads a clear streak that was
+already being recorded, whether or not it was switched on at the time.
+
+### The outfitter evaluates outfits, not items
+
+"Equip the best item" is the wrong question, because best depends on what else
+the hero is holding. A two-handed weapon empties the off hand, so its worth is
+measured against the *pair* it replaces; a dual wielder puts a second sword
+where a shield would go; a ring can displace either hand.
+
+So every candidate is applied to a copy of the equipment map under the same
+rules `equipOnHero` uses, the resulting sheet is scored, and the best whole
+result wins. It is the only way a sword and shield can beat a greatsword. A
+test sets up exactly that case and asserts the two-hander is scored *without*
+the shield it displaces — a slot-only comparison rated it more than twice as
+good as it is.
+
+It is greedy over three sweeps rather than exhaustive. Nine slots against a
+full vault is a search far too large to solve properly and far too small to be
+worth solving.
+
+**Locked items are never taken.** A lock already means hands-off to
+auto-salvage, and the most valuable thing anyone locks is a blank base being
+saved for crafting. Sweeping an item level 120 blank onto a Warlock because its
+base numbers are enormous is the single worst thing this feature could do, and
+there is a test named after it.
+
+### Standing Kit is scoped to the haul
+
+Re-outfitting twenty heroes against a two-hundred item vault runs thousands of
+stat sheets. Offline catch-up finishes dozens of expeditions inside a budget of
+a second and a half, so the batch version considers only what the party walked
+in with — which is also the honest reading of "gear that came home".
 
 ## Balance
 

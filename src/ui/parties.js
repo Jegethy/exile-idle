@@ -14,6 +14,8 @@ import { ui } from './state.js';
 import { confirmAction } from './modals.js';
 import { openHeroModal } from './roster.js';
 import { setStatus } from './shell.js';
+import { hasPrivilege } from '../charter.js';
+import { gearUpParty } from '../outfit.js';
 
 // ===========================================================================
 // Parties
@@ -81,6 +83,8 @@ export function renderParties() {
 Each party decides for itself, so one can farm while another waits for you.">
           <input type="checkbox" data-partyauto="${p.id}" ${p.autoRedeploy !== false ? 'checked' : ''}>
           <span>Auto-redeploy</span></label>` : ''}
+        ${!running && hasPrivilege('gearParty') ? `<button class="btn tiny" data-gearparty="${p.id}"
+          title="Give every member the best the vault holds. Locked items are left alone.">Gear Up</button>` : ''}
         ${running ? '<span class="tag out">On expedition</span>'
     : `<button class="btn tiny danger" data-delparty="${p.id}">Disband</button>`}</div>
     </div>`;
@@ -98,6 +102,15 @@ Each party decides for itself, so one can farm while another waits for you.">
     if (del) {
       confirmAction('Disband this party?', 'Its members become unassigned. No heroes are lost.',
         () => deleteParty(del.dataset.delparty));
+      return;
+    }
+    const gear = e.target.closest('[data-gearparty]');
+    if (gear) {
+      const res = gearUpParty(gear.dataset.gearparty);
+      setStatus(res.slots
+        ? `${res.slots} slot${res.slots === 1 ? '' : 's'} improved across ${res.heroes} hero${res.heroes === 1 ? '' : 'es'}.`
+        : 'Nothing in the vault beats what they are already carrying.');
+      renderParties();
       return;
     }
     const flask = e.target.closest('[data-setflask]');

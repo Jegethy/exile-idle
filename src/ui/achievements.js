@@ -14,6 +14,7 @@ import {
 import { escapeHtml, fmtInt, qs } from '../util.js';
 import { openModal } from './modals.js';
 import { icon } from './icons.js';
+import { queueToast } from './toast.js';
 
 const esc = escapeHtml;
 
@@ -160,94 +161,25 @@ export function openAchievements(pageId = null) {
 // The toast
 // ---------------------------------------------------------------------------
 
-/** How long an unlock stays on screen. */
-const TOAST_SECONDS = 6;
-
 /**
- * How many may be on screen at once.
+ * Hands anything newly unlocked to the shared toast layer.
  *
- * A single sweep can unlock a dozen things — clearing a tier ticks several
- * ladders at the same moment — and a dozen toasts is a wall, not a
- * notification. The rest wait their turn.
+ * The layer itself lives in ui/toast.js — the Charter raises the same kind of
+ * notification, and two queues with two separate limits is how a notification
+ * ends up covering a notification.
  */
-const MAX_VISIBLE = 3;
-
-const showing = [];
-const queued = [];
-
-/**
- * Drains anything the engine has unlocked and puts it on screen.
- *
- * Called from the interface tick rather than from an event, for the same
- * reason the sweep is polled: one queue, one drain, and no chance of a
- * notification being emitted while the window is mid-render.
- */
-export function pumpToasts() {
-  for (const id of takePending()) queued.push(id);
-  expireToasts();
-  while (showing.length < MAX_VISIBLE && queued.length) {
-    showToast(ACHIEVEMENT_BY_ID[queued.shift()]);
+export function pumpAchievementToasts() {
+  for (const id of takePending()) {
+    const def = ACHIEVEMENT_BY_ID[id];
+    if (!def) continue;
+    queueToast({
+      kicker: 'Achievement earned',
+      name: def.name,
+      desc: def.desc,
+      icon: def.icon,
+      badge: def.points,
+    });
   }
-}
-
-function host() {
-  let el = qs('#toastLayer');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'toastLayer';
-    document.body.appendChild(el);
-  }
-  return el;
-}
-
-function showToast(def) {
-  if (!def) return;
-  const el = document.createElement('div');
-  el.className = 'ach-toast';
-  el.innerHTML = `
-    <div class="toast-glow"></div>
-    <div class="toast-inner">
-      <div class="ach-icon">${icon(def.icon)}</div>
-      <div class="toast-body">
-        <div class="toast-kicker">Achievement earned</div>
-        <div class="toast-name">${esc(def.name)}</div>
-        <div class="toast-desc">${esc(def.desc)}</div>
-      </div>
-      <div class="ach-points">${def.points}</div>
-    </div>`;
-  const entry = { el, until: performance.now() + TOAST_SECONDS * 1000 };
-  el.onclick = () => {
-    el.remove();
-    const i = showing.indexOf(entry);
-    if (i >= 0) showing.splice(i, 1);
-  };
-  host().appendChild(el);
-  // Next frame, so the entry transition actually runs.
-  requestAnimationFrame(() => el.classList.add('in'));
-  showing.push(entry);
-}
-
-function expireToasts() {
-  const now = performance.now();
-  for (let i = showing.length - 1; i >= 0; i--) {
-    if (now < showing[i].until) continue;
-    const { el } = showing[i];
-    el.classList.remove('in');
-    setTimeout(() => el.remove(), 400);
-    showing.splice(i, 1);
-  }
-}
-
-/** Clears anything on screen — used when switching guilds. */
-export function clearToasts() {
-  for (const { el } of showing) el.remove();
-  showing.length = 0;
-  queued.length = 0;
-}
-
-/** How many unlocks are still waiting for room. For tests. */
-export function queuedToasts() {
-  return queued.length;
 }
 
 export { progressOf, fractionOf };

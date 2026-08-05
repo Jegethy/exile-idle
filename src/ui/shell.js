@@ -1,6 +1,7 @@
 // shell — Chrome: the tab strip, the top bar, the guild header and the status line.
 
 import { G, emit, guildXpToNext, on, partySlots } from '../state.js';
+import { upcoming } from '../charter.js';
 import { clamp, fmt, fmtInt, fmtTime, qs, qsa } from '../util.js';
 import * as Save from '../save.js';
 
@@ -66,6 +67,14 @@ export function renderGuildBar() {
   qs('#guildLevel').textContent = s.guild.level;
   qs('#xpFill').style.width = `${pct}%`;
   qs('#xpText').textContent = `${fmt(s.guild.xp)} / ${fmt(need)}`;
+  // The bar spent the whole game meaning nothing. Now that it buys charter
+  // privileges, it says which one is coming — a bar filling towards something
+  // named is a reason to keep going in a way that a bar filling is not.
+  const next = upcoming(s);
+  qs('#guildBar').title = next
+    ? `Guild Level ${s.guild.level}. Next charter privilege: ${next.def.name}, at Level `
+      + `${next.def.level} (${next.levelsAway} to go). See the Guild Hall tab.`
+    : `Guild Level ${s.guild.level}. Every charter privilege has been granted.`;
 }
 
 export function renderQuickStats() {

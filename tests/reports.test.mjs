@@ -69,9 +69,13 @@ export default async function run(browser) {
     // below the threshold a Healer acts on -- measured, that was three runs in
     // twelve. The claim is that healing is recorded when it happens, not that
     // it happens every time.
+    //
+    // Eight attempts rather than four. At four this failed about once in
+    // twenty runs, which is often enough to be noise in a full-suite run and
+    // rare enough to look like a real regression when it lands.
     let healed = 0;
     let last = null;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < 8; attempt++) {
       last = await runOnce(page);
       const heal = last.heroes.find((h) => h.role === 'Healer');
       if ((heal?.healingDone ?? 0) > 0) { healed = heal.healingDone; break; }

@@ -20,7 +20,9 @@ import {
   wireTabs, wireTopBar, renderGuildBar, renderQuickStats, renderStatus, setStatus,
 } from './ui/shell.js';
 import { openGuide } from './ui/guide.js';
-import { openAchievements, renderAchievements, pumpToasts } from './ui/achievements.js';
+import { openAchievements, renderAchievements, pumpAchievementToasts } from './ui/achievements.js';
+import { renderCharter, pumpCharterToasts } from './ui/charter.js';
+import { pumpToasts } from './ui/toast.js';
 import { recordFeat } from './achievements.js';
 import { wireModals, openModal, closeModals, renderSlots, renderSettings } from './ui/modals.js';
 import { renderRoster, updateStaminaBars, renderRecruitBoard } from './ui/roster.js';
@@ -67,7 +69,11 @@ export function initUI() {
   on('roster', () => { renderRoster(); renderParties(); renderDispatch(); renderEquipTarget(); });
   on('vault', () => { renderVault(); renderEquipTarget(); });
   on('materials', () => { renderMaterials(); renderCraftPanel(); });
-  on('guild', () => { renderGuildBar(); renderQuickStats(); renderHall(); renderDispatch(); renderRaids(); });
+  on('guild', () => {
+    renderGuildBar(); renderQuickStats(); renderHall(); renderCharter();
+    renderDispatch(); renderRaids();
+  });
+  on('charter', () => { renderCharter(); renderRoster(); renderParties(); renderCraftPanel(); });
   on('upgrades', () => { renderHall(); renderQuickStats(); renderDispatch(); });
   on('sheets', () => { renderRoster(); renderParties(); });
   on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
@@ -82,7 +88,7 @@ export function initUI() {
   // Arriving at a panel refreshes it, so affordability and stamina are never
   // stale from whatever happened while you were looking somewhere else.
   on('tab', (tabId) => {
-    if (tabId === 'hall') { renderHall(); renderCollection(); }
+    if (tabId === 'hall') { renderCharter(); renderHall(); renderCollection(); }
     if (tabId === 'workshop') { renderMaterials(); renderCraftPanel(); }
     if (tabId === 'parties') renderParties();
   });
@@ -98,6 +104,7 @@ export function renderAll() {
   renderRuns();
   renderDispatch();
   renderRaids();
+  renderCharter();
   renderHall();
   renderCollection();
   renderEquipTarget();
@@ -112,6 +119,8 @@ export function renderAll() {
 export function tick() {
   updateRunBars();
   updateReportTimers();
+  pumpAchievementToasts();
+  pumpCharterToasts();
   pumpToasts();
   updateStaminaBars();
   renderStatus();

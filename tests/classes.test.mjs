@@ -84,15 +84,21 @@ export default async function run(browser) {
       for (let i = 0; i < 12 && !run_.enemies.length; i++) tickAll(0.1);
       const c = run_.combatants[0];
       const opening = Math.round(modFrom(c, 'incDamage'));
-      for (let i = 0; i < 30; i++) tickAll(0.1);
-      const later = Math.round(modFrom(c, 'incDamage'));
-      for (let i = 0; i < 40; i++) tickAll(0.1);
-      return { opening, later, spent: Math.round(modFrom(c, 'incDamage')) };
+      // The lowest value reached, not the value at a fixed moment. Bloodlust
+      // re-applies at the start of a wave, and how quickly a Rogue clears one
+      // varies with the rolls -- sampling at tick 70 sometimes caught a fresh
+      // application rather than a spent one, which is what made this flaky.
+      let low = opening;
+      for (let i = 0; i < 70; i++) {
+        tickAll(0.1);
+        low = Math.min(low, Math.round(modFrom(c, 'incDamage')));
+      }
+      return { opening, spent: low };
     });
     ok(r.opening > 60, `Bloodlust should open strong, got +${r.opening}%`);
-    ok(r.later < r.opening, `should have decayed: +${r.opening}% -> +${r.later}%`);
-    eq(r.spent, 0, 'should be spent by the end');
-    return `+${r.opening}% -> +${r.later}% -> +${r.spent}%`;
+    // Opening above 60 and reaching 0 is the decay, stated as one claim.
+    eq(r.spent, 0, 'Bloodlust never wore off');
+    return `+${r.opening}% at the opening, spent to +${r.spent}%`;
   });
 
   await test('the Archer stacks Steady Aim to its cap', async () => {
