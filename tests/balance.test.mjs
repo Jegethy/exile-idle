@@ -508,5 +508,48 @@ export default async function run() {
     return worst.map((w) => `${w.id.replace('res_', '')} ${w.max}%`).join(', ');
   });
 
+  await test('deep tiers stay reachable instead of running away', async () => {
+    // The failure this guards against is arithmetic, not taste. Past the soft
+    // cap the recommended level and item level rise at half their earlier
+    // rate, so a party's power grows about 4% a tier. If enemies grow faster
+    // than that, the gap compounds and deep content becomes unreachable no
+    // matter how long anyone farms -- which is exactly what happened: at its
+    // own level a party cleared 62% at Tier 20 and 19% at Tier 36.
+    const { makeParty } = await import('./sim.mjs');
+    const { tierToLevel, tierToIlvl } = await import('../src/data/dungeons.js');
+    const PARTY = ['guardian', 'cleric', 'rogue', 'archer', 'wizard'];
+    const at = (tier) => {
+      const rates = [9000, 31000].map((seed) => {
+        const runs = [];
+        for (let t = 0; t < 24; t++) {
+          freshGuild(seed + t);
+          const { party } = makeParty(PARTY, { level: tierToLevel(tier), ilvl: tierToIlvl(tier) });
+          const r = runExpedition(party, 'mines', tier);
+          if (!r.error) runs.push(r);
+        }
+        return runs.filter((r) => r.cleared).length / Math.max(1, runs.length);
+      });
+      return mean(rates);
+    };
+
+    console.log('');
+    console.log('     at its own level      clear');
+    const rows = [22, 26, 30, 34].map((t) => {
+      const clear = at(t);
+      console.log(`       T${String(t).padEnd(18)}${pct(clear).padStart(5)}`);
+      return { t, clear };
+    });
+    for (const r of rows) {
+      ok(r.clear > 0.45,
+        `a party geared for T${r.t} only clears it ${pct(r.clear)} of the time`);
+    }
+    // No death spiral: the deepest tier must not be far worse than the shallowest.
+    const first = rows[0].clear;
+    const last = rows[rows.length - 1].clear;
+    ok(last > first * 0.7,
+      `difficulty runs away with depth: T${rows[0].t} ${pct(first)} vs T${rows[rows.length - 1].t} ${pct(last)}`);
+    return `T22 ${pct(first)} through T34 ${pct(last)}, no runaway`;
+  });
+
   await test('no page errors', () => clean([]));
 }

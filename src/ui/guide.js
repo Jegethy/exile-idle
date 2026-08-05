@@ -333,7 +333,7 @@ function pageExpeditions() {
     section('Gear keeps getting better all the way down',
       p('Items dropped by harder content have a higher <b>item level</b>, which lets them roll',
         'bigger bonuses. That does not stop at Tier 20 — new tiers of every bonus unlock at',
-        'Tier 23, Tier 28 and Tier 33.'),
+        'Tier 22, Tier 27 and Tier 32.'),
       p('So a sword from Tier 30 is not just a bigger version of a Tier 20 sword. It can carry',
         'bonuses that do not exist at Tier 20 at all.')),
     section('Bring heroes of the right level',

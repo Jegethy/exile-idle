@@ -4,9 +4,25 @@ import { FLASK_BY_ID } from '../data/recipes.js';
 
 export const SOFT_CAP_TIER = 20;
 
-export const SOFT_LIFE = 1.075;
+// Growth per tier past the soft cap, for enemies.
+//
+// These used to be 1.075 and 1.055, and they were measured wrong. Past Tier 20
+// the recommended level and item level rise at *half* their earlier rate — 2.2
+// a tier instead of 4.4 — so a party's power stops compounding the way it did
+// below the cap. Measured across a full affix-band cycle, party damage grows
+// about 4.1% a tier past the cap and effective health about 4.0%, against
+// enemies growing 7.5% and 5.5%.
+//
+// A 3.4-point deficit every tier, compounding, is why content at a party's own
+// level went from 98% clear at Tier 18 to 62% at Tier 20 and 19% at Tier 36.
+// Deep tiers were not hard, they were arithmetically out of reach.
+//
+// Matched to what a party can actually achieve, keeping damage growing a
+// little slower than life so that deep content kills by attrition rather than
+// by one-shot.
+export const SOFT_LIFE = 1.052;
 
-export const SOFT_DMG = 1.055;
+export const SOFT_DMG = 1.038;
 
 export const MON_LIFE_BASE = 34;
 

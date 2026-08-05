@@ -496,9 +496,9 @@ party with traits and skills, geared for Tier 25, cleared Tier 30 **0% of the
 time**, and no amount of further farming changed that: there was nothing left to
 farm. The game hard-stopped somewhere around Tier 25.
 
-**Three new tier bands** now sit above the old ceiling, at item levels 92, 103
-and 114 — reached at roughly Tiers 23, 28 and 33. Nothing is maxed until Tier
-33 now, where it used to be Tier 20.
+**Three new tier bands** now sit above the old ceiling, at item levels 88, 99
+and 110 — reached at roughly Tiers 22, 27 and 32. Nothing is maxed until Tier
+32 now, where it used to be Tier 20.
 
 | Pushing | Geared for | Before | After |
 |---|---|---|---|
@@ -524,6 +524,39 @@ clears everything up to Tier 36 both before and after this change. That
 measurement is misleading and was nearly acted on — being geared for the tier
 you are pushing never happens in play, because the gear comes from the tier
 below. The pushing-above-your-gear figures above are the honest ones.
+
+### The enemy curve had to move too
+
+Adding the bands exposed a deeper problem. Past the soft cap at Tier 20 the
+recommended level and item level rise at **half** their earlier rate — 2.2 a
+tier instead of 4.4 — so a party's power stops compounding the way it did
+below the cap. Measured across a full band cycle:
+
+| | Party damage per tier | Enemy life per tier |
+|---|---|---|
+| On a band tier | +20% | +7.5% |
+| Between bands | **+0.5%** | +7.5% |
+| Averaged | **+4.1%** | **+7.5%** |
+
+A 3.4-point deficit every tier, compounding, is why content at a party's own
+level fell from 98% clear at Tier 18 to 62% at Tier 20 and 19% at Tier 36. Deep
+tiers were not hard, they were arithmetically out of reach — and the affix
+bands alone only papered over it, producing a ±30-point sawtooth as each band
+landed and then decayed.
+
+Enemy growth past the cap is now matched to what a party can actually achieve:
+`SOFT_LIFE` 1.075 → 1.052, `SOFT_DMG` 1.055 → 1.038. Nothing below Tier 20
+changes, because the soft cap is where these apply at all.
+
+| T18 | T20 | T22 | T24 | T26 | T28 | T30 | T32 | T34 | T36 |
+|---|---|---|---|---|---|---|---|---|---|
+| 98% | 62% | 80% | 74% | 72% | 92% | 74% | 91% | 89% | 84% |
+
+The sawtooth is down to about ±10 points and the trend is flat instead of
+falling. Tier 20 remains the hardest single point in the game: it is the last
+tier of the steep pre-cap curve, and fixing it would mean re-tuning the whole
+first twenty tiers, which are well calibrated. It reads as a wall you gear up
+to break, which is the loop working.
 
 ## The bench
 
