@@ -20,6 +20,8 @@ import {
   wireTabs, wireTopBar, renderGuildBar, renderQuickStats, renderStatus, setStatus,
 } from './ui/shell.js';
 import { openGuide } from './ui/guide.js';
+import { openAchievements, renderAchievements, pumpToasts } from './ui/achievements.js';
+import { recordFeat } from './achievements.js';
 import { wireModals, openModal, closeModals, renderSlots, renderSettings } from './ui/modals.js';
 import { renderRoster, updateStaminaBars, renderRecruitBoard } from './ui/roster.js';
 import { renderParties } from './ui/parties.js';
@@ -44,8 +46,9 @@ export function initUI() {
   wireTabs();
   wireTopBar({
     saves: () => { renderSlots(); openModal('modalSaves'); },
-    settings: () => { renderSettings(); openModal('modalSettings'); },
-    guide: () => openGuide(),
+    settings: () => { recordFeat('settings'); renderSettings(); openModal('modalSettings'); },
+    guide: () => { recordFeat('guide'); openGuide(); },
+    achievements: () => openAchievements(),
   });
   wireModals();
   wireVaultActions();
@@ -69,6 +72,7 @@ export function initUI() {
   on('sheets', () => { renderRoster(); renderParties(); });
   on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
   on('contracts', () => { renderDispatch(); });
+  on('achievements', () => { renderAchievements(); });
   on('reports', () => { renderRuns(); });
   on('log', () => { renderLog(); });
   on('saves', () => { renderSlots(); });
@@ -108,6 +112,7 @@ export function renderAll() {
 export function tick() {
   updateRunBars();
   updateReportTimers();
+  pumpToasts();
   updateStaminaBars();
   renderStatus();
   tutorialTick();

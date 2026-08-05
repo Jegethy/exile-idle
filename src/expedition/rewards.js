@@ -10,6 +10,7 @@ import { gradeForIlvl, materialOf } from '../data/materials.js';
 import { guildEffects } from '../data/upgrades.js';
 import { maybeDropContract } from '../contracts.js';
 import { addReport, reports } from '../reports.js';
+import { recordFeat } from '../achievements.js';
 import { grantHeroXp, heroById, partyById } from '../heroes.js';
 import { addMaterial, addToVault } from '../inventory.js';
 import { createItem, rollUnique } from '../items.js';
@@ -20,6 +21,7 @@ import { fmt, uid } from '../util.js';
 import { flaskFind } from './balance.js';
 
 export function onEnemyKilled(run, enemy) {
+  if (enemy.isBoss) G.state.stats.bossKills = (G.state.stats.bossKills ?? 0) + 1;
   const s = G.state;
   const i = run.enemies.indexOf(enemy);
   if (i >= 0) run.enemies.splice(i, 1);
@@ -194,6 +196,13 @@ export function finishRun(run, success) {
 
   if (success) {
     s.stats.runs++;
+    // Composition feats are judged on what actually walked out, not on what
+    // the party board said when they left.
+    const roles = run.combatants.map((c) => c.role);
+    if (!roles.includes('Tank')) recordFeat('noTankClear');
+    if (!roles.includes('Healer')) recordFeat('noHealerClear');
+    if (run.contractId) recordFeat('contract');
+    if (run.contractRarity === 'legendary') recordFeat('legendaryContract');
     if (run.raidId) grantRaidRewards(run);
     else grantClearBonus(run);
     bankHaul(run);
@@ -204,6 +213,7 @@ export function finishRun(run, success) {
       + `${fmt(r.xp)} xp in ${run.elapsed.toFixed(0)}s.`, 'loot');
   } else {
     s.stats.runsFailed++;
+    recordFeat('wipe');
     // A wipe costs the rest of the party's stamina — they need a real rest.
     for (const uidStr of run.members) {
       const hero = heroById(uidStr);
@@ -312,6 +322,7 @@ function grantRaidRewards(run) {
       const u = createItem({ uniqueId: rng.pick(pool).id, ilvl: DEEP_ILVL });
       run.haul.items.push(u);
       run.rewards.uniques++;
+      recordFeat('deepUnique');
       log(`${def.name} yields ${u.name} — nothing else in the world drops it.`, 'unique');
     }
   }

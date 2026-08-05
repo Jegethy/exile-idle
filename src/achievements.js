@@ -18,8 +18,8 @@
 // nobody notices for a month. A sweep over twenty cheap functions costs
 // nothing at the interval this runs at.
 
-import { G, emit, log, addGold } from './state.js';
-import { ACHIEVEMENTS, ACHIEVEMENT_BY_ID } from './data/achievements.js';
+import { G, emit, log } from './state.js';
+import { ACHIEVEMENTS, ACHIEVEMENT_BY_ID, TOTAL_POINTS } from './data/achievements.js';
 
 /** How often the sweep runs, in seconds of game time. */
 export const CHECK_INTERVAL = 2;
@@ -34,6 +34,11 @@ function store() {
   if (!s.achievements) s.achievements = { unlocked: {} };
   if (!s.achievements.unlocked) s.achievements.unlocked = {};
   return s.achievements;
+}
+
+/** Real-world time an achievement was earned, for the date on its plaque. */
+function stamp() {
+  return Date.now();
 }
 
 export function isUnlocked(id) {
@@ -83,26 +88,51 @@ export function checkAchievements(quiet = false) {
     if (unlocked[def.id]) continue;
     if (progressOf(def) < def.goal) continue;
 
-    unlocked[def.id] = s.playtime ?? 0;
+    unlocked[def.id] = stamp();
     got.push(def.id);
     if (quiet) continue;
 
     pending.push(def.id);
-    log(`Achievement: ${def.name} — ${def.desc}`, 'unique');
-    grantReward(def);
+    log(`Achievement earned: ${def.name} (${def.points} points) — ${def.desc}`, 'unique');
   }
 
   if (got.length) emit('achievements');
   return got;
 }
 
-function grantReward(def) {
-  const r = def.reward;
-  if (!r) return;
+/**
+ * The guild's score.
+ *
+ * Achievements pay nothing else on purpose. This number going up is the whole
+ * reward, in the way a Gamerscore is: an achievement worth gold stops being an
+ * achievement and starts being a quest.
+ */
+export function score() {
+  const unlocked = store().unlocked;
+  let total = 0;
+  for (const id of Object.keys(unlocked)) total += ACHIEVEMENT_BY_ID[id]?.points ?? 0;
+  return total;
+}
+
+export function totalPoints() {
+  return TOTAL_POINTS;
+}
+
+/**
+ * Records a one-off thing having happened, for a Feat of Strength.
+ *
+ * Feats are the only achievements the game has to be *told* about: everything
+ * else is read back out of the save. Setting a flag rather than unlocking
+ * directly keeps the two halves separate — this records history, the sweep
+ * decides what history is worth.
+ */
+export function recordFeat(key) {
   const s = G.state;
-  if (r.gold) addGold(r.gold);
-  if (r.seals) s.guild.seals = (s.guild.seals ?? 0) + r.seals;
-  if (r.echoes) s.guild.echoes = (s.guild.echoes ?? 0) + r.echoes;
+  if (!s) return false;
+  if (!s.feats) s.feats = {};
+  if (s.feats[key]) return false;
+  s.feats[key] = s.playtime ?? 0;
+  return true;
 }
 
 /** Advances the poll timer, sweeping when it comes round. */
@@ -127,7 +157,7 @@ export function backfill() {
   const gained = unlockedCount() - before;
   if (gained) {
     log(`${gained} achievement${gained === 1 ? '' : 's'} recorded for what this guild has `
-      + 'already done.', 'sys');
+      + `already done. Score: ${score()}.`, 'sys');
   }
   return gained;
 }

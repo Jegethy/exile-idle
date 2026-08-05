@@ -13,6 +13,7 @@ import { addToVault } from './inventory.js';
 import { refreshSheets } from './sheets.js';
 import { createItem } from './items.js';
 import { guildEffects } from './data/upgrades.js';
+import { recordFeat } from './achievements.js';
 
 export const BASE_STAMINA = 100;
 
@@ -169,6 +170,7 @@ export function recruit(heroUid) {
 
 /** Dismisses a hero, returning a fraction of what they cost. */
 export function dismiss(heroUid) {
+  recordFeat('dismiss');
   const s = G.state;
   const i = s.heroes.findIndex((h) => h.uid === heroUid);
   if (i < 0) return false;
@@ -563,6 +565,7 @@ export function rerollSkills(hero) {
   }
 
   G.state.guild.echoes -= cost;
+  recordFeat('skillReroll');
   const was = hero.skill;
   hero.skills = rng.sample(pool, SKILL_CHOICES).map((s) => s.id);
   hero.skill = hero.skills.includes(was) ? was : hero.skills[0];

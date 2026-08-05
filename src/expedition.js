@@ -27,6 +27,7 @@ import { makeRaidBoss } from './expedition/enemies.js';
 import { bindReactions, applyEffect } from './expedition/effects.js';
 import { initResource } from './expedition/resource.js';
 import { reactionsFor } from './expedition/abilities.js';
+import { recordFeat } from './achievements.js';
 import {
   applyModifiersToProfile, reactionsFrom, curseFrom, findFrom, barredMembers,
 } from './data/modifiers.js';
@@ -91,6 +92,7 @@ export function dispatch(partyId, dungeonId, tier, contractId = null) {
     totalWaves: wavesFor(dungeon, tier), profile, flaskId,
     contractId: contract?.id ?? null, mods,
     rewardMult: contract ? rewardMultFor(contract) : 1,
+    contractRarity: contract?.rarity ?? null,
     // A contract's quantity and rarity come from two places: the floor its
     // own rarity sets, and whatever its boons add on top.
     find: contract
@@ -222,6 +224,7 @@ function buildRun(opts) {
     profile: opts.profile,
     find: opts.find ?? null,
     contractId: opts.contractId ?? null,
+    contractRarity: opts.contractRarity ?? null,
     mods: opts.mods ?? [],
     rewardMult: opts.rewardMult ?? 1,
     wave: 0,
@@ -254,6 +257,7 @@ export function recall(expeditionId) {
   const run = s.expeditions[i];
   bankHaul(run);
   const party = partyById(run.partyId);
+  recordFeat('recall');
   if (party) party.returnedAt = s.playtime;
   const r = run.rewards;
   log(`${partyName(run)} returns early from ${run.name} with ${fmt(r.gold)} gold · `

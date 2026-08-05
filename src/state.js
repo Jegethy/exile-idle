@@ -94,6 +94,9 @@ export function createState(name = 'The Wayfarers') {
       bonusMult: 0,          // permanent reward % from raid first kills
     },
 
+    // One-off things that have happened, for Feats of Strength.
+    feats: {},
+
     stats: {
       runs: 0, runsFailed: 0, kills: 0, heroDeaths: 0,
       gearFound: 0, uniquesFound: 0, goldEarned: 0, recruited: 0, raidKills: 0,
@@ -101,6 +104,7 @@ export function createState(name = 'The Wayfarers') {
       // gold is meant to be spent and "hold a million" would otherwise be
       // unwinnable for anyone who plays properly.
       contractsRun: 0, blanksFound: 0, peakGold: 0,
+      bossKills: 0, crafted: 0, flasksBrewed: 0, salvaged: 0,
     },
 
     // Candidates on offer, their locks, and how many times this board has been

@@ -41,6 +41,7 @@
     <div id="topActions">
       <button class="btn" id="btnSave" title="Save now (auto-saves every 30s)">Save</button>
       <button class="btn" id="btnSaves">Saves</button>
+      <button class="btn" id="btnAchievements" title="Achievements and score">Achievements</button>
       <button class="btn" id="btnGuide" title="Game guide and glossary">Guide</button>
       <button class="btn" id="btnSettings">Settings</button>
     </div>
@@ -271,6 +272,11 @@
         Your current guild is saved first.</p>
       <div class="row"><button class="btn" id="btnTitle">Return to Title Screen</button></div>
     </div>
+  </div>
+
+  <div class="modal guide hidden" id="modalAchievements">
+    <header><h2>Achievements</h2><button class="btn tiny modal-close">✕</button></header>
+    <div class="modal-body" id="achievementsBody"></div>
   </div>
 
   <div class="modal guide hidden" id="modalGuide">

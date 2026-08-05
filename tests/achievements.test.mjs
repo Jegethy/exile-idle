@@ -1,4 +1,4 @@
-// Achievements: the backend only. There is no interface for them yet.
+// Achievements: the score, the window and the unlock toast.
 //
 // The two design decisions worth guarding are that progress is *derived* from
 // the save rather than accumulated from events — so an old save is credited
@@ -50,7 +50,7 @@ export default async function run(browser) {
       const { G } = await import('./src/state.js');
       const { ACHIEVEMENT_BY_ID } = await import('./src/data/achievements.js');
       const { progressOf, fractionOf } = await import('./src/achievements.js');
-      const def = ACHIEVEMENT_BY_ID.tier_ten;
+      const def = ACHIEVEMENT_BY_ID.tier_10;
       const before = progressOf(def);
       // Reach in and change the world. Nothing is emitted, no event fires.
       G.state.progress.highestTier = 10;
@@ -80,32 +80,46 @@ export default async function run(browser) {
       const again = checkAchievements();
       return {
         atStart, first, again,
-        got: isUnlocked('first_steps'),
-        stamped: typeof G.state.achievements.unlocked.first_steps === 'number',
+        got: isUnlocked('runs_1'),
+        stamped: typeof G.state.achievements.unlocked.runs_1 === 'number',
       };
     });
-    ok(r.first.includes('first_steps'), `the first run unlocked ${JSON.stringify(r.first)}`);
+    ok(r.first.includes('runs_1'), `the first run unlocked ${JSON.stringify(r.first)}`);
     eq(r.again.length, 0, 'a second sweep unlocked the same thing again');
     ok(r.got, 'the achievement is not recorded as unlocked');
     ok(r.stamped, 'no timestamp was stored');
     return `unlocked on the sweep that earned it, and not again`;
   });
 
-  await test('rewards are paid once, on unlock', async () => {
+  await test('achievements pay nothing but score', async () => {
     const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
-      const { checkAchievements } = await import('./src/achievements.js');
+      const { checkAchievements, score, totalPoints } = await import('./src/achievements.js');
+      const { ACHIEVEMENTS } = await import('./src/data/achievements.js');
       G.state.achievements = { unlocked: {} };
       G.state.guild.echoes = 0;
+      G.state.guild.seals = 0;
+      const goldBefore = G.state.guild.gold;
       G.state.progress.highestTier = 30;
+      G.state.stats.runs = 500;
       checkAchievements();
-      const afterFirst = G.state.guild.echoes;
-      checkAchievements();
-      return { afterFirst, afterSecond: G.state.guild.echoes };
+      return {
+        score: score(),
+        total: totalPoints(),
+        sumOfAll: ACHIEVEMENTS.reduce((n, a) => n + a.points, 0),
+        echoes: G.state.guild.echoes,
+        seals: G.state.guild.seals,
+        goldMoved: G.state.guild.gold !== goldBefore,
+        anyReward: ACHIEVEMENTS.some((a) => a.reward),
+      };
     });
-    ok(r.afterFirst > 0, 'an achievement with a reward paid nothing');
-    eq(r.afterSecond, r.afterFirst, 'the reward was paid twice');
-    return `${r.afterFirst} Echo Stones, paid once`;
+    ok(r.score > 0, 'unlocking a pile of achievements scored nothing');
+    ok(!r.anyReward, 'an achievement still carries a reward');
+    eq(r.echoes, 0, 'an achievement paid Echo Stones');
+    eq(r.seals, 0, 'an achievement paid Raid Seals');
+    ok(!r.goldMoved, 'an achievement paid gold');
+    eq(r.total, r.sumOfAll, 'the advertised total does not match the sum of every achievement');
+    return `scored ${r.score} of ${r.total}, paid nothing`;
   });
 
   await test('an old save is credited quietly for what it already did', async () => {
@@ -161,10 +175,10 @@ export default async function run(browser) {
       G.state.achievements = { unlocked: {} };
       G.state.heroes.length = 0;
       const { rollHero } = await import('./src/heroes.js');
-      for (let i = 0; i < 8; i++) G.state.heroes.push(rollHero({ classId: 'rogue', rarity: 'common' }));
+      for (let i = 0; i < 10; i++) G.state.heroes.push(rollHero({ classId: 'rogue', rarity: 'common' }));
       // Nothing emitted an event. Only time passing should find this.
       tickAchievements(CHECK_INTERVAL + 0.1);
-      return { got: isUnlocked('a_real_company'), interval: CHECK_INTERVAL };
+      return { got: isUnlocked('roster_ten'), interval: CHECK_INTERVAL };
     });
     ok(r.got, 'the polled sweep did not notice a change nothing announced');
     return `swept every ${r.interval}s without needing an event`;
@@ -199,6 +213,194 @@ export default async function run(browser) {
     eq(r.count, r.total, 'the list is missing achievements');
     ok(r.shaped, 'a list entry is missing progress or unlock state');
     return `${r.count} entries, each with live progress`;
+  });
+
+  await test('every achievement has a symbol that exists', async () => {
+    const r = await page.evaluate(async () => {
+      const { ACHIEVEMENTS, CATEGORIES } = await import('./src/data/achievements.js');
+      const { ICON_IDS, icon } = await import('./src/ui/icons.js');
+      const known = new Set(ICON_IDS);
+      const missing = [...ACHIEVEMENTS, ...CATEGORIES]
+        .filter((a) => !known.has(a.icon)).map((a) => `${a.id}:${a.icon}`);
+      const svg = icon('skull');
+      return { missing, isSvg: svg.startsWith('<svg') && svg.includes('</svg>'), count: ICON_IDS.length };
+    });
+    eq(r.missing.length, 0, `unknown symbols: ${r.missing.slice(0, 5).join(', ')}`);
+    ok(r.isSvg, 'the icon helper did not return inline SVG');
+    return `${r.count} symbols, every achievement and category covered`;
+  });
+
+  await test('the window opens with a score and every category', async () => {
+    const r = await page.evaluate(async () => {
+      const { CATEGORIES } = await import('./src/data/achievements.js');
+      document.querySelector('#btnAchievements').click();
+      const modal = document.querySelector('#modalAchievements');
+      const body = document.querySelector('#achievementsBody');
+      const tabs = [...body.querySelectorAll('.g-tab')].map((b) => b.dataset.page);
+      return {
+        open: modal && !modal.classList.contains('hidden'),
+        score: body.querySelector('.score-value')?.textContent ?? '',
+        hasEmblem: !!body.querySelector('.score-emblem'),
+        tabs: tabs.length,
+        wantTabs: CATEGORIES.length + 1,
+        missing: CATEGORIES.map((c) => c.id).filter((id) => !tabs.includes(id)),
+        overview: body.querySelectorAll('.ach-ov').length,
+      };
+    });
+    ok(r.open, 'the Achievements button did not open the window');
+    ok(r.hasEmblem, 'no score emblem');
+    ok(/^[0-9]/.test(r.score), `the score reads "${r.score}"`);
+    eq(r.missing.length, 0, `categories missing a tab: ${r.missing.join(', ')}`);
+    eq(r.tabs, r.wantTabs, `${r.tabs} tabs, expected ${r.wantTabs}`);
+    ok(r.overview > 5, 'the summary has no progress overview');
+    return `score ${r.score}, ${r.tabs} tabs, ${r.overview} progress rows`;
+  });
+
+  await test('a category page lists its achievements, earned first', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { checkAchievements } = await import('./src/achievements.js');
+      const { openAchievements } = await import('./src/ui/achievements.js');
+      G.state.achievements = { unlocked: {} };
+      G.state.stats.runs = 60;
+      checkAchievements();
+      openAchievements('expeditions');
+      const cards = [...document.querySelectorAll('#achPage .ach')];
+      const earnedIdx = cards.map((c, i) => (c.classList.contains('earned') ? i : -1))
+        .filter((i) => i >= 0);
+      const lockedIdx = cards.map((c, i) => (c.classList.contains('locked') ? i : -1))
+        .filter((i) => i >= 0);
+      return {
+        cards: cards.length,
+        earned: earnedIdx.length,
+        orderOk: !earnedIdx.length || !lockedIdx.length
+          || Math.max(...earnedIdx) < Math.min(...lockedIdx),
+        hasDate: !!document.querySelector('#achPage .ach.earned .ach-date'),
+        hasBar: !!document.querySelector('#achPage .ach.locked .ach-bar'),
+        hasPoints: !!document.querySelector('#achPage .ach-points'),
+      };
+    });
+    ok(r.cards > 10, `only ${r.cards} achievements on the Expeditions page`);
+    ok(r.earned > 0, 'nothing was earned to show');
+    ok(r.orderOk, 'locked achievements are mixed in above earned ones');
+    ok(r.hasDate, 'an earned achievement shows no date');
+    ok(r.hasBar, 'a locked achievement shows no progress bar');
+    ok(r.hasPoints, 'no points are shown');
+    return `${r.cards} listed, ${r.earned} earned and sorted to the top`;
+  });
+
+  await test('unlocking raises a toast, which can be dismissed', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { checkAchievements, takePending } = await import('./src/achievements.js');
+      const { pumpToasts, clearToasts } = await import('./src/ui/achievements.js');
+      clearToasts();
+      takePending();
+      G.state.achievements = { unlocked: {} };
+      G.state.stats.crafted = 1;
+      checkAchievements();
+      pumpToasts();
+      const layer = document.querySelector('#toastLayer');
+      const toast = layer?.querySelector('.ach-toast');
+      const out = {
+        raised: !!toast,
+        name: toast?.querySelector('.toast-name')?.textContent ?? '',
+        glow: !!toast?.querySelector('.toast-glow'),
+        points: toast?.querySelector('.ach-points')?.textContent ?? '',
+        icon: !!toast?.querySelector('svg'),
+      };
+      out.shown = document.querySelectorAll('#toastLayer .ach-toast').length;
+      const { queuedToasts } = await import('./src/ui/achievements.js');
+      out.queued = queuedToasts();
+      toast?.click();
+      out.afterClick = document.querySelectorAll('#toastLayer .ach-toast').length;
+      return out;
+    });
+    ok(r.raised, 'no toast appeared for a fresh unlock');
+    ok(r.name.length > 0, 'the toast has no achievement name');
+    ok(r.glow, 'the toast has no glow element');
+    ok(r.icon, 'the toast has no symbol');
+    ok(/^[0-9]+$/.test(r.points), `the toast shows points as "${r.points}"`);
+    // A single sweep can unlock a dozen ladders at once. Three on screen, the
+    // rest waiting, rather than a wall of notifications.
+    ok(r.shown <= 3, `${r.shown} toasts on screen at once`);
+    eq(r.afterClick, r.shown - 1, 'clicking a toast did not dismiss it');
+    return `"${r.name}" for ${r.points} points; ${r.shown} shown, ${r.queued} queued`;
+  });
+
+  await test('the toast sits clear of everything else', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { checkAchievements, takePending } = await import('./src/achievements.js');
+      const { pumpToasts, clearToasts } = await import('./src/ui/achievements.js');
+      const { closeModals } = await import('./src/ui/modals.js');
+      closeModals();
+      clearToasts(); takePending();
+      G.state.achievements = { unlocked: {} };
+      G.state.stats.salvaged = 20;
+      checkAchievements();
+      pumpToasts();
+      const toast = document.querySelector('.ach-toast');
+      const t = toast.getBoundingClientRect();
+      const overlaps = (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return false;
+        const b = el.getBoundingClientRect();
+        return !(t.right < b.left || t.left > b.right || t.bottom < b.top || t.top > b.bottom);
+      };
+      const out = {
+        onScreen: t.top >= 0 && t.left >= 0
+          && t.right <= window.innerWidth && t.bottom <= window.innerHeight,
+        hitsLog: overlaps('#guildLog'),
+        hitsStatus: overlaps('#statusbar'),
+        hitsTopBar: overlaps('#topActions'),
+      };
+      clearToasts();
+      return out;
+    });
+    ok(r.onScreen, 'the toast is off screen');
+    ok(!r.hitsLog, 'the toast covers the guild log');
+    ok(!r.hitsStatus, 'the toast covers the status bar');
+    ok(!r.hitsTopBar, 'the toast covers the top bar');
+    return 'clear of the log, the status bar and the top bar';
+  });
+
+  await test('feats of strength are recorded when they happen', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { recordFeat, checkAchievements, isUnlocked } = await import('./src/achievements.js');
+      G.state.feats = {};
+      G.state.achievements = { unlocked: {} };
+      const first = recordFeat('guide');
+      const second = recordFeat('guide');
+      checkAchievements();
+      return {
+        first, second,
+        unlocked: isUnlocked('feat_guide'),
+        stamped: typeof G.state.feats.guide === 'number',
+      };
+    });
+    ok(r.first, 'recording a feat for the first time returned false');
+    ok(!r.second, 'the same feat was recorded twice');
+    ok(r.stamped, 'the feat was not timestamped');
+    ok(r.unlocked, 'the sweep did not turn the feat into an achievement');
+    return 'recorded once, swept into an achievement';
+  });
+
+  await test('opening the guide and settings each earn a feat', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { closeModals } = await import('./src/ui/modals.js');
+      G.state.feats = {};
+      document.querySelector('#btnGuide').click();
+      closeModals();
+      document.querySelector('#btnSettings').click();
+      closeModals();
+      return { guide: !!G.state.feats.guide, settings: !!G.state.feats.settings };
+    });
+    ok(r.guide, 'opening the handbook recorded no feat');
+    ok(r.settings, 'opening settings recorded no feat');
+    return 'both recorded from the real buttons';
   });
 
   await test('no page errors', () => clean(errors));

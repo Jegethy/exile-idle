@@ -1471,3 +1471,123 @@ body.splash-open { overflow:hidden; }
 .bench-hero.h-legendary { border-left-color:var(--r-unique); }
 .bh-name { font-size:12px; color:var(--ink); }
 .bh-sub { font-size:11px; color:var(--ink-faint); display:flex; align-items:center; gap:5px; }
+
+/* --- Achievements -------------------------------------------------------
+   Shares the handbook's tab strip and page metrics so the two windows read as
+   siblings, and adds a score plate at the top because the whole system exists
+   to make one number go up. */
+.ico { width:100%; height:100%; fill:currentColor; display:block; }
+.ico.tiny { width:13px; height:13px; display:inline-block; vertical-align:-2px; }
+
+.ach-score {
+  display:flex; align-items:center; gap:16px; margin:-4px 0 12px; padding:12px 14px;
+  border:1px solid var(--gold-dim); border-radius:5px;
+  background:linear-gradient(180deg,rgba(200,170,110,.10),rgba(200,170,110,.02));
+}
+.score-emblem {
+  position:relative; display:grid; place-items:center; gap:0;
+  width:96px; height:96px; flex:0 0 auto;
+  border:2px solid var(--gold-dim); border-radius:50%;
+  background:radial-gradient(circle at 50% 38%,rgba(200,170,110,.20),rgba(0,0,0,.35));
+  box-shadow:0 0 22px rgba(200,170,110,.18), inset 0 0 18px rgba(200,170,110,.12);
+}
+.score-value { font-size:30px; font-weight:700; color:var(--gold); line-height:1; }
+.score-label {
+  font-size:9px; letter-spacing:2.4px; text-transform:uppercase;
+  color:var(--ink-faint); margin-top:3px;
+}
+.score-side { flex:1 1 auto; min-width:0; }
+.score-of { font-size:12px; color:var(--ink-faint); margin-bottom:7px; }
+
+.ach-bar {
+  height:6px; border-radius:3px; overflow:hidden;
+  background:var(--bg-2); border:1px solid var(--line);
+}
+.ach-bar.wide { height:9px; }
+.ach-bar i { display:block; height:100%; background:linear-gradient(90deg,var(--gold-dim),var(--gold)); }
+
+.g-h-sub { float:right; font-size:11px; letter-spacing:0; text-transform:none; color:var(--ink-faint); font-weight:400; }
+
+.ach-list { display:grid; gap:6px; }
+.ach {
+  display:flex; align-items:center; gap:11px; padding:8px 11px;
+  border:1px solid var(--line); border-left-width:3px; border-radius:4px;
+  background:var(--bg-2);
+}
+.ach.earned { border-left-color:var(--gold); background:rgba(200,170,110,.055); }
+.ach.locked { opacity:.62; }
+.ach-icon {
+  width:34px; height:34px; flex:0 0 auto; padding:6px; border-radius:4px;
+  border:1px solid var(--line-2); background:var(--bg-3,#101016); color:var(--ink-faint);
+}
+.ach.earned .ach-icon { color:var(--gold); border-color:var(--gold-dim); }
+.ach-body { flex:1 1 auto; min-width:0; }
+.ach-top { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.ach-name { font-size:13px; color:var(--ink); }
+.ach.earned .ach-name { color:var(--gold); }
+.ach-date, .ach-frac { font-size:11px; color:var(--ink-faint); white-space:nowrap; }
+.ach-desc { font-size:11.5px; color:var(--ink-faint); line-height:1.45; margin-top:1px; }
+.ach .ach-bar { margin-top:5px; }
+.ach-points {
+  flex:0 0 auto; min-width:34px; text-align:center; padding:4px 6px; border-radius:3px;
+  font-size:13px; font-weight:600; color:var(--ink-faint);
+  border:1px solid var(--line-2); background:var(--bg-3,#101016);
+}
+.ach.earned .ach-points { color:var(--gold); border-color:var(--gold-dim); }
+
+.ach-overview { display:grid; gap:7px; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
+.ach-ov {
+  display:grid; grid-template-columns:1fr auto; gap:3px 10px; align-items:center;
+  padding:7px 10px; border:1px solid var(--line); border-radius:4px; background:var(--bg-2);
+}
+.ach-ov.total { grid-column:1 / -1; border-color:var(--gold-dim); }
+.ov-name { font-size:12px; color:var(--ink); }
+.ov-count { font-size:12px; color:var(--ink-faint); white-space:nowrap; }
+.ach-ov .ach-bar { grid-column:1 / -1; }
+
+/* --- The unlock toast ---------------------------------------------------
+   Bottom-right, above the status bar and clear of the guild log and the
+   workshop, which is the one region of the layout nothing else occupies. The
+   border breathes rather than merely glowing -- an achievement should announce
+   itself. */
+#toastLayer {
+  /* The status bar is 24px tall with a border. 38 clears it with room. */
+  position:fixed; right:18px; bottom:38px; z-index:820;
+  display:flex; flex-direction:column-reverse; gap:8px; pointer-events:none;
+}
+.ach-toast {
+  position:relative; width:330px; cursor:pointer; pointer-events:auto;
+  opacity:0; transform:translateY(14px) scale(.97);
+  transition:opacity .35s ease, transform .35s cubic-bezier(.2,1.3,.4,1);
+}
+.ach-toast.in { opacity:1; transform:translateY(0) scale(1); }
+.toast-glow {
+  position:absolute; inset:-2px; border-radius:6px; pointer-events:none;
+  background:linear-gradient(120deg,var(--gold),#fff3cf,var(--gold-dim),var(--gold));
+  background-size:300% 300%;
+  animation:toastSweep 3.2s linear infinite, toastPulse 1.8s ease-in-out infinite;
+  filter:blur(1px);
+}
+.toast-inner {
+  position:relative; display:flex; align-items:center; gap:11px;
+  padding:10px 12px; border-radius:5px;
+  background:linear-gradient(180deg,#191922,#0d0d12);
+  border:1px solid var(--gold-dim);
+}
+.toast-kicker {
+  font-size:9px; letter-spacing:2.2px; text-transform:uppercase; color:var(--gold-dim);
+}
+.toast-name { font-size:14px; color:var(--gold); font-weight:600; line-height:1.2; }
+.toast-desc { font-size:11px; color:var(--ink-faint); margin-top:2px; }
+.toast-body { flex:1 1 auto; min-width:0; }
+.ach-toast .ach-icon { color:var(--gold); border-color:var(--gold-dim); }
+.ach-toast .ach-points { color:var(--gold); border-color:var(--gold-dim); }
+@keyframes toastSweep { to { background-position:300% 0; } }
+@keyframes toastPulse {
+  0%, 100% { opacity:.55; filter:blur(1px); }
+  50% { opacity:1; filter:blur(3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-glow { animation:none; opacity:.7; }
+  .ach-toast { transition:opacity .2s; transform:none; }
+}

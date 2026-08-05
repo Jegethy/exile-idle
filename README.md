@@ -641,36 +641,62 @@ legitimate trade — five damage classes kill faster than four and a wall.
 
 ## Achievements
 
-The backend only; there is no interface yet.
+**They pay nothing.** The score is the reward, in the way a Gamerscore is: an
+achievement worth gold stops being an achievement and starts being a quest. The
+engine has nowhere to put a reward, deliberately.
 
-Two decisions carry the design. **Progress is derived, never accumulated**:
-every achievement is a function of the current save rather than a counter
-ticked from an event, so a save from before an achievement existed is credited
-correctly the first time it is checked, and no counter can drift out of step
-with the thing it counts. **Checking is polled, not hooked**: hanging listeners
-off a dozen events would mean every new achievement needs a new hook, and one
-missed emit is a bug nobody notices for a month. Nineteen definitions sweep in
-0.2ms, so a poll every two seconds costs nothing.
+114 achievements worth 2,475 points across seven categories — General,
+Expeditions, Raids, Tiers, Crafting, Guild Hall and Feats of Strength. Most are
+ladders counting the same thing at 1, 10, 50, 100, 250, 500, 1,000, 10,000,
+50,000, 100,000, 500,000 and 1,000,000, with points front-loaded gently and
+steep at the end so the millionth kill is not worth the same as the first.
 
-Adding one is a data change in `src/data/achievements.js` and nothing else —
-an id, a name, a description, a goal and a function returning current progress.
-Optional `reward` grants gold, seals or Echo Stones once on unlock.
+An **Achievements** button sits beside Guide and Settings. The window shares the
+handbook's tab strip and page metrics so the two read as siblings, headed by a
+score emblem. Locked achievements still show their name, what they take and a
+progress bar — an achievement you cannot see is not a goal. Within a category,
+earned ones sort to the top and the rest by how close they are, so the next
+thing to go for is never buried at the bottom of a ladder.
 
-Loading an older save calls `backfill()`, which unlocks silently and pays
-nothing. A guild forty hours in should not be greeted by twenty pop-ups and a
-pile of reward gold for things it did last week.
+**Feats of Strength** are the only ones the game has to be *told* about, via
+`recordFeat()`: opening the handbook, losing a party, recalling one, clearing
+without a Tank. Everything else is read back out of the save.
 
-A definition that throws is caught and reported as no progress rather than
-taking the game down, which is tested with a deliberate landmine.
+### The toast
 
-### Maximum resistance now has a ceiling
+Bottom right, above the status bar, with a border that sweeps and breathes
+rather than merely glowing. Click to dismiss; otherwise it leaves after six
+seconds.
 
-Found while writing *The Gravewarden*: `maxRes` was unbounded, computed as
-`75 + bag.maxRes` with nothing stopping it. The first draft of that shield gave
-+15 to +22, which put a hero at a 93% resistance cap on its own — near
-immunity, and no amount of enemy scaling answers that. The item now gives +3 to
-+5, and the cap itself is hard-limited to 90 so no combination of sources can
-approach immunity.
+**At most three are on screen at once.** A single sweep can unlock a dozen
+ladders — clearing a tier ticks several at the same moment — and a dozen toasts
+is a wall rather than a notification, so the rest queue. That was found by a
+test, which raised eleven at once.
+
+It does overlap the vault panel, which is the honest trade: at this layout
+density there is no genuinely empty region, and the vault is a list you browse
+rather than anything time-critical. Tests assert it stays clear of the guild
+log, the status bar and the top bar.
+
+### Two decisions that carry the design
+
+**Progress is derived, never accumulated.** Every achievement is a function of
+the current save rather than a counter ticked from an event, so a save from
+before an achievement existed is credited correctly the first time it is
+checked, and no counter can drift from the thing it counts. The cost is that
+anything not already in the save needs a stat adding for it — which is why
+`stats` gained `bossKills`, `crafted`, `flasksBrewed` and `salvaged`.
+
+**Checking is polled, not hooked.** A listener per achievement means a new hook
+every time one is added, and one missed emit is a bug nobody notices for a
+month. All 114 sweep in 0.2ms, so a poll every two seconds costs nothing.
+
+Loading an older save calls `backfill()`, which unlocks silently and raises no
+toasts. A definition that throws is caught and reported as no progress, tested
+with a deliberate landmine.
+
+Symbols are inline SVG in `ui/icons.js` — the game ships no image assets, and a
+symbol that is markup can be recoloured by CSS to show earned against locked.
 
 ## The bench
 
@@ -852,9 +878,11 @@ src/
     tooltip.js      the single floating tooltip and its markup
     roster.js       roster list and hero sheet
     guide.js        the Guild Handbook, generated from the data modules
+    achievements.js the score window and the unlock toast
+    icons.js        inline SVG symbols
   contracts.js      sealed contracts: rolling, storing, pricing
   reports.js        after-action summaries and their countdown
-  achievements.js   the sweep, unlocks and backfill
+  achievements.js   the sweep, unlocks, score and feats
     parties.js      party building and flask assignment
     expeditions.js  runs in the field and the dispatch board
     raids.js        Seal-gated milestone bosses

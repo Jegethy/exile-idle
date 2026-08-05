@@ -140,6 +140,7 @@ export function craft(recipeId, item) {
   }
 
   spendMaterials(cost);
+  G.state.stats.crafted = (G.state.stats.crafted ?? 0) + 1;
   log(msg, 'loot');
   emit('vault'); emit('materials'); refreshSheets();
   return ok(msg);
@@ -173,6 +174,7 @@ export function brew(flaskId) {
   }
   spendMaterials(cost);
   addFlask(flaskId, flask.batch);
+  G.state.stats.flasksBrewed = (G.state.stats.flasksBrewed ?? 0) + flask.batch;
   const msg = `Brewed ${flask.batch}× ${flask.name}.`;
   log(msg, 'loot');
   emit('materials');

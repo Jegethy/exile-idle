@@ -120,6 +120,7 @@ export function salvageValue(item) {
  */
 export function salvageItem(item, quiet = false) {
   const s = G.state;
+  s.stats.salvaged = (s.stats.salvaged ?? 0) + 1;
   const base = BASE_BY_ID[item.baseId];
   const families = salvageFamilies(base);
   const grade = gradeForIlvl(item.ilvl);

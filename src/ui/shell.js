@@ -41,6 +41,7 @@ export function wireTopBar(handlers) {
   qs('#btnSaves').onclick = handlers.saves;
   qs('#btnSettings').onclick = handlers.settings;
   qs('#btnGuide').onclick = handlers.guide;
+  qs('#btnAchievements').onclick = handlers.achievements;
 }
 
 export function renderStatus() {
