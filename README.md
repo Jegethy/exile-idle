@@ -485,6 +485,46 @@ by absorbing, while a spell-resistant one would only ever protect itself. No
 resistance number can balance that, which is why the Paladin's Consecrate wards
 the *party* against spells rather than merely hardening the Paladin.
 
+## Where the game used to end
+
+Every affix reached its top tier at item level 85, which a party has in hand by
+Tier 20. Past that, deeper content gave bigger base numbers on identical
+modifiers — so gear stopped improving while enemies kept scaling.
+
+Measured, that was not merely unrewarding. It was a wall. A fully Legendary
+party with traits and skills, geared for Tier 25, cleared Tier 30 **0% of the
+time**, and no amount of further farming changed that: there was nothing left to
+farm. The game hard-stopped somewhere around Tier 25.
+
+**Three new tier bands** now sit above the old ceiling, at item levels 92, 103
+and 114 — reached at roughly Tiers 23, 28 and 33. Nothing is maxed until Tier
+33 now, where it used to be Tier 20.
+
+| Pushing | Geared for | Before | After |
+|---|---|---|---|
+| T25 | T22 | 31% | 46% |
+| T30 | T25 | 0% | 2% |
+| T30 | T27 | **0%** | 23% |
+| T33 | T28 | **0%** | 8% |
+
+That is the shape a progression ladder should have: farm what you can clear,
+gear up, push one or two tiers higher.
+
+### Growth is per affix, not uniform
+
+A blanket multiplier would have been wrong. Resistances cap at 75%, and a
+resistance affix already reaches 48% at the old top tier — scaling it like
+armour would let a single modifier solve resistances outright and stop them
+being a budget you spend slots on. So armour and flat damage grow 30% a band
+while resistances grow 9%, penetration 13% and critical multiplier 14%. A test
+asserts no single resistance affix can reach 68% against the 75% cap.
+
+One caveat worth recording: measured *at* the tier, a fully Legendary party
+clears everything up to Tier 36 both before and after this change. That
+measurement is misleading and was nearly acted on — being geared for the tier
+you are pushing never happens in play, because the gear comes from the tier
+below. The pushing-above-your-gear figures above are the honest ones.
+
 ## The bench
 
 Changing a party used to mean opening a hero's full character sheet and

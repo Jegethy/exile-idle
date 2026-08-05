@@ -440,5 +440,73 @@ export default async function run() {
     return 'every damage class wins on some axis';
   });
 
+  // ---- The deep tier bands ------------------------------------------------
+  await test('gear keeps improving past Tier 20', async () => {
+    const { AFFIXES, availableTiers } = await import('../src/data/affixes.js');
+    const { tierToIlvl } = await import('../src/data/dungeons.js');
+    const maxedAt = (ilvl) => AFFIXES.filter(
+      (a) => availableTiers(a, ilvl).length === a.tiers.length,
+    ).length;
+
+    console.log('');
+    console.log('     affixes at their ceiling');
+    const rows = [20, 23, 25, 28, 30, 33].map((t) => {
+      const n = maxedAt(tierToIlvl(t));
+      console.log(`       T${String(t).padEnd(4)} ilvl ${String(tierToIlvl(t)).padStart(3)}`
+        + `${String(n).padStart(6)} / ${AFFIXES.length}`);
+      return { t, n };
+    });
+    // The whole point. At Tier 20 every affix used to be finished, so deeper
+    // content offered bigger base numbers on identical modifiers -- and
+    // measured, a fully Legendary party could not clear past about Tier 25 at
+    // all, because its gear had stopped improving while enemies had not.
+    eq(rows.find((r) => r.t === 20).n, 0, 'every affix is already maxed at Tier 20');
+    eq(rows.find((r) => r.t === 30).n, 0, 'every affix is already maxed at Tier 30');
+    eq(rows.find((r) => r.t === 33).n, AFFIXES.length, 'the deepest band is not reachable');
+    return `nothing maxed until Tier 33, then all ${AFFIXES.length}`;
+  });
+
+  await test('the new bands continue each curve rather than replacing it', async () => {
+    const { AFFIXES } = await import('../src/data/affixes.js');
+    const bad = [];
+    for (const a of AFFIXES) {
+      let prevIlvl = -1;
+      let prevTop = -Infinity;
+      for (const tier of a.tiers) {
+        if (tier.ilvl <= prevIlvl) bad.push(`${a.id}: ilvl ${tier.ilvl} after ${prevIlvl}`);
+        const top = tier.ranges[0][1];
+        if (top <= prevTop) bad.push(`${a.id}: value ${top} after ${prevTop}`);
+        for (const [lo, hi] of tier.ranges) {
+          if (lo > hi) bad.push(`${a.id}: range ${lo}-${hi} is backwards`);
+        }
+        prevIlvl = tier.ilvl;
+        prevTop = top;
+      }
+      if (new Set(a.tiers.map((t) => t.name)).size !== a.tiers.length) {
+        bad.push(`${a.id}: duplicate tier name`);
+      }
+    }
+    eq(bad.length, 0, bad.slice(0, 5).join('; '));
+    const total = AFFIXES.reduce((n, a) => n + a.tiers.length, 0);
+    return `${total} tiers across ${AFFIXES.length} affixes, all ascending`;
+  });
+
+  await test('resistance affixes stay a budget, not a solved problem', async () => {
+    const { AFFIXES, availableTiers } = await import('../src/data/affixes.js');
+    const worst = [];
+    for (const id of ['res_fire', 'res_cold', 'res_light', 'res_chaos', 'res_all']) {
+      const a = AFFIXES.find((x) => x.id === id);
+      const top = a.tiers[availableTiers(a, 999).at(-1)];
+      worst.push({ id, max: top.ranges[0][1] });
+    }
+    // Resistances cap at 75%. If one modifier at its best roll got most of the
+    // way there, spending slots on resistance would stop being a decision --
+    // which is why these bands grow at 9% each while armour grows at 32%.
+    for (const w of worst) {
+      ok(w.max < 68, `${w.id} reaches ${w.max}% on one affix, against a 75% cap`);
+    }
+    return worst.map((w) => `${w.id.replace('res_', '')} ${w.max}%`).join(', ');
+  });
+
   await test('no page errors', () => clean([]));
 }
