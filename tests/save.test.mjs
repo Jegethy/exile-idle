@@ -40,7 +40,11 @@ export default async function run(browser) {
       dispatch(G.state.parties[0].id, 'mines', 2);
       const run_ = G.state.expeditions[0];
       // Stop while they are still underground: enough to gather, not to finish.
-      for (let i = 0; i < 400 && G.state.expeditions.length && run_.haul.gold < 40; i++) tickAll(0.1);
+      // The threshold is "any gold at all", which the first kill provides. It
+      // used to wait for 40, which raced the run itself — a Tier 2 expedition
+      // can be over before that much is carried, and the starting party got
+      // faster when its Guardian became a Warrior.
+      for (let i = 0; i < 400 && G.state.expeditions.length && run_.haul.gold <= 0; i++) tickAll(0.1);
       if (!G.state.expeditions.length) return { inconclusive: true };
       const carried = Math.round(run_.haul.gold);
       const goldBefore = G.state.guild.gold;

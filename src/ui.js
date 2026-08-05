@@ -23,7 +23,9 @@ import { openGuide } from './ui/guide.js';
 import { wireModals, openModal, closeModals, renderSlots, renderSettings } from './ui/modals.js';
 import { renderRoster, updateStaminaBars, renderRecruitBoard } from './ui/roster.js';
 import { renderParties } from './ui/parties.js';
-import { renderRuns, updateRunBars, renderDispatch } from './ui/expeditions.js';
+import {
+  renderRuns, updateRunBars, renderDispatch, updateReportTimers,
+} from './ui/expeditions.js';
 import { renderRaids } from './ui/raids.js';
 import { renderHall, renderCollection } from './ui/hall.js';
 import { wireVaultActions, renderVault, renderEquipTarget } from './ui/vault.js';
@@ -67,6 +69,7 @@ export function initUI() {
   on('sheets', () => { renderRoster(); renderParties(); });
   on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
   on('contracts', () => { renderDispatch(); });
+  on('reports', () => { renderRuns(); });
   on('log', () => { renderLog(); });
   on('saves', () => { renderSlots(); });
   on('recruits', () => { renderRecruitBoard(); });
@@ -104,6 +107,7 @@ export function renderAll() {
 /** Called ~10x a second for smoothly-moving numbers. */
 export function tick() {
   updateRunBars();
+  updateReportTimers();
   updateStaminaBars();
   renderStatus();
   tutorialTick();

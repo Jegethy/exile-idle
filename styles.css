@@ -1393,3 +1393,42 @@ body.splash-open { overflow:hidden; }
 .ct-mods.good li b { color:#6fbf5f; }
 .ct-mods.good li::before { background:#6fbf5f; }
 .ct-foot { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+
+/* --- After-action summary -----------------------------------------------
+   Sits where the run was, so it reads as that expedition finishing rather
+   than as a popup. The meter is the point: three columns, bars scaled to the
+   best performer, so "who is carrying" is answerable at a glance without
+   reading a single number. */
+.run-report { border-left:3px solid var(--line-2); }
+.run-report.won { border-left-color:#6fbf5f; }
+.run-report.lost { border-left-color:#c95c4a; }
+.map-meta.good { color:#6fbf5f; }
+.map-meta.bad { color:#c95c4a; }
+.rp-loot {
+  display:flex; flex-wrap:wrap; gap:4px 14px; margin:7px 0 9px;
+  font-size:12px; color:var(--ink-faint);
+}
+.rp-loot b { color:var(--ink); }
+.rp-loot .bad { color:#d9705c; }
+
+.meter { width:100%; border-collapse:collapse; font-size:12px; }
+.meter th {
+  text-align:left; padding:0 8px 4px; font-weight:500; font-size:10px;
+  letter-spacing:.7px; text-transform:uppercase; color:var(--ink-faint);
+}
+.meter th:not(:first-child) { text-align:right; }
+.meter td { padding:2px 8px; }
+.meter tr.fallen .mr-name { color:var(--ink-faint); }
+.mr-down { color:#c95c4a; font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
+.mr-name { font-size:12px; color:var(--ink); white-space:nowrap; }
+.mr-name .role { margin-right:5px; }
+.mr-cell { position:relative; text-align:right; width:26%; min-width:74px; }
+.mr-bar {
+  /* Inset so one column's bar cannot run into the next one's number. */
+  position:absolute; left:5px; top:3px; bottom:3px; max-width:calc(100% - 10px);
+  border-radius:2px; opacity:.30;
+}
+.mr-bar.m-dmg { background:#d9705c; }
+.mr-bar.m-taken { background:#c9a227; }
+.mr-bar.m-heal { background:#6fbf5f; }
+.mr-val { position:relative; }

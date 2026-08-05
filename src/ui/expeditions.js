@@ -18,6 +18,7 @@ import {
 import { barredMembers } from '../data/modifiers.js';
 import { CLASS_BY_ID } from '../data/heroclasses.js';
 import { ui } from './state.js';
+import { reports, dismissReport, peakOf } from '../reports.js';
 
 // ===========================================================================
 // Expeditions
@@ -28,14 +29,16 @@ export function renderRuns() {
   const host = qs('#activeRuns');
   if (!host || !s) return;
 
-  if (!s.expeditions.length) {
+  const summaries = reports.map(reportCard).join('');
+
+  if (!s.expeditions.length && !reports.length) {
     host.innerHTML = `<div class="map-banner"><div class="idle-state">
       <h3>No expeditions in the field</h3>
       <p>Pick a dungeon below and dispatch a party.</p></div></div>`;
     return;
   }
 
-  host.innerHTML = s.expeditions.map((run) => {
+  host.innerHTML = summaries + s.expeditions.map((run) => {
     const party = partyById(run.partyId);
     return `<div class="map-banner running run-card">
       <div class="map-banner-top">
@@ -56,6 +59,10 @@ export function renderRuns() {
       </div>
     </div>`;
   }).join('');
+
+  for (const btn of host.querySelectorAll('[data-dismiss]')) {
+    btn.onclick = () => { dismissReport(btn.dataset.dismiss); renderRuns(); };
+  }
 
   host.onclick = (e) => {
     const b = e.target.closest('[data-recall]');
@@ -326,4 +333,93 @@ function contractShelf(idleParties, free) {
       </div>`;
   }).join('')}</div>
   </div>`;
+}
+
+
+// ===========================================================================
+// After-action summary
+// ===========================================================================
+
+/**
+ * The three columns a damage meter shows, and what each is for.
+ *
+ * Damage taken is included deliberately. On its own it looks like a measure of
+ * failure, but for a Tank it is the job: a Tank at the top of this column and
+ * a Wizard near the bottom is a party working correctly, and the reverse is a
+ * problem you would otherwise never see.
+ */
+const METER_COLUMNS = [
+  { key: 'damageDealt', label: 'Damage', cls: 'm-dmg' },
+  { key: 'damageTaken', label: 'Taken', cls: 'm-taken' },
+  { key: 'healingDone', label: 'Healing', cls: 'm-heal' },
+];
+
+function meterRow(report, hero) {
+  return `<tr class="${hero.down ? 'fallen' : ''}">
+    <td class="mr-name">
+      <span class="role role-${(hero.role ?? 'dps').toLowerCase()}">${escapeHtml(hero.role ?? '')}</span>
+      ${escapeHtml(hero.name)}${hero.down ? ' <span class="mr-down">fell</span>' : ''}
+    </td>
+    ${METER_COLUMNS.map((col) => {
+    const value = hero[col.key] ?? 0;
+    const pct = (value / peakOf(report, col.key)) * 100;
+    return `<td class="mr-cell">
+        <span class="mr-bar ${col.cls}" style="width:${pct.toFixed(1)}%"></span>
+        <span class="mr-val">${value ? fmt(value) : '—'}</span>
+      </td>`;
+  }).join('')}
+  </tr>`;
+}
+
+function reportCard(report) {
+  const r = report.rewards ?? {};
+  const won = report.cleared;
+  return `<div class="map-banner run-report ${won ? 'won' : 'lost'}" data-report="${report.id}">
+    <div class="map-banner-top">
+      <span class="map-title">${escapeHtml(report.partyName ?? 'Party')} —
+        ${escapeHtml(report.name)}</span>
+      <span class="map-meta ${won ? 'good' : 'bad'}">${won ? 'Cleared' : 'Wiped'}
+        · ${report.raid ? 'Raid' : `Tier ${report.tier}`}
+        · ${Math.round(report.seconds)}s</span>
+    </div>
+
+    <div class="rp-loot">
+      ${won
+    ? `<span><b class="gold">${fmt(r.gold ?? 0)}</b> gold</span>
+         <span><b>${r.gear ?? 0}</b> item${(r.gear ?? 0) === 1 ? '' : 's'}</span>
+         <span><b>${r.materials ?? 0}</b> materials</span>
+         <span><b>${fmt(r.xp ?? 0)}</b> xp</span>
+         ${r.uniques ? `<span class="r-unique"><b>${r.uniques}</b> unique</span>` : ''}
+         ${r.seals ? `<span class="c-seal"><b>${r.seals}</b> seal</span>` : ''}
+         ${r.echoes ? `<span class="c-echo"><b>${r.echoes}</b> echo</span>` : ''}`
+    : `<span class="bad">Everything they were carrying is lost —
+         <b>${fmt(r.gold ?? 0)}</b> gold, <b>${r.gear ?? 0}</b> items,
+         <b>${r.materials ?? 0}</b> materials.</span>`}
+    </div>
+
+    <table class="meter">
+      <thead><tr><th></th>${METER_COLUMNS.map((c) => `<th>${c.label}</th>`).join('')}</tr></thead>
+      <tbody>${report.heroes
+    .slice()
+    .sort((a, b) => b.damageDealt - a.damageDealt)
+    .map((h) => meterRow(report, h)).join('')}</tbody>
+    </table>
+
+    <div class="row">
+      ${report.remaining == null
+    ? `<button class="btn tiny primary" data-dismiss="${report.id}">Continue</button>`
+    : `<button class="btn tiny" data-dismiss="${report.id}">Continue now</button>
+         <span class="hint" data-countdown="${report.id}">Next run in
+           ${Math.ceil(report.remaining)}s…</span>`}
+    </div>
+  </div>`;
+}
+
+/** Re-times the countdown without rebuilding the card. */
+export function updateReportTimers() {
+  for (const report of reports) {
+    if (report.remaining == null) continue;
+    const el = qs(`[data-countdown="${report.id}"]`);
+    if (el) el.textContent = `Next run in ${Math.max(0, Math.ceil(report.remaining))}s…`;
+  }
 }

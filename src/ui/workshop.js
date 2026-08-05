@@ -83,8 +83,9 @@ export function renderCraftPanel() {
   }
 
   host.innerHTML = `
-    <p class="hint">Costs scale with the item level, and "self" materials depend on what the item
-      is made of — tempering plate wants metal, tempering a robe wants cloth.</p>
+    <p class="hint">The Workbench improves gear you already own. Costs go up with the item level,
+      and "self" materials depend on what the item is made of — tempering plate armour wants
+      metal, tempering a robe wants cloth.</p>
     <div class="recipe-list">${RECIPES.map((r) => `
       <div class="recipe ${ui.craftRecipe === r.id ? 'selected' : ''} ${r.risky ? 'risky' : ''}"
            data-recipe="${r.id}">
@@ -92,9 +93,26 @@ export function renderCraftPanel() {
         <div class="rc-desc">${escapeHtml(r.desc)}</div>
       </div>`).join('')}</div>
 
-    <div class="section-head"><span>Alchemy</span></div>
-    <p class="hint">Flasks are brewed in batches and assigned to a party on the Parties tab. One is
-      drunk when that party is dispatched and buffs the whole expedition.</p>
+  `;
+
+  host.onclick = (e) => {
+    const rec = e.target.closest('[data-recipe]');
+    if (!rec) return;
+    selectRecipe(ui.craftRecipe === rec.dataset.recipe ? null : rec.dataset.recipe);
+  };
+
+  renderAlchemy();
+}
+
+/** The alchemy stand: flasks, brewed in batches. Its own panel so the tutorial
+ *  can point at it without also pointing at every bench recipe. */
+export function renderAlchemy() {
+  const host = qs('#alchemyPanel');
+  if (!host || !G.state) return;
+  host.innerHTML = `
+    <p class="hint">Flasks are brewed a few at a time from herbs. Give one to a party on the
+      Parties tab and they drink it as they leave, buffing everyone for the whole expedition.
+      It is used up whether the run goes well or not.</p>
     <div class="flask-list">${FLASKS.map((f) => {
     const cost = flaskCost(f);
     const afford = hasMaterials(cost);
@@ -113,8 +131,6 @@ export function renderCraftPanel() {
   }).join('')}</div>`;
 
   host.onclick = (e) => {
-    const rec = e.target.closest('[data-recipe]');
-    if (rec) { selectRecipe(ui.craftRecipe === rec.dataset.recipe ? null : rec.dataset.recipe); return; }
     const b = e.target.closest('[data-brew]');
     if (b && !b.disabled) setStatus(brew(b.dataset.brew).msg);
   };

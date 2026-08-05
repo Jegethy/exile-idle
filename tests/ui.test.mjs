@@ -77,13 +77,23 @@ export default async function run(browser) {
     await page.click('[data-tab="workshop"], [data-tab="orbs"]');
     await page.waitForTimeout(300);
     const r = await page.evaluate(() => ({
-      materials: document.querySelectorAll('[data-mat]').length,
-      recipes: document.querySelectorAll('[data-recipe]').length,
-      flasks: document.querySelectorAll('[data-flask]').length,
+      materials: document.querySelectorAll('#materialGrid [data-mat]').length,
+      // Flasks are [data-brew], not [data-flask]. This looked for the latter,
+      // found none, and reported "0 flasks" without asserting anything.
+      recipes: document.querySelectorAll('#craftPanel [data-recipe]').length,
+      flasks: document.querySelectorAll('#alchemyPanel [data-brew]').length,
+      // Each of the three lives in its own element so the tutorial can point
+      // at one without highlighting the other two.
+      heads: ['headMaterials', 'headBench', 'headAlchemy']
+        .filter((id) => document.getElementById(id)).length,
+      strayFlasks: document.querySelectorAll('#craftPanel [data-brew]').length,
     }));
     ok(r.materials > 0, 'no materials rendered');
-    ok(r.recipes > 0, 'no recipes rendered');
-    return `${r.materials} materials, ${r.recipes} recipes, ${r.flasks} flasks`;
+    ok(r.recipes > 0, 'no recipes rendered in the Workbench');
+    ok(r.flasks > 0, 'no flasks rendered in Alchemy');
+    eq(r.heads, 3, 'the three workshop sections are not separately labelled');
+    eq(r.strayFlasks, 0, 'flasks are still inside the Workbench panel');
+    return `${r.materials} materials, ${r.recipes} recipes, ${r.flasks} flasks, 3 sections`;
   });
 
   await test('Escape cancels a selected recipe without throwing', async () => {

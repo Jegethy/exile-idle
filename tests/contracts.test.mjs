@@ -116,10 +116,14 @@ export default async function run(browser) {
         ...DUNGEON_BY_ID.mines.monsters, attackMix: DUNGEON_BY_ID.mines.attackMix,
       };
       const modProfile = applyModifiersToProfile(baseProfile, ['teeming', 'exposed']);
+      // Pinned to 'normal' rarity as well. Monster rarity is rolled per enemy
+      // and a champion carries several times the life of a common one, so even
+      // 400 samples of a mixed population wander by a third -- which is enough
+      // to fail a 1.4x assertion about a 1.6x effect.
       const meanLife = (profile) => {
         let total = 0;
-        for (let i = 0; i < 400; i++) total += makeEnemy(8, profile).maxLife;
-        return total / 400;
+        for (let i = 0; i < 200; i++) total += makeEnemy(8, profile, 'normal').maxLife;
+        return total / 200;
       };
       const plainLife = meanLife(baseProfile);
       const cursedLife = meanLife(modProfile);

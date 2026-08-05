@@ -6,6 +6,7 @@ import * as Save from './save.js';
 import { tickAll, dispatch } from './expedition.js';
 import { restAll, startingRoster, createParty, assignToParty } from './heroes.js';
 import { refreshSheets } from './sheets.js';
+import { tickReports, partyIsReading, clearReports } from './reports.js';
 
 export { refreshSheets };
 import { guildEffects } from './data/upgrades.js';
@@ -90,6 +91,7 @@ function boot() {
 export function enterGuild(slot) {
   G.slot = slot;
   G.paused = false;
+  clearReports();
   refreshSheets();
   renderAll();
   log(`Welcome back to ${G.state.name}.`, 'sys');
@@ -126,6 +128,10 @@ function runOfflineProgress() {
   const capped = Math.min(away, MAX_OFFLINE_HOURS * 3600);
   const before = { gold: s.guild.gold, runs: s.stats.runs, gear: s.stats.gearFound };
   const { simulated, dropped } = catchUp(capped);
+  // Hours of catch-up finish dozens of runs, each of which files a report.
+  // Nobody wants to click through forty summaries of fights they did not
+  // watch; the offline line below is the summary for all of them.
+  clearReports();
 
   const gold = s.guild.gold - before.gold;
   const runs = s.stats.runs - before.runs;
@@ -146,6 +152,7 @@ function fmtAway(seconds) {
 /** Sets up the opening guild: a starting party and three heroes. */
 export function foundGuild(name, slot = G.slot) {
   G.slot = slot;
+  clearReports();
   G.state = createState(name);
   G.state.heroes = startingRoster();
   const party = createParty('First Company');
@@ -189,6 +196,9 @@ function simulate(dt, quiet = false) {
   }
 
   restAll(dt * speed);
+  // Real seconds, not accelerated ones. A summary you asked to have five
+  // seconds to read should last five seconds however fast the game is running.
+  tickReports(dt);
   handleRedeploy(dt);
 
   if (quiet) return;
@@ -283,6 +293,10 @@ function handleRedeploy(dt) {
   for (const party of s.parties) {
     if (!party.autoRedeploy || !party.lastRun) continue;
     if (s.expeditions.some((e) => e.partyId === party.id)) continue;
+    // The summary gets its five seconds. Without this the next expedition
+    // launches instantly and the report is replaced by a progress bar before
+    // anyone could read it.
+    if (partyIsReading(party.id)) continue;
     dispatch(party.id, party.lastRun.dungeonId, party.lastRun.tier);
   }
 }

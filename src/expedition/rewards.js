@@ -7,6 +7,7 @@ import { DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl } from '../data/dungeons.js';
 import { gradeForIlvl, materialOf } from '../data/materials.js';
 import { guildEffects } from '../data/upgrades.js';
 import { maybeDropContract } from '../contracts.js';
+import { addReport, reports } from '../reports.js';
 import { grantHeroXp, heroById, partyById } from '../heroes.js';
 import { addMaterial, addToVault } from '../inventory.js';
 import { createItem, rollUnique } from '../items.js';
@@ -214,6 +215,12 @@ export function finishRun(run, success) {
   }
 
   if (party) party.returnedAt = s.playtime;
+
+  // Built here, while the combatants still exist. A party that will redeploy
+  // on its own gets a countdown; one that will not waits to be dismissed.
+  addReport(run, success, !!party?.autoRedeploy);
+  const report = reports[reports.length - 1];
+  if (report) report.partyName = party?.name ?? 'The party';
 
   const i = s.expeditions.indexOf(run);
   if (i >= 0) s.expeditions.splice(i, 1);

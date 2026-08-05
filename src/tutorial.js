@@ -129,9 +129,24 @@ export const STEPS = [
     waitFor: () => G.state.expeditions.length === 0
       && (G.state.stats.runs + G.state.stats.runsFailed) > 0,
     readyBody: () => (G.state.stats.runs > 0
-      ? '<b>They made it back.</b> Their haul is in the log above.'
+      ? '<b>They made it back.</b> Their summary is waiting above.'
       : '<b>They were driven out.</b> A failed run keeps whatever was already looted but '
         + 'earns no completion chest. Nobody is lost permanently.'),
+  },
+  {
+    id: 'summary',
+    tab: 'expeditions', target: '#activeRuns',
+    title: 'Who Did What',
+    body: 'Every expedition ends with a summary: what you found, how long it took, and what each '
+      + 'hero actually contributed.'
+      + '<br><br>The three bars are <b>damage dealt</b>, <b>damage taken</b> and <b>healing '
+      + 'done</b>. Since you never see the fight happen, this is how you find out who is pulling '
+      + 'their weight and who is not.'
+      + '<br><br>Do not be alarmed by a Tank at the top of <b>damage taken</b> — that is the job. '
+      + 'Worry when somebody else is up there instead.'
+      + '<br><br>Press <b>Continue</b> on the summary when you have read it. If you later set a '
+      + 'party to repeat runs on their own, it clears itself after five seconds instead.',
+    advance: 'next',
   },
   {
     id: 'vault',
@@ -145,17 +160,41 @@ export const STEPS = [
     advance: 'next',
   },
   {
-    id: 'workshop',
+    id: 'materials',
     tab: 'workshop', target: '#materialGrid',
-    title: 'Materials and the Workshop',
-    body: 'Eight kinds of material, in three grades each. You get them by breaking down gear you '
-      + 'do not want and from expeditions — and <b>where you send a party decides what you bring '
-      + 'back</b>. The Dark Forest gives wood and herbs; the Arcane Vault gives essence.'
-      + '<br><br>Below the materials is the workbench. <b>Reforge</b> rerolls an item\'s bonuses, '
-      + '<b>Augment</b> adds one, and <b>Temper</b> improves the item itself. Better items cost '
-      + 'more to work on.'
-      + '<br><br>The alchemy bench brews <b>flasks</b> from herbs. Assign one to a party and they '
-      + 'drink it on their way out.',
+    title: 'Materials',
+    body: 'Eight kinds of material, in three grades each. Better grades only come from harder '
+      + 'content.'
+      + '<br><br>You get them two ways: from expeditions, and by breaking down gear you do not '
+      + 'want. <b>Where you send a party decides what you bring back</b> — the Dark Forest gives '
+      + 'wood and herbs, the Arcane Vault gives essence.'
+      + '<br><br>What you get from breaking down an item depends on what it was. A plate helmet '
+      + 'gives metal, a robe gives cloth.',
+    advance: 'next',
+  },
+  {
+    id: 'workbench',
+    tab: 'workshop', target: '#craftPanel',
+    title: 'The Workbench',
+    body: 'This is where you improve gear you already own. Pick an option here, then click an '
+      + 'item in your vault.'
+      + '<br><br><b>Reforge</b> rerolls all of an item\'s bonuses. <b>Augment</b> adds one more. '
+      + '<b>Temper</b> improves the item itself rather than its bonuses.'
+      + '<br><br>Costs go up with the item level, so reworking your best gear is expensive. Some '
+      + 'options are risky and can leave an item worse than it was — those are marked.',
+    advance: 'next',
+  },
+  {
+    id: 'alchemy',
+    tab: 'workshop', target: '#alchemyPanel',
+    title: 'Alchemy',
+    body: 'Flasks are brewed from herbs, a few at a time, and they are the one thing you can do '
+      + 'to help a party <i>before</i> they leave.'
+      + '<br><br>Give a flask to a party on the Parties tab. They drink it on the way out and the '
+      + 'effect lasts the whole expedition, for everyone. One flask, one run — it is used up '
+      + 'whether they clear it or not.'
+      + '<br><br>Each does something different: extra armour and health, faster attacks, better '
+      + 'loot. When a run looks close, the right flask is often what decides it.',
     advance: 'next',
   },
   {

@@ -485,6 +485,34 @@ by absorbing, while a spell-resistant one would only ever protect itself. No
 resistance number can balance that, which is why the Paladin's Consecrate wards
 the *party* against spells rather than merely hardening the Paladin.
 
+## The after-action summary
+
+Combat resolves on its own, which means the interesting part is over before you
+look. Without a summary the only trace of a run is a line in the log and a
+number that went up, and there is no way to answer the question every player
+actually has: **who is carrying, and who is dead weight?** A hero can sit in a
+party for hours contributing nothing and nothing on screen would say so.
+
+So a finished expedition leaves a card where the run was, holding the three
+numbers a damage meter would — damage dealt, damage taken and healing done, per
+hero, with bars scaled to the best performer — alongside the haul and how long
+it took.
+
+Damage *taken* is there deliberately. On its own it looks like a measure of
+failure, but for a Tank it is the job: a Tank at the top of that column and a
+Wizard near the bottom is a party working correctly, and the reverse is a
+problem you would otherwise never see.
+
+A party you dispatch by hand waits for **Continue**. A party set to repeat runs
+on its own gets **five seconds**, counted in real time rather than accelerated
+time, and auto-redeploy is blocked while a summary is pending — otherwise the
+next expedition launches instantly and replaces the card before it can be read.
+
+Reports are never saved. They describe a moment that has passed, and a stale one
+greeting you on load would be noise. Offline catch-up clears them for the same
+reason: nobody wants to click through forty summaries of fights they did not
+watch.
+
 ## Sealed Contracts
 
 Tier 20 is where the game runs out of things to give you: every affix reaches
@@ -615,6 +643,7 @@ src/
     roster.js       roster list and hero sheet
     guide.js        the Guild Handbook, generated from the data modules
   contracts.js      sealed contracts: rolling, storing, pricing
+  reports.js        after-action summaries and their countdown
     parties.js      party building and flask assignment
     expeditions.js  runs in the field and the dispatch board
     raids.js        Seal-gated milestone bosses

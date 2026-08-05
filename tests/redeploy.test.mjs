@@ -62,10 +62,12 @@ export default async function run(browser) {
       const { G } = await import('./src/state.js');
       const { tickAll } = await import('./src/expedition.js');
       const { handleRedeployForTest } = await import('./src/game.js');
+      const { tickReports, reports } = await import('./src/reports.js');
       // Only the second party asked to keep going.
       G.state.parties.find((p) => p.id === first).autoRedeploy = false;
       G.state.parties.find((p) => p.id === second).autoRedeploy = true;
       const sent = [];
+      let blockedWhileReading = false;
       for (let cycle = 0; cycle < 5; cycle++) {
         handleRedeployForTest();
         const run_ = G.state.expeditions[0];
@@ -73,13 +75,22 @@ export default async function run(browser) {
         sent.push(run_.partyId);
         for (let i = 0; i < 4000 && G.state.expeditions.length; i++) tickAll(0.1);
         for (const h of G.state.heroes) h.stamina = 100;   // rested, as they would be
+        // The party now has a summary on screen and should not leave until it
+        // has had its five seconds.
+        if (reports.length) {
+          handleRedeployForTest();
+          if (!G.state.expeditions.length) blockedWhileReading = true;
+          tickReports(6);
+        }
       }
-      return { sent, second };
+      return { sent, second, blockedWhileReading };
     }, ids);
     ok(r.sent.length >= 3, `only ${r.sent.length} expeditions were dispatched`);
     ok(r.sent.every((id) => id === r.second),
       'a party that was not asked to keep going was sent anyway');
-    return `${r.sent.length} runs, all by the party that asked for them`;
+    ok(r.blockedWhileReading,
+      'the party left again before its summary had been on screen for five seconds');
+    return `${r.sent.length} runs, all by the same party, each after its summary`;
   });
 
   await test('a party already in the field is not sent again', async () => {
