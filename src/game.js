@@ -7,6 +7,7 @@ import { tickAll, dispatch } from './expedition.js';
 import { restAll, startingRoster, createParty, assignToParty } from './heroes.js';
 import { refreshSheets } from './sheets.js';
 import { tickReports, partyIsReading, clearReports } from './reports.js';
+import { tickAchievements, backfill } from './achievements.js';
 
 export { refreshSheets };
 import { guildEffects } from './data/upgrades.js';
@@ -94,6 +95,9 @@ export function enterGuild(slot) {
   clearReports();
   refreshSheets();
   renderAll();
+  // A guild that has been running for hours should be credited for what it
+  // already did, silently, rather than greeted by twenty pop-ups.
+  backfill();
   log(`Welcome back to ${G.state.name}.`, 'sys');
   last = performance.now();
   runOfflineProgress();
@@ -199,6 +203,7 @@ function simulate(dt, quiet = false) {
   // Real seconds, not accelerated ones. A summary you asked to have five
   // seconds to read should last five seconds however fast the game is running.
   tickReports(dt);
+  tickAchievements(dt);
   handleRedeploy(dt);
 
   if (quiet) return;

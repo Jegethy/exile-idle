@@ -107,7 +107,7 @@ export default async function run(browser) {
       const { dispatchRaid, tickAll } = await import('./src/expedition.js');
       const { rollHero } = await import('./src/heroes.js');
       const { refreshSheets } = await import('./src/sheets.js');
-      const { DEEP_ILVL, RAID_BY_ID } = await import('./src/data/dungeons.js');
+      const { DEEP_ILVL, BLANK_ILVL, RAID_BY_ID } = await import('./src/data/dungeons.js');
       const { deepUniques } = await import('./src/data/uniques.js');
 
       const deepIds = new Set(deepUniques().map((u) => u.id));
@@ -133,16 +133,23 @@ export default async function run(browser) {
         runs++;
         for (const it of G.state.vault) {
           if (it.uniqueId && deepIds.has(it.uniqueId)) { sawUnique++; if (it.ilvl !== DEEP_ILVL) return { badIlvl: it.ilvl }; }
-          if (it.rarity === 'normal' && it.ilvl === DEEP_ILVL) blanks++;
+          if (it.rarity === 'normal' && it.ilvl === BLANK_ILVL) blanks++;
         }
       }
-      return { runs, sawUnique, blanks, want: RAID_BY_ID.the_hollow_star.reward.blanks, DEEP_ILVL };
+      return {
+        runs, sawUnique, blanks,
+        want: RAID_BY_ID.the_hollow_star.reward.blanks, DEEP_ILVL, BLANK_ILVL,
+      };
     });
     ok(!r.badIlvl, `a deep unique dropped at item level ${r.badIlvl}, not ${r.DEEP_ILVL}`);
     ok(r.runs > 0, 'the deep raid could not be dispatched');
     ok(r.sawUnique >= r.runs, `only ${r.sawUnique} deep uniques from ${r.runs} guaranteed drops`);
-    ok(r.blanks >= r.runs * r.want, `${r.blanks} blank bases from ${r.runs} runs, expected ${r.runs * r.want}`);
-    return `${r.runs} kills: ${r.sawUnique} deep uniques and ${r.blanks} blanks, all at ilvl ${r.DEEP_ILVL}`;
+    // Blanks are a chase item at roughly a unique's rate, so a fixed count is
+    // the wrong assertion. What matters is that they arrive at all, and at the
+    // right item level.
+    ok(r.blanks > 0, `no blank base in ${r.runs} kills at a ${Math.round(r.want * 100)}% rate`);
+    return `${r.runs} kills: ${r.sawUnique} deep uniques at ilvl ${r.DEEP_ILVL}, `
+      + `${r.blanks} blanks at ilvl ${r.BLANK_ILVL}`;
   });
 
   await test('a blank base is genuinely blank, and worth working on', async () => {
@@ -150,23 +157,34 @@ export default async function run(browser) {
       const { G } = await import('./src/state.js');
       const { createItem } = await import('./src/items.js');
       const { AFFIXES, availableTiers } = await import('./src/data/affixes.js');
-      const { DEEP_ILVL } = await import('./src/data/dungeons.js');
-      const blank = createItem({ ilvl: DEEP_ILVL, rarity: 'normal' });
-      // The point of a blank at this level: every affix can roll its best tier.
+      const { BLANK_ILVL, tierToIlvl } = await import('./src/data/dungeons.js');
+      const blank = createItem({ ilvl: BLANK_ILVL, rarity: 'normal' });
+      // The point of a blank at this level: every affix can roll its best tier,
+      // and ordinary drops cannot reach it until far deeper content.
       const topTierAvailable = AFFIXES.every(
-        (a) => availableTiers(a, DEEP_ILVL).length === a.tiers.length,
+        (a) => availableTiers(a, BLANK_ILVL).length === a.tiers.length,
       );
+      let firstOrdinaryTier = 0;
+      for (let t = 1; t <= 60; t++) {
+        if (AFFIXES.every((a) => availableTiers(a, tierToIlvl(t)).length === a.tiers.length)) {
+          firstOrdinaryTier = t; break;
+        }
+      }
       return {
         rarity: blank.rarity,
         affixes: (blank.affixes ?? []).length,
         ilvl: blank.ilvl,
         topTierAvailable,
+        firstOrdinaryTier,
       };
     });
     eq(r.rarity, 'normal', 'a blank base is not Normal rarity');
     eq(r.affixes, 0, `a blank base arrived with ${r.affixes} modifiers`);
     ok(r.topTierAvailable, `item level ${r.ilvl} cannot roll every affix's best tier`);
-    return `Normal, no modifiers, ilvl ${r.ilvl} — every affix at its best tier`;
+    ok(r.firstOrdinaryTier >= 33,
+      `ordinary drops reach the top affix band at Tier ${r.firstOrdinaryTier}, so blanks are not special`);
+    return `Normal, no modifiers, ilvl ${r.ilvl} — every affix at its best tier, `
+      + `which ordinary drops do not reach until Tier ${r.firstOrdinaryTier}`;
   });
 
   await test('the raid panel shows the deep rewards', async () => {

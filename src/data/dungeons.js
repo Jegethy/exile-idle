@@ -134,42 +134,43 @@ export const DEFAULT_ATTACK_MIX = { melee: 40, spell: 60 };
 // Legendary party in seventeen seconds with 82% of its life remaining: its
 // damage multiplier was 4.2 where the measurement says 1.3, because the
 // multiplier had been chosen by eye while the curve underneath it compounded.
-// The first four bosses have the opposite problem and die in one to nine
-// seconds; they are left alone because they gate early progression and are
-// meant to be beaten, but they are formalities rather than fights.
+// The first four had the opposite problem and died in one to nine seconds,
+// which made a milestone boss feel like a button. They are calibrated the same
+// way now, against the party a player can plausibly field when each unlocks --
+// Common heroes at Tier 4, not the Legendary roster the first pass assumed.
 export const RAIDS = [
   {
     id: 'hollow_king', name: 'The Hollow King', tier: 4, seals: 1,
     blurb: 'A crowned corpse that never accepted the verdict of its own death.',
-    life: 26, damage: 1.9, aps: 0.85, armour: 2.0, res: 20,
+    life: 460, damage: 9.6, aps: 0.85, armour: 2.0, res: 20,
     attack: 'melee', split: { phys: 0.7, chaos: 0.3 },
     reward: { gold: 4000, materials: 6, uniqueChance: 0.55, bonus: 3, echoes: 2 },
   },
   {
     id: 'brood_matron', name: 'The Brood Matron', tier: 8, seals: 2,
     blurb: 'She has been laying since before the mines were dug. The tunnels are her nursery.',
-    life: 44, damage: 2.3, aps: 1.15, armour: 1.2, res: 35,
+    life: 290, damage: 4.8, aps: 1.15, armour: 1.2, res: 35,
     attack: 'melee', split: { phys: 0.5, chaos: 0.5 },
     reward: { gold: 14000, materials: 12, uniqueChance: 0.7, bonus: 4, echoes: 3 },
   },
   {
     id: 'ember_tyrant', name: 'The Ember Tyrant', tier: 12, seals: 3,
     blurb: 'It sleeps beneath the forge-mountain, and the mountain is beginning to crack.',
-    life: 70, damage: 2.9, aps: 1.0, armour: 2.4, res: 50,
+    life: 250, damage: 3.6, aps: 1.0, armour: 2.4, res: 50,
     attack: 'spell', split: { fire: 0.75, phys: 0.25 },
     reward: { gold: 48000, materials: 20, uniqueChance: 0.85, bonus: 5, echoes: 4 },
   },
   {
     id: 'drowned_choir', name: 'The Drowned Choir', tier: 16, seals: 4,
     blurb: 'Nine voices beneath the water, singing the same note since the flood.',
-    life: 105, damage: 3.4, aps: 1.25, armour: 1.8, res: 60,
+    life: 140, damage: 1.5, aps: 1.25, armour: 1.8, res: 60,
     attack: 'spell', split: { cold: 0.5, light: 0.3, chaos: 0.2 },
     reward: { gold: 150000, materials: 32, uniqueChance: 0.95, bonus: 6, echoes: 6 },
   },
   {
     id: 'worldeater', name: 'The Worldeater', tier: 22, seals: 6,
     blurb: 'There is no arena. There is only the mouth, and how long you last inside it.',
-    life: 200, damage: 1.5, aps: 1.1, armour: 3.0, res: 70,
+    life: 138, damage: 1.15, aps: 1.1, armour: 3.0, res: 70,
     attack: 'mixed', split: { phys: 0.35, fire: 0.25, cold: 0.2, chaos: 0.2 },
     reward: { gold: 600000, materials: 50, uniqueChance: 1.0, bonus: 8, echoes: 10 },
   },
@@ -186,31 +187,31 @@ export const RAIDS = [
   {
     id: 'sunless_court', name: 'The Sunless Court', tier: 26, seals: 8,
     blurb: 'A throne room that has not seen daylight since it was buried. The court still sits.',
-    life: 190, damage: 1.3, aps: 1.15, armour: 2.6, res: 66,
+    life: 118, damage: 1.06, aps: 1.15, armour: 2.6, res: 66,
     attack: 'mixed', split: { phys: 0.4, cold: 0.3, chaos: 0.3 },
     reward: {
       gold: 1400000, materials: 60, uniqueChance: 1.0, bonus: 6, echoes: 14,
-      deepUnique: 0.30, blanks: 1,
+      deepUnique: 0.30, blanks: 0.22,
     },
   },
   {
     id: 'sundered_titan', name: 'The Sundered Titan', tier: 31, seals: 11,
     blurb: 'It was broken apart and buried in four places. Three of them are now empty.',
-    life: 215, damage: 1.6, aps: 0.95, armour: 3.6, res: 72,
+    life: 158, damage: 1.35, aps: 0.95, armour: 3.6, res: 72,
     attack: 'melee', split: { phys: 0.65, light: 0.35 },
     reward: {
       gold: 3600000, materials: 85, uniqueChance: 1.0, bonus: 7, echoes: 20,
-      deepUnique: 0.55, blanks: 2,
+      deepUnique: 0.55, blanks: 0.38,
     },
   },
   {
     id: 'the_hollow_star', name: 'The Hollow Star', tier: 36, seals: 15,
     blurb: 'Something fell here a long time ago, and the crater has been getting deeper ever since.',
-    life: 275, damage: 1.2, aps: 1.3, armour: 3.0, res: 78,
+    life: 268, damage: 1.14, aps: 1.3, armour: 3.0, res: 78,
     attack: 'spell', split: { fire: 0.3, cold: 0.2, light: 0.2, chaos: 0.3 },
     reward: {
       gold: 9000000, materials: 120, uniqueChance: 1.0, bonus: 9, echoes: 30,
-      deepUnique: 1.0, blanks: 3,
+      deepUnique: 1.0, blanks: 0.60,
     },
   },
 ];
@@ -225,11 +226,23 @@ export const RAID_BY_ID = Object.fromEntries(RAIDS.map((r) => [r.id, r]));
  * them grow without limit, and a unique whose numbers depend on which raid
  * happened to drop it is a unique nobody can talk about.
  *
- * 110 is the level at which the last affix band unlocks. Above it an item
- * gains base statistics but no new modifiers, so it is the natural line for
- * "as good as an item gets".
+ * A deep unique sits at 110, where the third affix band unlocks.
  */
 export const DEEP_ILVL = 110;
+
+/**
+ * Item level of a blank base, and the reason they are worth chasing.
+ *
+ * The fourth and final affix band unlocks at 118. Ordinary drops do not reach
+ * that until Tier 35; a blank arrives at 120 from the Tier 26 raid onwards, so
+ * for most of the deep game it is the only item in existence that can roll the
+ * best version of anything.
+ *
+ * That is the whole bargain: they are as rare as a unique, they arrive with
+ * nothing on them, and finishing one costs materials and several attempts —
+ * in exchange, a well-crafted blank beats anything else you can find.
+ */
+export const BLANK_ILVL = 120;
 
 // ---------------------------------------------------------------------------
 // Tier scaling

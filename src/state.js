@@ -97,6 +97,10 @@ export function createState(name = 'The Wayfarers') {
     stats: {
       runs: 0, runsFailed: 0, kills: 0, heroDeaths: 0,
       gearFound: 0, uniquesFound: 0, goldEarned: 0, recruited: 0, raidKills: 0,
+      // Recorded for achievements. Peak gold rather than current, because
+      // gold is meant to be spent and "hold a million" would otherwise be
+      // unwinnable for anyone who plays properly.
+      contractsRun: 0, blanksFound: 0, peakGold: 0,
     },
 
     // Candidates on offer, their locks, and how many times this board has been
@@ -127,6 +131,10 @@ export function createState(name = 'The Wayfarers') {
 export function addGold(n) {
   G.state.guild.gold += n;
   G.state.stats.goldEarned += n;
+  // High-water mark, so "hold a million gold" survives spending it.
+  if (G.state.guild.gold > (G.state.stats.peakGold ?? 0)) {
+    G.state.stats.peakGold = G.state.guild.gold;
+  }
   emit('guild');
 }
 

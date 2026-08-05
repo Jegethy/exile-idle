@@ -109,6 +109,10 @@ function migrate(state) {
 
   if (state.guild && state.guild.echoes === undefined) state.guild.echoes = 0;
   if (!Array.isArray(state.contracts)) state.contracts = [];
+  if (!state.achievements) state.achievements = { unlocked: {} };
+  for (const k of ['contractsRun', 'blanksFound', 'peakGold']) {
+    if (state.stats && state.stats[k] === undefined) state.stats[k] = 0;
+  }
 
   // A save that has already played is past the tutorial, whatever it says.
   if (!state.tutorial) state.tutorial = { step: 0, done: true, skipped: false };

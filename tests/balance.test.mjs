@@ -450,7 +450,7 @@ export default async function run() {
 
     console.log('');
     console.log('     affixes at their ceiling');
-    const rows = [20, 23, 25, 28, 30, 33].map((t) => {
+    const rows = [20, 25, 30, 33, 35].map((t) => {
       const n = maxedAt(tierToIlvl(t));
       console.log(`       T${String(t).padEnd(4)} ilvl ${String(tierToIlvl(t)).padStart(3)}`
         + `${String(n).padStart(6)} / ${AFFIXES.length}`);
@@ -462,8 +462,44 @@ export default async function run() {
     // all, because its gear had stopped improving while enemies had not.
     eq(rows.find((r) => r.t === 20).n, 0, 'every affix is already maxed at Tier 20');
     eq(rows.find((r) => r.t === 30).n, 0, 'every affix is already maxed at Tier 30');
-    eq(rows.find((r) => r.t === 33).n, AFFIXES.length, 'the deepest band is not reachable');
-    return `nothing maxed until Tier 33, then all ${AFFIXES.length}`;
+    eq(rows.find((r) => r.t === 33).n, 0, 'every affix is already maxed at Tier 33');
+    eq(rows.find((r) => r.t === 35).n, AFFIXES.length, 'the deepest band is not reachable');
+    return `nothing maxed until Tier 35, then all ${AFFIXES.length}`;
+  });
+
+  await test('an item can never roll an affix tier above its own level', async () => {
+    // The rule that makes item level mean anything. A blank base at item level
+    // 120 exists to reach the top band; an ordinary item at 110 must not, no
+    // matter how it was crafted, rerolled or augmented.
+    const { AFFIXES, availableTiers } = await import('../src/data/affixes.js');
+    const { createItem, addRandomAffix, rerollAffixes } = await import('../src/items.js');
+    const { AFFIX_BY_ID } = await import('../src/data/affixes.js');
+    const { freshGuild: fresh } = await import('./sim.mjs');
+    fresh(4242);
+
+    const bad = [];
+    for (const ilvl of [40, 85, 100, 110, 117, 120]) {
+      for (let n = 0; n < 200; n++) {
+        // Every path an affix can arrive by: rolled, rerolled, augmented.
+        const item = createItem({ ilvl, rarity: 'rare' });
+        rerollAffixes(item, 'rare');
+        addRandomAffix(item);
+        for (const aff of item.affixes) {
+          const def = AFFIX_BY_ID[aff.defId];
+          const tier = def.tiers[aff.tierIndex];
+          if (tier.ilvl > ilvl) {
+            bad.push(`ilvl ${ilvl} item rolled ${def.id} tier requiring ilvl ${tier.ilvl}`);
+          }
+        }
+      }
+    }
+    eq(bad.length, 0, [...new Set(bad)].slice(0, 4).join('; '));
+
+    // And the gate is not vacuous: item level 120 really does reach further.
+    const at110 = AFFIXES.reduce((n, a) => n + availableTiers(a, 110).length, 0);
+    const at120 = AFFIXES.reduce((n, a) => n + availableTiers(a, 120).length, 0);
+    ok(at120 > at110, `item level 120 unlocks nothing beyond 110 (${at120} vs ${at110})`);
+    return `1200 items across six levels, none reached above its own; 120 unlocks ${at120 - at110} more tiers than 110`;
   });
 
   await test('the new bands continue each curve rather than replacing it', async () => {

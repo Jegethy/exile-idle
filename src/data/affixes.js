@@ -37,6 +37,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Rending', 52, 75, 113, 147], [99, 'Sundering', 68, 98, 147, 191], [110, 'Worldbreaking', 88, 127, 191, 248],
+      [118, 'Cataclysm-forged', 114, 165, 248, 322],
     ),
   },
   {
@@ -49,6 +50,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Remorseless', 142, 170], [99, 'Annihilating', 167, 201], [110, 'Apocalyptic', 197, 237],
+      [118, 'Cataclysmic', 232, 280],
     ),
   },
   {
@@ -62,6 +64,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Immolating', 61, 88, 146, 190], [99, 'Cindering', 79, 115, 189, 247], [110, 'Sunfired', 103, 149, 246, 321],
+      [118, 'Starfired', 134, 194, 320, 417],
     ),
   },
   {
@@ -75,6 +78,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Glaciating', 53, 78, 127, 166], [99, 'Permafrost', 69, 101, 166, 216], [110, 'Heartfrozen', 90, 132, 215, 281],
+      [118, 'Absolute', 117, 172, 280, 365],
     ),
   },
   {
@@ -88,6 +92,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Fulminating', 10, 32, 218, 285], [99, 'Thunderstruck', 14, 42, 284, 370], [110, 'Stormforged', 18, 55, 369, 481],
+      [118, 'Skysundering', 23, 72, 480, 625],
     ),
   },
   {
@@ -100,6 +105,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Void-eaten', 81, 117, 194, 252], [99, 'Blightborn', 105, 152, 252, 328], [110, 'Entropic', 136, 198, 327, 426],
+      [118, 'Unmade', 177, 257, 425, 554],
     ),
   },
   {
@@ -113,6 +119,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Titanic', 151, 188], [99, 'Leviathan', 191, 237], [110, 'Undying', 240, 298],
+      [118, 'Colossal', 302, 375],
     ),
   },
   {
@@ -125,6 +132,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Radiant', 106, 134], [99, 'Empyrean', 136, 172], [110, 'Astral', 174, 220],
+      [118, 'Celestial', 223, 282],
     ),
   },
   {
@@ -137,6 +145,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Bulwarked', 318, 436], [99, 'Impervious', 420, 575], [110, 'Unyielding', 554, 759],
+      [118, 'Adamant', 731, 1002],
     ),
   },
   {
@@ -149,6 +158,7 @@ export const AFFIXES = [
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
       [88, 'Wraithlike', 364, 502], [99, 'Phantasmal', 481, 662], [110, 'Untouchable', 635, 874],
+      [118, 'Formless', 838, 1154],
     ),
   },
   {
@@ -158,7 +168,8 @@ export const AFFIXES = [
     tiers: T([1, 'Boned', 10, 19], [18, 'Lacquered', 20, 29], [36, 'Plated', 30, 41], [54, 'Carapaced', 42, 55], [72, 'Encrusted', 56, 74],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'Ironbound', 68, 90], [99, 'Fortified', 83, 110], [110, 'Immovable', 102, 134],),
+      [88, 'Ironbound', 68, 90], [99, 'Fortified', 83, 110], [110, 'Immovable', 102, 134],
+      [118, 'Unbreakable', 124, 163],),
   },
   {
     id: 'inc_evasion', group: 'DefencesPercent', type: 'prefix', req: ['armour', 'shield'], weight: 70,
@@ -167,7 +178,8 @@ export const AFFIXES = [
     tiers: T([1, 'Shadowed', 10, 19], [18, 'Blurred', 20, 29], [36, 'Ghostly', 30, 41], [54, 'Phased', 42, 55], [72, 'Vaporous', 56, 74],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'Diaphanous', 68, 90], [99, 'Spectral', 83, 110], [110, 'Unseen', 102, 134],),
+      [88, 'Diaphanous', 68, 90], [99, 'Spectral', 83, 110], [110, 'Unseen', 102, 134],
+      [118, 'Intangible', 124, 163],),
   },
   {
     id: 'inc_es_local', group: 'DefencesPercent', type: 'prefix', req: ['armour', 'shield'], weight: 70,
@@ -176,7 +188,8 @@ export const AFFIXES = [
     tiers: T([1, 'Warding', 10, 19], [18, 'Shielding', 20, 29], [36, 'Sealing', 30, 41], [54, 'Guarding', 42, 55], [72, 'Sanctified', 56, 74],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'Hallowed', 68, 90], [99, 'Beatified', 83, 110], [110, 'Divine', 102, 134],),
+      [88, 'Hallowed', 68, 90], [99, 'Beatified', 83, 110], [110, 'Divine', 102, 134],
+      [118, 'Ascendant', 124, 163],),
   },
   {
     id: 'inc_ele_dmg', group: 'ElementalDamagePercent', type: 'prefix', req: ['weapon', 'ring', 'amulet'], weight: 65,
@@ -185,7 +198,8 @@ export const AFFIXES = [
     tiers: T([4, 'Catalysing', 5, 10], [20, 'Infusing', 11, 17], [40, 'Empowering', 18, 25], [60, 'Overpowering', 26, 34], [80, 'Cataclysmic', 35, 45],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'Ruinous', 42, 54], [99, 'Calamitous', 50, 65], [110, 'Primordial', 60, 78],),
+      [88, 'Ruinous', 42, 54], [99, 'Calamitous', 50, 65], [110, 'Primordial', 60, 78],
+      [118, 'Cosmic', 72, 94],),
   },
   {
     id: 'inc_spell_dmg', group: 'SpellDamage', type: 'prefix', req: ['weapon', 'shield', 'amulet'], weight: 55,
@@ -194,7 +208,8 @@ export const AFFIXES = [
     tiers: T([8, 'Apprentice’s', 8, 14], [25, 'Adept’s', 15, 22], [45, 'Master’s', 23, 31], [65, 'Archmage’s', 32, 42], [82, 'Transcendent', 43, 56],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'Eldritch', 52, 67], [99, 'Archmagical', 62, 81], [110, 'Godtouched', 74, 97],),
+      [88, 'Eldritch', 52, 67], [99, 'Archmagical', 62, 81], [110, 'Godtouched', 74, 97],
+      [118, 'Worldshaping', 89, 116],),
   },
 
   // =========================== SUFFIXES ==================================
@@ -206,7 +221,8 @@ export const AFFIXES = [
       [36, 'of the Kiln', 24, 29], [48, 'of the Furnace', 30, 35], [60, 'of the Volcano', 36, 41], [78, 'of the Magma', 42, 48],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Forge-heart', 46, 52], [99, 'of the Inferno', 50, 57], [110, 'of the Sun', 54, 62],),
+      [88, 'of the Forge-heart', 46, 52], [99, 'of the Inferno', 50, 57], [110, 'of the Sun', 54, 62],
+      [118, 'of the Ashen Heart', 56, 64],),
   },
   {
     id: 'res_cold', group: 'ColdResistance', type: 'suffix', req: GEAR, weight: 110,
@@ -216,7 +232,8 @@ export const AFFIXES = [
       [36, 'of the Yeti', 24, 29], [48, 'of the Walrus', 30, 35], [60, 'of the Polar Bear', 36, 41], [78, 'of the Glacier', 42, 48],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Tundra', 46, 52], [99, 'of Deep Winter', 50, 57], [110, 'of Absolute Zero', 54, 62],),
+      [88, 'of the Tundra', 46, 52], [99, 'of Deep Winter', 50, 57], [110, 'of Absolute Zero', 54, 62],
+      [118, 'of the Frozen Waste', 56, 64],),
   },
   {
     id: 'res_light', group: 'LightningResistance', type: 'suffix', req: GEAR, weight: 110,
@@ -226,7 +243,8 @@ export const AFFIXES = [
       [36, 'of the Thunderhead', 24, 29], [48, 'of the Tempest', 30, 35], [60, 'of the Maelstrom', 36, 41], [78, 'of the Skies', 42, 48],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Levinbolt', 46, 52], [99, 'of the Stormwall', 50, 57], [110, 'of the Firmament', 54, 62],),
+      [88, 'of the Levinbolt', 46, 52], [99, 'of the Stormwall', 50, 57], [110, 'of the Firmament', 54, 62],
+      [118, 'of the Aurora', 56, 64],),
   },
   {
     id: 'res_chaos', group: 'ChaosResistance', type: 'suffix', req: GEAR, weight: 45,
@@ -235,7 +253,8 @@ export const AFFIXES = [
     tiers: T([16, 'of the Lost', 5, 10], [36, 'of Banishment', 11, 16], [60, 'of Exile', 17, 23], [80, 'of the Abyss', 24, 30],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Nadir', 26, 33], [99, 'of Oblivion', 29, 36], [110, 'of the Outer Dark', 31, 39],),
+      [88, 'of the Nadir', 26, 33], [99, 'of Oblivion', 29, 36], [110, 'of the Outer Dark', 31, 39],
+      [118, 'of the Endless Night', 32, 40],),
   },
   {
     id: 'res_all', group: 'AllResistances', type: 'suffix', req: ['armour', 'shield', 'jewellery'], weight: 35,
@@ -244,7 +263,8 @@ export const AFFIXES = [
     tiers: T([24, 'of the Rainbow', 5, 8], [45, 'of Variegation', 9, 12], [65, 'of the Prism', 13, 16], [84, 'of the Spectrum', 17, 21],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Bulwark', 19, 23], [99, 'of the Aegis', 20, 25], [110, 'of Harmony', 22, 27],),
+      [88, 'of the Bulwark', 19, 23], [99, 'of the Aegis', 20, 25], [110, 'of Harmony', 22, 27],
+      [118, 'of Perfect Balance', 23, 28],),
   },
   {
     id: 'atk_speed', group: 'AttackSpeed', type: 'suffix', req: ['weapon', 'gloves', 'quiver', 'ring'], weight: 80, dec: 0,
@@ -254,7 +274,8 @@ export const AFFIXES = [
       [37, 'of Swiftness', 17, 20], [55, 'of Alacrity', 21, 24], [72, 'of Fury', 25, 28], [84, 'of Celerity', 29, 34],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of Fleetness', 32, 38], [99, 'of Blurring', 36, 43], [110, 'of Quickening', 41, 48],),
+      [88, 'of Fleetness', 32, 38], [99, 'of Blurring', 36, 43], [110, 'of Quickening', 41, 48],
+      [118, 'of the Blur', 46, 54],),
   },
   {
     id: 'crit_chance', group: 'CriticalStrikeChance', type: 'suffix', req: ['weapon', 'amulet', 'quiver'], weight: 70,
@@ -264,7 +285,8 @@ export const AFFIXES = [
       [60, 'of Calamity', 50, 69], [80, 'of Unmaking', 70, 95],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of Ruin', 87, 118], [99, 'of Butchery', 108, 146], [110, 'of the Executioner', 133, 181],),
+      [88, 'of Ruin', 87, 118], [99, 'of Butchery', 108, 146], [110, 'of the Executioner', 133, 181],
+      [118, 'of Massacre', 165, 224],),
   },
   {
     id: 'crit_multi', group: 'CriticalStrikeMultiplier', type: 'suffix', req: ['weapon', 'amulet', 'quiver', 'ring'], weight: 55,
@@ -273,7 +295,8 @@ export const AFFIXES = [
     tiers: T([20, 'of Ferocity', 10, 14], [40, 'of Destruction', 15, 20], [60, 'of Demolishing', 21, 27], [82, 'of Annihilation', 28, 36],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of Obliteration', 32, 41], [99, 'of Devastation', 36, 47], [110, 'of Finality', 41, 53],),
+      [88, 'of Obliteration', 32, 41], [99, 'of Devastation', 36, 47], [110, 'of Finality', 41, 53],
+      [118, 'of Extinction', 47, 60],),
   },
   {
     id: 'accuracy', group: 'Accuracy', type: 'suffix', req: ['weapon', 'gloves', 'quiver', 'ring', 'helmet'], weight: 75,
@@ -283,7 +306,8 @@ export const AFFIXES = [
       [50, 'of the Deadeye', 221, 350], [70, 'of Precision', 351, 520], [84, 'of the Assassin', 521, 720],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Sharpshooter', 677, 936], [99, 'of the Hawk', 880, 1217], [110, 'of Infallibility', 1145, 1582],),
+      [88, 'of the Sharpshooter', 677, 936], [99, 'of the Hawk', 880, 1217], [110, 'of Infallibility', 1145, 1582],
+      [118, 'of Certainty', 1488, 2057],),
   },
   {
     id: 'life_leech', group: 'LifeLeech', type: 'suffix', req: HYBRID_ATK, weight: 40, dec: 2,
@@ -292,7 +316,8 @@ export const AFFIXES = [
     tiers: T([20, 'of the Leech', 0.2, 0.4], [40, 'of the Parasite', 0.41, 0.7], [60, 'of the Vampire', 0.71, 1.0], [80, 'of Sanguination', 1.01, 1.4],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of Exsanguination', 1.19, 1.65], [99, 'of the Leech-lord', 1.41, 1.95], [110, 'of the Crimson Feast', 1.66, 2.3],),
+      [88, 'of Exsanguination', 1.19, 1.65], [99, 'of the Leech-lord', 1.41, 1.95], [110, 'of the Crimson Feast', 1.66, 2.3],
+      [118, 'of the Red Harvest', 1.96, 2.71],),
   },
   {
     id: 'life_regen', group: 'LifeRegeneration', type: 'suffix', req: GEAR, weight: 55, dec: 1,
@@ -302,7 +327,8 @@ export const AFFIXES = [
       [40, 'of the Bear', 14.1, 26], [60, 'of Rejuvenation', 26.1, 45], [80, 'of Regrowth', 45.1, 72],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of Renewal', 57.7, 92.2], [99, 'of Restoration', 73.9, 118.0], [110, 'of the Wellspring', 94.6, 151.0],),
+      [88, 'of Renewal', 57.7, 92.2], [99, 'of Restoration', 73.9, 118.0], [110, 'of the Wellspring', 94.6, 151.0],
+      [118, 'of the Everspring', 121.1, 193.3],),
   },
   {
     id: 'rarity', group: 'ItemFoundRarity', type: 'suffix', req: ['helmet', 'jewellery', 'quiver', 'gloves'], weight: 45,
@@ -312,7 +338,8 @@ export const AFFIXES = [
       [62, 'of Excavation', 29, 36], [84, 'of Fortune', 37, 46],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of Windfall', 44, 55], [99, 'of Avarice', 53, 66], [110, 'of the Hoard', 64, 79],),
+      [88, 'of Windfall', 44, 55], [99, 'of Avarice', 53, 66], [110, 'of the Hoard', 64, 79],
+      [118, 'of the Dragon', 77, 95],),
   },
   {
     id: 'pen_fire', group: 'FirePenetration', type: 'suffix', req: ['weapon', 'amulet', 'ring'], weight: 22,
@@ -321,7 +348,8 @@ export const AFFIXES = [
     tiers: T([40, 'of Scalding', 4, 7], [68, 'of Immolation', 8, 11], [84, 'of the Pyre', 12, 15],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Crucible', 14, 17], [99, 'of Cinders', 15, 19], [110, 'of the Blazing Heart', 17, 22],),
+      [88, 'of the Crucible', 14, 17], [99, 'of Cinders', 15, 19], [110, 'of the Blazing Heart', 17, 22],
+      [118, 'of the Ember Core', 19, 25],),
   },
   {
     id: 'pen_cold', group: 'ColdPenetration', type: 'suffix', req: ['weapon', 'amulet', 'ring'], weight: 22,
@@ -330,7 +358,8 @@ export const AFFIXES = [
     tiers: T([40, 'of Rime', 4, 7], [68, 'of Permafrost', 8, 11], [84, 'of the Void', 12, 15],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of Frostbite', 14, 17], [99, 'of the Shatter', 15, 19], [110, 'of the Frozen Heart', 17, 22],),
+      [88, 'of Frostbite', 14, 17], [99, 'of the Shatter', 15, 19], [110, 'of the Frozen Heart', 17, 22],
+      [118, 'of the Ice Core', 19, 25],),
   },
   {
     id: 'pen_light', group: 'LightningPenetration', type: 'suffix', req: ['weapon', 'amulet', 'ring'], weight: 22,
@@ -339,7 +368,8 @@ export const AFFIXES = [
     tiers: T([40, 'of Static', 4, 7], [68, 'of Conduction', 8, 11], [84, 'of Thunder', 12, 15],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Storm', 14, 17], [99, 'of the Bolt', 15, 19], [110, 'of the Raging Heart', 17, 22],),
+      [88, 'of the Storm', 14, 17], [99, 'of the Bolt', 15, 19], [110, 'of the Raging Heart', 17, 22],
+      [118, 'of the Storm Core', 19, 25],),
   },
   {
     id: 'inc_life_pct', group: 'MaximumLifePercent', type: 'suffix', req: ['armour', 'jewellery'], weight: 28,
@@ -348,7 +378,8 @@ export const AFFIXES = [
     tiers: T([30, 'of the Ox', 3, 5], [55, 'of the Mammoth', 6, 8], [80, 'of the Colossus', 9, 12],
       // Deep tiers: unlocked past Tier 20, where every other affix has
       // already reached its ceiling.
-      [88, 'of the Behemoth', 10, 14], [99, 'of the Titan', 12, 16], [110, 'of the Worldbearer', 14, 19],),
+      [88, 'of the Behemoth', 10, 14], [99, 'of the Titan', 12, 16], [110, 'of the Worldbearer', 14, 19],
+      [118, 'of the Mountain', 16, 22],),
   },
 ];
 

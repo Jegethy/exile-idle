@@ -108,7 +108,10 @@ export function dispatch(partyId, dungeonId, tier, contractId = null) {
 
   // Spent on departure, not on success. A contract you can retry until it
   // works is not a decision about whether your party is ready for it.
-  if (contract) consumeContract(contract.id);
+  if (contract) {
+    consumeContract(contract.id);
+    s.stats.contractsRun = (s.stats.contractsRun ?? 0) + 1;
+  }
 
   log(`${party.name} sets out for ${dungeon.name} (Tier ${tier}).`
     + (contract ? ` Under contract: ${modsOf(contract).map((m) => m.name).join(', ')}.` : '')

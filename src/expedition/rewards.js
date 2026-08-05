@@ -3,7 +3,9 @@
 // Nothing here banks as it drops: a run accumulates a haul, and the haul
 // only becomes the guild's when somebody walks out with it.
 
-import { DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl, DEEP_ILVL } from '../data/dungeons.js';
+import {
+  DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl, DEEP_ILVL, BLANK_ILVL,
+} from '../data/dungeons.js';
 import { gradeForIlvl, materialOf } from '../data/materials.js';
 import { guildEffects } from '../data/upgrades.js';
 import { maybeDropContract } from '../contracts.js';
@@ -313,19 +315,21 @@ function grantRaidRewards(run) {
       log(`${def.name} yields ${u.name} — nothing else in the world drops it.`, 'unique');
     }
   }
-  for (let i = 0; i < (def.reward.blanks ?? 0); i++) {
+  // A blank is a chase item, priced at roughly a unique's drop rate rather than
+  // handed out by the fistful. It is the only thing in the game that can reach
+  // the top affix band before Tier 35.
+  if (rng.chance(def.reward.blanks ?? 0)) {
     // No base id: createItem picks one, the same way every other drop does.
-    const blank = createItem({ ilvl: DEEP_ILVL, rarity: 'normal' });
+    const blank = createItem({ ilvl: BLANK_ILVL, rarity: 'normal' });
     // Locked on arrival. It is a Normal item, auto-salvaging Normals is on by
     // default, and the whole point of it is to be worked on rather than binned.
     blank.locked = true;
     run.haul.items.push(blank);
     run.rewards.gear++;
     run.rewards.blanks = (run.rewards.blanks ?? 0) + 1;
-  }
-  if (def.reward.blanks) {
-    log(`${def.name} yields ${def.reward.blanks} unworked base${def.reward.blanks === 1 ? '' : 's'} `
-      + `at item level ${DEEP_ILVL} — take them to the Workbench.`, 'unique');
+    s.stats.blanksFound = (s.stats.blanksFound ?? 0) + 1;
+    log(`${def.name} yields an unworked ${blank.name} at item level ${BLANK_ILVL} `
+      + `— take it to the Workbench.`, 'unique');
   }
 
   // Echo Stones are what a raid is *for*, once its unique is collected and its

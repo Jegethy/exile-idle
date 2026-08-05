@@ -574,10 +574,19 @@ of your life for a spell that lands like a meteor every ninth cast,
 is simply better than a rare in every respect makes the affix system pointless
 at the top end.
 
-**Blank bases** are unworked Normal items at a fixed item level of 110, which
-is where the last affix band unlocks. They drop with nothing on them and are
-meant to be finished at the Workbench, which gives crafting a top-end target it
-never had.
+**Blank bases** are unworked Normal items at a fixed item level of **120**, and
+they are the chase item at the top of the game. The fourth and final affix band
+unlocks at item level 118, which ordinary drops do not reach until Tier 35 — a
+blank arrives from the Tier 26 raid onwards, so for most of the deep game it is
+the only item in existence that can roll the best version of anything.
+
+That is the whole bargain: they drop at roughly a unique's rate, they arrive
+with nothing on them, and finishing one costs materials and several attempts.
+In exchange a well-crafted blank beats anything else you can find.
+
+Item level gating is absolute and tested: an item can never roll an affix tier
+requiring a higher level than its own, by any route — rolled, rerolled or
+augmented. An item level 110 base cannot touch the 118 band, ever.
 
 ### There is no item level cap
 
@@ -611,10 +620,48 @@ damage from tank effective health plus healing. The result is a clean gate.
 | The Sundered Titan | 31 | 0% | 15% | 95% |
 | The Hollow Star | 36 | 0% | 70% | 100% |
 
-The first four bosses have the opposite problem — they die in one to nine
-seconds. They are left alone because they gate early progression and are meant
-to be beaten, but they are formalities rather than fights, and that is recorded
-rather than fixed.
+The first four had the opposite problem — they died in one to nine seconds,
+which made a milestone boss feel like a button. They are calibrated the same
+way now, against the party a player can plausibly field when each unlocks:
+Common heroes at Tier 4, not the Legendary roster the first pass assumed.
+
+Every raid is now an event with a real risk band:
+
+| Party | Result |
+|---|---|
+| Geared for the tier | **100%**, fights of 46–104 seconds |
+| One tier under | 64–100% |
+| Two tiers under | 0–50% |
+| Three tiers under | 0–21% |
+| No healer | 0–100%, usually far worse |
+
+A prepared party wins; an unprepared one has a real chance of losing everything
+it was carrying. Going without a tank is survivable at most tiers, which is a
+legitimate trade — five damage classes kill faster than four and a wall.
+
+## Achievements
+
+The backend only; there is no interface yet.
+
+Two decisions carry the design. **Progress is derived, never accumulated**:
+every achievement is a function of the current save rather than a counter
+ticked from an event, so a save from before an achievement existed is credited
+correctly the first time it is checked, and no counter can drift out of step
+with the thing it counts. **Checking is polled, not hooked**: hanging listeners
+off a dozen events would mean every new achievement needs a new hook, and one
+missed emit is a bug nobody notices for a month. Nineteen definitions sweep in
+0.2ms, so a poll every two seconds costs nothing.
+
+Adding one is a data change in `src/data/achievements.js` and nothing else —
+an id, a name, a description, a goal and a function returning current progress.
+Optional `reward` grants gold, seals or Echo Stones once on unlock.
+
+Loading an older save calls `backfill()`, which unlocks silently and pays
+nothing. A guild forty hours in should not be greeted by twenty pop-ups and a
+pile of reward gold for things it did last week.
+
+A definition that throws is caught and reported as no progress rather than
+taking the game down, which is tested with a deliberate landmine.
 
 ### Maximum resistance now has a ceiling
 
@@ -807,6 +854,7 @@ src/
     guide.js        the Guild Handbook, generated from the data modules
   contracts.js      sealed contracts: rolling, storing, pricing
   reports.js        after-action summaries and their countdown
+  achievements.js   the sweep, unlocks and backfill
     parties.js      party building and flask assignment
     expeditions.js  runs in the field and the dispatch board
     raids.js        Seal-gated milestone bosses
