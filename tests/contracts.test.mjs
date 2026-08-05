@@ -104,10 +104,25 @@ export default async function run(browser) {
         refreshSheets();
       };
 
-      setup();
-      dispatch(G.state.parties[0].id, 'mines', 8);
-      for (let i = 0; i < 30 && !G.state.expeditions[0].enemies.length; i++) tickAll(0.1);
-      const plainLife = G.state.expeditions[0].enemies[0]?.maxLife ?? 0;
+      // Enemy life is compared through makeEnemy over a large sample rather
+      // than by looking at one spawned enemy from each run. Archetype and
+      // monster rarity are rolled per enemy, so a single normal goblin against
+      // a single champion says nothing about the contract at all -- that
+      // comparison failed roughly one run in five.
+      const { makeEnemy } = await import('./src/expedition/enemies.js');
+      const { applyModifiersToProfile } = await import('./src/data/modifiers.js');
+      const { DUNGEON_BY_ID } = await import('./src/data/dungeons.js');
+      const baseProfile = {
+        ...DUNGEON_BY_ID.mines.monsters, attackMix: DUNGEON_BY_ID.mines.attackMix,
+      };
+      const modProfile = applyModifiersToProfile(baseProfile, ['teeming', 'exposed']);
+      const meanLife = (profile) => {
+        let total = 0;
+        for (let i = 0; i < 400; i++) total += makeEnemy(8, profile).maxLife;
+        return total / 400;
+      };
+      const plainLife = meanLife(baseProfile);
+      const cursedLife = meanLife(modProfile);
 
       setup();
       G.state.contracts = [{
@@ -117,7 +132,6 @@ export default async function run(browser) {
       dispatch(G.state.parties[0].id, null, null, 'ct');
       const run_ = G.state.expeditions[0];
       for (let i = 0; i < 30 && !run_.enemies.length; i++) tickAll(0.1);
-      const cursedLife = run_.enemies[0]?.maxLife ?? 0;
       const cursed = run_.combatants[0].effects.find((e) => e.id === 'contract-curse');
 
       return {

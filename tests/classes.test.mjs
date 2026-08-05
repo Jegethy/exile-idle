@@ -182,6 +182,11 @@ export default async function run(browser) {
       const has = c.effects?.some((e) => e.id === 'secondwind');
       c.life = c.maxLife * 0.5;
       const before = c.life;
+      // Clear the field first. Otherwise this races the enemy: regeneration is
+      // steady but incoming damage is not, and on an unlucky roll the Guardian
+      // is losing life faster than Second Wind restores it. The claim under
+      // test is that it regenerates at all, not that it out-heals a fight.
+      run_.enemies.length = 0;
       for (let i = 0; i < 40; i++) tickAll(0.1);
       return { has, healed: c.life > before };
     });
