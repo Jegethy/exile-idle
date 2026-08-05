@@ -41,6 +41,31 @@ function stamp() {
   return Date.now();
 }
 
+/**
+ * Whether the guild is still being shown the ropes.
+ *
+ * Nothing is earned during the tutorial. Two reasons, and the second is the
+ * one that made this a bug rather than a preference:
+ *
+ *   The demonstration expedition is scripted, dispatched under instruction and
+ *   run at triple speed. Handing out "your first expedition" for it awards the
+ *   tutorial rather than the player.
+ *
+ *   The tutorial's own rule is that *nothing on screen changes between one
+ *   press and the next*, so reading is never racing the game. A toast sliding
+ *   in mid-step breaks exactly that.
+ *
+ * Read from the save rather than from a flag tutorial.js sets, which matters
+ * in three places a flag would miss: the four hundred milliseconds between a
+ * guild loading and its tutorial resuming, a tab closed and reopened partway
+ * through, and the load-time backfill, which must not credit a guild for a
+ * tutorial it has not finished.
+ */
+function inTutorial() {
+  const t = G.state?.tutorial;
+  return !!t && !t.done;
+}
+
 export function isUnlocked(id) {
   return !!store().unlocked[id];
 }
@@ -81,6 +106,11 @@ export function fractionOf(def) {
 export function checkAchievements(quiet = false) {
   const s = G.state;
   if (!s) return [];
+  // Nothing is earned during the tour -- see inTutorial(). Whatever the
+  // demonstration run happened to satisfy is credited silently the moment the
+  // tutorial ends, the same treatment a save older than the achievement
+  // system gets.
+  if (inTutorial()) return [];
   const unlocked = store().unlocked;
   const got = [];
 
@@ -129,6 +159,9 @@ export function totalPoints() {
 export function recordFeat(key) {
   const s = G.state;
   if (!s) return false;
+  // Opening the handbook because a tutorial step pointed at it is not a Feat
+  // of Strength. The real one is still there to be earned afterwards.
+  if (inTutorial()) return false;
   if (!s.feats) s.feats = {};
   if (s.feats[key]) return false;
   s.feats[key] = s.playtime ?? 0;
@@ -138,6 +171,7 @@ export function recordFeat(key) {
 /** Advances the poll timer, sweeping when it comes round. */
 export function tickAchievements(dt) {
   if (!G.state) return;
+  if (inTutorial()) return;
   sinceCheck += dt;
   if (sinceCheck < CHECK_INTERVAL) return;
   sinceCheck = 0;
@@ -147,9 +181,11 @@ export function tickAchievements(dt) {
 /**
  * Credits a save for everything it has already done, without ceremony.
  *
- * Called on load. A guild that has been running for forty hours should not be
- * greeted by twenty pop-ups and a pile of reward gold for things it did last
- * week, so this unlocks silently and pays nothing.
+ * Called on load, and again the moment the tutorial ends. A guild that has been
+ * running for forty hours should not be greeted by twenty pop-ups for things it
+ * did last week, and a guild that has just finished the tour should not be
+ * greeted by six for a scripted expedition it was told to send. Both unlock
+ * silently.
  */
 export function backfill() {
   const before = unlockedCount();

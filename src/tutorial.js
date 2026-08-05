@@ -15,6 +15,7 @@
 // which meant a fast expedition skipped the text out from under the player.
 
 import { G, log, emit } from './state.js';
+import { backfill } from './achievements.js';
 import { qs, qsa } from './util.js';
 
 let active = false;
@@ -306,6 +307,19 @@ export function stopTutorial(skipped = false) {
     s.tutorial.step = index;
   }
   log(skipped ? 'Tutorial skipped.' : 'Tutorial complete. Good luck, guildmaster.', 'sys');
+
+  // Nothing is earned during the tour: achievements.js suspends itself while
+  // `tutorial.done` is false. Now that it is true, whatever the demonstration
+  // expedition happened to satisfy is credited *silently* rather than arriving
+  // as a burst of six toasts a second after the overlay clears.
+  //
+  // Silent rather than simply left uncounted, because there is no third
+  // option. Achievement progress is derived from the save, and the tutorial
+  // run legitimately raises the highest tier cleared -- which is what unlocks
+  // Tier 2. Refusing to record it would mean either lying about the guild's
+  // progression or announcing the tutorial's own expedition as an achievement.
+  // Both are worse than a quiet line in the log.
+  backfill();
   emit('tutorial');
 }
 

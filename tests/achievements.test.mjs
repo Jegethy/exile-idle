@@ -148,6 +148,53 @@ export default async function run(browser) {
     return `${r.gained} credited silently, no rewards, no notifications`;
   });
 
+  await test('nothing is earned during the tutorial', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const {
+        checkAchievements, takePending, recordFeat, unlockedCount, tickAchievements,
+      } = await import('./src/achievements.js');
+      const { stopTutorial } = await import('./src/tutorial.js');
+
+      // Back into the tour, with a guild that has plainly done things: the
+      // demonstration expedition is a real expedition and raises real counters.
+      G.state.tutorial = { step: 4, done: false, skipped: false };
+      G.state.achievements = { unlocked: {} };
+      G.state.feats = {};
+      takePending();
+      G.state.stats.runs = 1;
+      G.state.stats.kills = 40;
+      G.state.progress.highestTier = 1;
+
+      const swept = checkAchievements().length;
+      tickAchievements(60);                       // the polled sweep, too
+      const feat = recordFeat('guide');
+      const during = {
+        swept, feat, held: unlockedCount(), pending: takePending().length,
+        featStored: !!G.state.feats.guide,
+      };
+
+      // Finishing credits what the tour did, silently.
+      stopTutorial(false);
+      const after = { held: unlockedCount(), pending: takePending().length };
+
+      // And the game is live again from here.
+      G.state.stats.crafted = 1;
+      const live = checkAchievements().length;
+      return { during, after, live, announced: takePending().length };
+    });
+    eq(r.during.swept, 0, `${r.during.swept} achievements unlocked mid-tutorial`);
+    eq(r.during.held, 0, 'the tutorial credited the guild with achievements');
+    eq(r.during.pending, 0, 'a toast was queued during the tutorial');
+    ok(!r.during.feat, 'a Feat of Strength was recorded during the tutorial');
+    ok(!r.during.featStored, 'the tutorial wrote a feat into the save');
+    ok(r.after.held > 0, 'finishing the tutorial credited nothing at all');
+    eq(r.after.pending, 0, `${r.after.pending} toasts burst out as the tutorial ended`);
+    ok(r.live > 0, 'achievements stayed suspended after the tutorial finished');
+    ok(r.announced > 0, 'the first real unlock was not announced');
+    return `nothing during, ${r.after.held} credited silently, live again afterwards`;
+  });
+
   await test('a broken definition cannot take the game down', async () => {
     const r = await page.evaluate(async () => {
       const { ACHIEVEMENTS } = await import('./src/data/achievements.js');

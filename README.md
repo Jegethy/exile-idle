@@ -90,6 +90,20 @@ tab mid-tutorial picks up where you left off.
 **Skip Tutorial** is always available. It warns that finishing is advised and
 that it cannot be restarted, and only then takes the choice.
 
+**No achievement is earned during it.** The demonstration expedition is
+scripted, dispatched under instruction and run at triple speed, so awarding
+"your first expedition" for it awards the tutorial rather than the player — and
+a toast sliding in mid-step breaks the tour's own rule that nothing on screen
+changes between one press and the next. Whatever the run happened to satisfy is
+credited *silently* the moment the tutorial ends, exactly as a save older than
+the achievement system is.
+
+Silently rather than simply left uncounted, because there is no third option:
+achievement progress is derived from the save, and the tutorial's expedition
+legitimately raises the highest tier cleared — which is what unlocks Tier 2.
+Refusing to record it would mean either lying about the guild's progression or
+announcing the tutorial's own expedition as an achievement.
+
 ## Why the two axes matter
 
 Tier and dungeon are deliberately independent. Tier is *how hard*; dungeon is
