@@ -558,6 +558,73 @@ tier of the steep pre-cap curve, and fixing it would mean re-tuning the whole
 first twenty tiers, which are well calibrated. It reads as a wall you gear up
 to break, which is the loop working.
 
+## The deep raids
+
+The raid ladder stopped at Tier 22 while gear now improves to Tier 32, and
+Echo Stones come only from raids — so a guild at Tier 30 was farming Tier 22
+bosses for them. Three more sit at Tiers 26, 31 and 36.
+
+They are the only source of two things.
+
+**Deep uniques** carry `deep: true`, which takes them out of every ordinary
+drop table. No item level, no tier and no amount of farming something easier
+reaches them. Each is built to give something up — *Starfall* trades a quarter
+of your life for a spell that lands like a meteor every ninth cast,
+*Lifedrinker* cannot be healed by anyone else — because a hand-made unique that
+is simply better than a rare in every respect makes the affix system pointless
+at the top end.
+
+**Blank bases** are unworked Normal items at a fixed item level of 110, which
+is where the last affix band unlocks. They drop with nothing on them and are
+meant to be finished at the Workbench, which gives crafting a top-end target it
+never had.
+
+### There is no item level cap
+
+Worth stating plainly, because it is easy to assume otherwise: item level rises
+2.2 a tier for ever. Tier 27 is item level 100, Tier 60 is 173, Tier 100 is
+261, and base statistics scale with it the whole way. So "a high item level
+base" is not naturally rare, and deep-raid drops use a **fixed** item level
+rather than one scaled from the tier that dropped them — otherwise their
+numbers would grow without limit and a unique would mean something different
+depending on which raid happened to yield it.
+
+### The bosses had never been measured
+
+Adding to the ladder exposed that the existing one was broken at the deep end.
+A raid is a pure stat check, so boss life and damage are multipliers on the
+tier curve — and those multipliers had been chosen by eye while the curve
+underneath them compounded.
+
+**The Worldeater at Tier 22 killed a full Legendary party in seventeen seconds
+with 82% of its life remaining.** Its damage multiplier was 4.2 where
+measurement against party power says 1.3. Every boss from Tier 22 up was
+unbeatable, including the three new ones before they were calibrated.
+
+They are now measured: life from party damage over a target fight length, and
+damage from tank effective health plus healing. The result is a clean gate.
+
+| Boss | Tier | Geared 5 below | 2 below | At tier |
+|---|---|---|---|---|
+| The Worldeater | 22 | 0% | 10% | 100% |
+| The Sunless Court | 26 | 0% | 15% | 100% |
+| The Sundered Titan | 31 | 0% | 15% | 95% |
+| The Hollow Star | 36 | 0% | 70% | 100% |
+
+The first four bosses have the opposite problem — they die in one to nine
+seconds. They are left alone because they gate early progression and are meant
+to be beaten, but they are formalities rather than fights, and that is recorded
+rather than fixed.
+
+### Maximum resistance now has a ceiling
+
+Found while writing *The Gravewarden*: `maxRes` was unbounded, computed as
+`75 + bag.maxRes` with nothing stopping it. The first draft of that shield gave
++15 to +22, which put a hero at a 93% resistance cap on its own — near
+immunity, and no amount of enemy scaling answers that. The item now gives +3 to
++5, and the cap itself is hard-limited to 90 so no combination of sources can
+approach immunity.
+
 ## The bench
 
 Changing a party used to mean opening a hero's full character sheet and

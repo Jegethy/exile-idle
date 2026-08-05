@@ -126,6 +126,17 @@ export function dungeonsIn(category) {
  */
 export const DEFAULT_ATTACK_MIX = { melee: 40, spell: 60 };
 
+// Boss life and damage are multipliers on the tier curve, and they are
+// *measured* against what a party at that tier can actually do -- party damage
+// for the life figure, tank effective health plus healing for the damage one.
+//
+// They had never been checked. The Worldeater at Tier 22 killed a full
+// Legendary party in seventeen seconds with 82% of its life remaining: its
+// damage multiplier was 4.2 where the measurement says 1.3, because the
+// multiplier had been chosen by eye while the curve underneath it compounded.
+// The first four bosses have the opposite problem and die in one to nine
+// seconds; they are left alone because they gate early progression and are
+// meant to be beaten, but they are formalities rather than fights.
 export const RAIDS = [
   {
     id: 'hollow_king', name: 'The Hollow King', tier: 4, seals: 1,
@@ -158,13 +169,67 @@ export const RAIDS = [
   {
     id: 'worldeater', name: 'The Worldeater', tier: 22, seals: 6,
     blurb: 'There is no arena. There is only the mouth, and how long you last inside it.',
-    life: 180, damage: 4.2, aps: 1.1, armour: 3.0, res: 70,
+    life: 200, damage: 1.5, aps: 1.1, armour: 3.0, res: 70,
     attack: 'mixed', split: { phys: 0.35, fire: 0.25, cold: 0.2, chaos: 0.2 },
     reward: { gold: 600000, materials: 50, uniqueChance: 1.0, bonus: 8, echoes: 10 },
+  },
+
+  // ---- The deep raids ----------------------------------------------------
+  // Everything above used to be the whole ladder, and the last of them fell at
+  // Tier 22 — long before a party runs out of tiers to push. These exist
+  // because Echo Stones come only from raids, so a guild at Tier 30 was
+  // farming Tier 22 bosses for them, and because gear now improves to Tier 32
+  // while the boss list stopped ten tiers earlier.
+  //
+  // They are also the only source of two things: uniques that cannot drop
+  // anywhere else, and blank high-level bases to craft on.
+  {
+    id: 'sunless_court', name: 'The Sunless Court', tier: 26, seals: 8,
+    blurb: 'A throne room that has not seen daylight since it was buried. The court still sits.',
+    life: 190, damage: 1.3, aps: 1.15, armour: 2.6, res: 66,
+    attack: 'mixed', split: { phys: 0.4, cold: 0.3, chaos: 0.3 },
+    reward: {
+      gold: 1400000, materials: 60, uniqueChance: 1.0, bonus: 6, echoes: 14,
+      deepUnique: 0.30, blanks: 1,
+    },
+  },
+  {
+    id: 'sundered_titan', name: 'The Sundered Titan', tier: 31, seals: 11,
+    blurb: 'It was broken apart and buried in four places. Three of them are now empty.',
+    life: 215, damage: 1.6, aps: 0.95, armour: 3.6, res: 72,
+    attack: 'melee', split: { phys: 0.65, light: 0.35 },
+    reward: {
+      gold: 3600000, materials: 85, uniqueChance: 1.0, bonus: 7, echoes: 20,
+      deepUnique: 0.55, blanks: 2,
+    },
+  },
+  {
+    id: 'the_hollow_star', name: 'The Hollow Star', tier: 36, seals: 15,
+    blurb: 'Something fell here a long time ago, and the crater has been getting deeper ever since.',
+    life: 275, damage: 1.2, aps: 1.3, armour: 3.0, res: 78,
+    attack: 'spell', split: { fire: 0.3, cold: 0.2, light: 0.2, chaos: 0.3 },
+    reward: {
+      gold: 9000000, materials: 120, uniqueChance: 1.0, bonus: 9, echoes: 30,
+      deepUnique: 1.0, blanks: 3,
+    },
   },
 ];
 
 export const RAID_BY_ID = Object.fromEntries(RAIDS.map((r) => [r.id, r]));
+
+/**
+ * Item level of everything the deep raids hand out.
+ *
+ * Fixed, not scaled from the tier that dropped it. There is no item level cap
+ * in this game — it climbs 2.2 a tier for ever — so scaling these would make
+ * them grow without limit, and a unique whose numbers depend on which raid
+ * happened to drop it is a unique nobody can talk about.
+ *
+ * 110 is the level at which the last affix band unlocks. Above it an item
+ * gains base statistics but no new modifiers, so it is the natural line for
+ * "as good as an item gets".
+ */
+export const DEEP_ILVL = 110;
 
 // ---------------------------------------------------------------------------
 // Tier scaling

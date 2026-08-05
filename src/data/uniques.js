@@ -356,11 +356,116 @@ export const UNIQUES = [
       },
     }],
   },
+
+  // =========================================================================
+  // Deep uniques
+  // =========================================================================
+  //
+  // `deep: true` takes an item out of every ordinary drop table. These come
+  // only from the three deep raids, at a fixed item level, and they are the
+  // one reward in the game that cannot be reached by farming something easier
+  // for longer.
+  //
+  // They are built to be *build-defining* rather than merely large: each one
+  // gives up something real, so equipping it is a decision rather than an
+  // upgrade. A hand-made unique that is simply better than a rare in every
+  // respect makes the whole affix system pointless at the top end.
+  {
+    id: 'starfall', name: 'Starfall', base: 'staff', lvl: 100, weight: 100, deep: true,
+    flavour: 'It came down burning, and it has not finished falling.',
+    power: 1.35,
+    mods: [
+      m([60, 80], (v) => `${v}% increased Spell Damage`, (b, v) => { b.incSpellDmg += v; }),
+      m([40, 55], (v) => `${v}% increased Elemental Damage`, (b, v) => { b.incEle += v; }),
+      m([25, 35], (v) => `${v}% reduced maximum Life`, (b, v) => { b.incLife -= v; }),
+      says('Every ninth spell strikes for 400% damage'),
+    ],
+    reactions: [{
+      trigger: 'hit', key: 'starfall',
+      run: (ctx) => {
+        ctx.self.starfallCount = (ctx.self.starfallCount ?? 0) + 1;
+        if (ctx.self.starfallCount < 9) return;
+        ctx.self.starfallCount = 0;
+        const target = ctx.target;
+        if (!target || target.life <= 0) return;
+        const extra = (ctx.amount ?? 0) * 3;
+        target.life -= extra;
+        ctx.self.damageDealt = (ctx.self.damageDealt ?? 0) + extra;
+        announce((c) => `${c.self.name} calls down a star.`, 0.5)(ctx);
+      },
+    }],
+  },
+  {
+    id: 'gravewarden', name: 'The Gravewarden', base: 'shield_str', lvl: 100, weight: 100, deep: true,
+    flavour: 'It has stood over the same door for four hundred years. The door has never opened.',
+    power: 1.30,
+    mods: [
+      m([220, 300], (v) => `+${v}% increased Armour`, (b, v) => { b.incArmour += v; }),
+      // Three to five, not fifteen to twenty-two. A tier-3 trait gives +2, so
+      // the first draft of this was nine times the best trait in the game and
+      // would have put a hero at a 93% resistance cap on its own.
+      m([3, 5], (v) => `+${v}% to all maximum Resistances`, (b, v) => { b.maxRes += v; }, 0),
+      m([40, 55], (v) => `${v}% reduced Damage dealt`, (b, v) => { b.incDamage -= v; }),
+      says('While you stand, allies below half life take 30% less damage'),
+    ],
+    reactions: [{
+      trigger: 'allyLow', key: 'gravewarden',
+      run: (ctx) => {
+        if (!ctx.target || ctx.target === ctx.self) return;
+        applyEffect(ctx.target, {
+          id: 'gravewarden', name: 'Gravewarden', duration: 6,
+          mods: { damageTaken: -30 }, source: ctx.self.uid,
+        });
+      },
+    }],
+  },
+  {
+    id: 'lifedrinker', name: 'Lifedrinker', base: 'axe2h', lvl: 100, weight: 100, deep: true,
+    flavour: 'The wound it opens does not close, and neither does the one it healed.',
+    power: 1.32,
+    mods: [
+      m([80, 110], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      m([2.5, 4.0], (v) => `${v}% of Physical Damage leeched as Life`, (b, v) => { b.lifeLeech += v; }, 1),
+      says('You cannot be healed by others'),
+      says('Kills restore 6% of maximum life'),
+    ],
+    reactions: [
+      {
+        trigger: 'combatStart', key: 'lifedrinker-curse',
+        run: (ctx) => {
+          applyEffect(ctx.self, {
+            id: 'lifedrinker-curse', name: 'Lifedrinker', duration: Infinity,
+            mods: { incHeal: -100 },
+          });
+        },
+      },
+      {
+        trigger: 'kill', key: 'lifedrinker-feed',
+        run: (ctx) => {
+          applyEffect(ctx.self, {
+            id: 'lifedrinker-feed', name: 'Lifedrinker', duration: 0.4,
+            hps: (ctx.self.maxLife * 0.06) / 0.4, onReapply: 'stack', maxStacks: 6,
+          });
+        },
+      },
+    ],
+  },
 ];
 
 export const UNIQUE_BY_ID = Object.fromEntries(UNIQUES.map((u) => [u.id, u]));
 
-/** Uniques eligible to drop at the given item level. */
+/**
+ * Uniques eligible to drop at the given item level.
+ *
+ * Deep uniques are excluded. They are not gated by item level but by *where*
+ * they come from, and a level gate alone would leak them into ordinary drops
+ * the moment a player pushed deep enough — which is the opposite of the point.
+ */
 export function uniquesFor(ilvl) {
-  return UNIQUES.filter((u) => u.lvl <= ilvl);
+  return UNIQUES.filter((u) => u.lvl <= ilvl && !u.deep);
+}
+
+/** The deep-raid-only pool. */
+export function deepUniques() {
+  return UNIQUES.filter((u) => u.deep);
 }

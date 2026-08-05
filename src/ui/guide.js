@@ -18,7 +18,7 @@ import { HERO_CLASSES, HERO_RARITIES, ROLES } from '../data/heroclasses.js';
 import { TRAITS } from '../data/traits.js';
 import { SKILLS, skillPoolFor, SKILL_CHOICES } from '../data/skills.js';
 import { RESOURCES, CLASS_RESOURCE } from '../data/resources.js';
-import { DUNGEONS, RAIDS } from '../data/dungeons.js';
+import { DUNGEONS, RAIDS, DEEP_ILVL } from '../data/dungeons.js';
 import { MODIFIERS } from '../data/modifiers.js';
 import { CONTRACT_RARITIES, CONTRACT_MIN_TIER, contractChance } from '../contracts.js';
 import { SLOTS } from '../data/bases.js';
@@ -376,6 +376,14 @@ function pageRaids() {
     section('Killing a boss for the first time',
       p('The first time you beat any boss, every reward in the game goes up permanently.',
         s ? `Yours is currently <b class="gold">+${s.progress.bonusMult}%</b>.` : '')),
+    section('The three deepest bosses',
+      p('The last three raids give two things nothing else in the game does.'),
+      p('<b>Deep uniques</b> cannot drop anywhere else, at any tier, ever. Farming easier content',
+        'for longer will not get you one. They are also built to have a real downside, so wearing',
+        'one is a decision rather than a straight upgrade.'),
+      p(`<b>Blank bases</b> are unworked items at item level ${DEEP_ILVL}, which is the level where`,
+        'the best version of every bonus becomes possible. They drop with no bonuses at all. You',
+        'take them to the Workbench and make them into what you need.')),
     section('Echo Stones',
       p('Raid bosses are the <b>only</b> place these come from. You spend them to give a hero three',
         'new skills to choose from.'),

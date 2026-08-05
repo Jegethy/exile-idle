@@ -3,7 +3,7 @@
 // Nothing here banks as it drops: a run accumulates a haul, and the haul
 // only becomes the guild's when somebody walks out with it.
 
-import { DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl } from '../data/dungeons.js';
+import { DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl, DEEP_ILVL } from '../data/dungeons.js';
 import { gradeForIlvl, materialOf } from '../data/materials.js';
 import { guildEffects } from '../data/upgrades.js';
 import { maybeDropContract } from '../contracts.js';
@@ -11,6 +11,7 @@ import { addReport, reports } from '../reports.js';
 import { grantHeroXp, heroById, partyById } from '../heroes.js';
 import { addMaterial, addToVault } from '../inventory.js';
 import { createItem, rollUnique } from '../items.js';
+import { deepUniques } from '../data/uniques.js';
 import { rng } from '../rng.js';
 import { G, addGold, emit, grantGuildXp, log } from '../state.js';
 import { fmt, uid } from '../util.js';
@@ -298,6 +299,34 @@ function grantRaidRewards(run) {
     }
   }
   for (let i = 0; i < 4; i++) dropGear(run, 120, true);
+
+  // --- What only a deep raid gives -----------------------------------------
+  // A deep unique cannot be reached by farming something easier for longer,
+  // and a blank base is the one item in the game you are meant to *finish*
+  // yourself rather than hope to find finished.
+  if (def.reward.deepUnique && rng.chance(def.reward.deepUnique)) {
+    const pool = deepUniques();
+    if (pool.length) {
+      const u = createItem({ uniqueId: rng.pick(pool).id, ilvl: DEEP_ILVL });
+      run.haul.items.push(u);
+      run.rewards.uniques++;
+      log(`${def.name} yields ${u.name} — nothing else in the world drops it.`, 'unique');
+    }
+  }
+  for (let i = 0; i < (def.reward.blanks ?? 0); i++) {
+    // No base id: createItem picks one, the same way every other drop does.
+    const blank = createItem({ ilvl: DEEP_ILVL, rarity: 'normal' });
+    // Locked on arrival. It is a Normal item, auto-salvaging Normals is on by
+    // default, and the whole point of it is to be worked on rather than binned.
+    blank.locked = true;
+    run.haul.items.push(blank);
+    run.rewards.gear++;
+    run.rewards.blanks = (run.rewards.blanks ?? 0) + 1;
+  }
+  if (def.reward.blanks) {
+    log(`${def.name} yields ${def.reward.blanks} unworked base${def.reward.blanks === 1 ? '' : 's'} `
+      + `at item level ${DEEP_ILVL} — take them to the Workbench.`, 'unique');
+  }
 
   // Echo Stones are what a raid is *for*, once its unique is collected and its
   // first-kill bonus banked. Without them a boss you have killed five times is

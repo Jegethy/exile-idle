@@ -108,7 +108,12 @@ export function heroStats(hero, upgrades = {}) {
   const blockSpell = clamp(bag.block + bag.blockSpell + (classBlock.spell ?? 0), 0, BLOCK_CAP);
 
   // ---- 5. Resistances ----------------------------------------------------
-  const maxRes = Math.round(75 + bag.maxRes);
+  // Hard ceiling on the resistance cap itself. Without one, maximum resistance
+  // is unbounded: enough sources and a hero takes essentially nothing, which
+  // no amount of enemy scaling can answer. 90 leaves a tenth of every hit
+  // getting through no matter what is stacked.
+  const MAX_RES_CEILING = 90;
+  const maxRes = Math.min(MAX_RES_CEILING, Math.round(75 + bag.maxRes));
   const res = {
     fire: { raw: Math.round(bag.resFire), cap: maxRes },
     cold: { raw: Math.round(bag.resCold), cap: maxRes },

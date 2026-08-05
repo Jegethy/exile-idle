@@ -47,6 +47,11 @@ export function addToVault(item, opts = {}) {
 
 function shouldAutoSalvage(item) {
   const set = G.state.settings;
+  // A blank base from a deep raid is a Normal item, and auto-salvaging Normals
+  // is on by default -- so without this the rarest crafting material in the
+  // game is destroyed the instant the party walks in the door. It arrives
+  // locked, which also keeps it out of bulk salvage.
+  if (item.locked) return false;
   if (item.rarity === 'normal' && set.autoSalvageNormal) return true;
   if (item.rarity === 'magic' && set.autoSalvageMagic) return true;
   if (item.rarity === 'rare' && set.autoSalvageRare) return true;

@@ -551,5 +551,47 @@ export default async function run() {
     return `T22 ${pct(first)} through T34 ${pct(last)}, no runaway`;
   });
 
+  await test('every raid boss is beatable at its tier, and not far below it', async () => {
+    // A raid is a pure stat check, so this is the whole of its balance. These
+    // had never been measured: the Worldeater killed a full Legendary party in
+    // seventeen seconds with 82% of its life left, because its damage
+    // multiplier was chosen by eye while the tier curve underneath compounded.
+    const { makeParty } = await import('./sim.mjs');
+    const { RAIDS, tierToLevel, tierToIlvl } = await import('../src/data/dungeons.js');
+    const { dispatchRaid, tickAll } = await import('../src/expedition.js');
+    const { G } = await import('../src/state.js');
+
+    const attempt = (def, gearedFor, trials = 8) => {
+      let won = 0;
+      for (let t = 0; t < trials; t++) {
+        freshGuild(9000 + t);
+        const { party } = makeParty(['guardian', 'cleric', 'rogue', 'archer', 'wizard'], {
+          level: tierToLevel(gearedFor), ilvl: tierToIlvl(gearedFor), rarity: 'legendary',
+        });
+        G.state.guild.seals = 999;
+        G.state.progress.highestTier = 60;
+        const before = G.state.stats.raidKills;
+        if (!dispatchRaid(party.id, def.id).ok) continue;
+        for (let i = 0; i < 12000 && G.state.expeditions.length; i++) tickAll(0.1);
+        if (G.state.stats.raidKills > before) won++;
+      }
+      return won / trials;
+    };
+
+    console.log('');
+    console.log('     boss                    at tier   five below');
+    const deep = RAIDS.filter((d) => d.tier >= 16);
+    for (const def of deep) {
+      const atTier = attempt(def, def.tier);
+      const below = attempt(def, def.tier - 5);
+      console.log(`       ${def.name.padEnd(22)}${pct(atTier).padStart(7)}${pct(below).padStart(13)}`);
+      ok(atTier >= 0.75,
+        `${def.name} is only killed ${pct(atTier)} of the time by a party geared for its tier`);
+      ok(below <= 0.35,
+        `${def.name} falls to a party five tiers under-geared ${pct(below)} of the time`);
+    }
+    return `${deep.length} bosses: beatable at tier, refused well below it`;
+  });
+
   await test('no page errors', () => clean([]));
 }

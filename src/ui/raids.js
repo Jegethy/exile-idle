@@ -1,6 +1,6 @@
 // raids — Raid bosses: the Seal-gated encounters at the end of each tier band.
 
-import { RAIDS } from '../data/dungeons.js';
+import { RAIDS, DEEP_ILVL } from '../data/dungeons.js';
 import { dispatchRaid } from '../expedition.js';
 import { G } from '../state.js';
 import { escapeHtml, qs } from '../util.js';
@@ -28,7 +28,9 @@ export function renderRaids() {
         checks with guaranteed payouts, and every first kill permanently raises guild rewards —
         currently <b class="gold">+${s.progress.bonusMult}%</b>.
         <br>Every kill also yields <b class="c-echo">Echo Stones</b>, the only way to reroll a hero's
-        three skills. First kills pay double.</p>
+        three skills. First kills pay double.
+        <br>The three deepest bosses drop <b class="r-unique">uniques that exist nowhere else</b>, and
+        unworked bases at item level ${DEEP_ILVL} to craft on yourself.</p>
     </div>
   ` + RAIDS.map((r) => {
     const unlocked = s.progress.highestTier >= r.tier;
@@ -46,6 +48,10 @@ export function renderRaids() {
         <span>Unique <b>${Math.round(r.reward.uniqueChance * 100)}%</b></span>
         <span>First kill <b class="gold">+${r.reward.bonus}% rewards</b></span>
         <span><b class="c-echo">${r.reward.echoes}</b> Echoes${kills ? '' : ' ×2'}</span>
+        ${r.reward.deepUnique
+      ? `<span class="r-unique"><b>${Math.round(r.reward.deepUnique * 100)}%</b> deep unique</span>` : ''}
+        ${r.reward.blanks
+      ? `<span><b>${r.reward.blanks}</b> blank base${r.reward.blanks === 1 ? '' : 's'}</span>` : ''}
       </div>
       <div class="row">${!unlocked
       ? `<span class="hint">Clear a Tier ${r.tier} dungeon to unlock.</span>`
