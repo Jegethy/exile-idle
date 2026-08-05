@@ -19,13 +19,43 @@ export default async function run(browser) {
     return `${r.heroes} heroes, ${r.dungeons} dungeons`;
   });
 
-  await test('starter heroes are all Common', async () => {
-    const rarities = await page.evaluate(async () => {
+  // The starters are fixed rather than rolled, and every part of them is the
+  // plainest the game can make. If a starter can roll a tier-2 trait or a
+  // class-defining skill, the first genuinely good recruit reads as a
+  // sidegrade instead of an upgrade.
+  await test('starter heroes are fixed, named for their job, and as plain as possible', async () => {
+    const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
-      return G.state.heroes.map((h) => h.rarity);
+      const { TRAIT_BY_ID } = await import('./src/data/traits.js');
+      const { SKILLS } = await import('./src/data/skills.js');
+      const universal = SKILLS.filter((s) => !s.req).map((s) => s.id);
+      return G.state.heroes.map((h) => ({
+        name: h.name,
+        classId: h.classId,
+        rarity: h.rarity,
+        traits: h.traits.length,
+        topTier: Math.max(0, ...h.traits.map((t) => TRAIT_BY_ID[t]?.tier ?? 0)),
+        skills: h.skills.length,
+        allUniversal: h.skills.every((s) => universal.includes(s)),
+        equipped: h.skill,
+      }));
     });
-    ok(rarities.every((r_) => r_ === 'common'), `got ${rarities.join(', ')}`);
-    return rarities.join(', ');
+    const want = [
+      ['Brak the Defender', 'warrior'],
+      ['Elowen the Restorer', 'cleric'],
+      ['Flynn the Assassin', 'rogue'],
+    ];
+    eq(r.length, 3, 'wrong number of starters');
+    for (const [i, [name, classId]] of want.entries()) {
+      eq(r[i].name, name, `starter ${i + 1} is named ${r[i].name}`);
+      eq(r[i].classId, classId, `${name} is a ${r[i].classId}`);
+    }
+    ok(r.every((h) => h.rarity === 'common'), `not all Common: ${r.map((h) => h.rarity).join(', ')}`);
+    ok(r.every((h) => h.traits === 1), 'a starter has more than one trait');
+    ok(r.every((h) => h.topTier === 1), 'a starter rolled a trait above tier 1');
+    ok(r.every((h) => h.skills === 3 && h.equipped), 'a starter is missing skills');
+    ok(r.every((h) => h.allUniversal), 'a starter got a class-specific skill');
+    return `${r.map((h) => h.name.split(' ')[0]).join(', ')} — Common, one tier-1 trait, basic skills`;
   });
 
   await test('the vault shows category and sub-type', async () => {

@@ -36,11 +36,12 @@ export const STEPS = [
     id: 'roster',
     tab: 'roster', target: '#rosterList',
     title: 'Your Roster',
-    body: 'Three heroes have signed on. Each has a <b>class</b>, a <b>role</b> and a '
-      + '<b>rarity</b> — and a stamina bar that drains on expeditions and refills while they rest.'
-      + '<br><br>Roles matter mechanically: a <span class="role role-tank">Tank</span> soaks the '
-      + 'attacks aimed at the party, and a <span class="role role-healer">Healer</span> mends the '
-      + 'most wounded ally instead of attacking.',
+    body: 'Three heroes have signed on. Each has a <b>class</b> and a <b>role</b>, plus a '
+      + 'stamina bar that empties on expeditions and refills while they rest.'
+      + '<br><br>The role is the important part. A <span class="role role-tank">Tank</span> takes '
+      + 'the hits meant for everyone else, a <span class="role role-healer">Healer</span> heals '
+      + 'whoever is hurt worst instead of attacking, and a <span class="role role-dps">DPS</span> '
+      + 'does the killing.',
     advance: 'next',
   },
   {
@@ -54,12 +55,12 @@ export const STEPS = [
     id: 'heroSheet',
     target: '#heroModalBody',
     title: 'Traits, Skills and Equipment',
-    body: '<b>Traits</b> are rolled when a hero is recruited and never change — they are the '
-      + 'reason one Rare Templar is worth more than another.'
-      + '<br><br>Every hero also rolls three <b>skills</b> and may have one equipped. Swapping is '
-      + 'free, so try them. Only a Raid boss can redraw the three.'
-      + '<br><br>Below those are nine equipment slots. <b>Gear from Vault</b> lets you fill them '
-      + 'from the guild\'s shared stock, with tooltips showing the difference for that hero.',
+    body: '<b>Traits</b> are small permanent bonuses. A hero gets them when you hire them and '
+      + 'they never change, so two Warriors are rarely the same Warrior.'
+      + '<br><br>Every hero also has three <b>skills</b> but uses only one. Switching is free, so '
+      + 'try them all.'
+      + '<br><br>Below those are nine equipment slots. <b>Gear from Vault</b> fills them from '
+      + 'everything your guild owns, and hovering an item shows what it would change.',
     advance: 'next',
     onExit: () => closeAnyModal(),
   },
@@ -147,12 +148,12 @@ export const STEPS = [
     id: 'workshop',
     tab: 'workshop', target: '#materialGrid',
     title: 'Materials and the Workshop',
-    body: 'Eight families of material, three grades each. They come from salvage and from '
-      + 'expeditions — and <b>where you send a party decides what you bring back</b>. The Dark '
-      + 'Forest yields wood and herbs; the Arcane Vault yields essence.'
-      + '<br><br>Below the materials is the bench: <b>Reforge</b> rerolls a Rare, <b>Augment</b> '
-      + 'adds a modifier, <b>Temper</b> raises quality. Costs scale with the item level, so '
-      + 'reworking deep-tier gear is a project.'
+    body: 'Eight kinds of material, in three grades each. You get them by breaking down gear you '
+      + 'do not want and from expeditions — and <b>where you send a party decides what you bring '
+      + 'back</b>. The Dark Forest gives wood and herbs; the Arcane Vault gives essence.'
+      + '<br><br>Below the materials is the workbench. <b>Reforge</b> rerolls an item\'s bonuses, '
+      + '<b>Augment</b> adds one, and <b>Temper</b> improves the item itself. Better items cost '
+      + 'more to work on.'
       + '<br><br>The alchemy bench brews <b>flasks</b> from herbs. Assign one to a party and they '
       + 'drink it on their way out.',
     advance: 'next',
@@ -161,8 +162,8 @@ export const STEPS = [
     id: 'recruit',
     tab: 'roster', target: '#rosterHeader',
     title: 'Recruiting',
-    body: 'Gold buys heroes. Each recruit rolls a random class, rarity and traits, and every '
-      + 'hire makes the next one dearer.'
+    body: 'Gold buys heroes. Every candidate is random, and every hire makes the next one cost '
+      + 'more.'
       + '<br><br>Depth matters: heroes on an expedition cannot go on another, and tired heroes '
       + 'cannot go at all. A bigger roster keeps more parties in the field.',
     advance: 'next',
@@ -190,13 +191,11 @@ export const STEPS = [
   {
     id: 'guide',
     target: '#btnGuide',
-    title: 'The Handbook',
-    body: 'Everything this tour skipped is in here — and there is a lot of it.'
-      + '<br><br>Twelve pages covering every class and what its passive does, all 28 traits, all '
-      + 'the skills and who can roll them, what <b>ehp</b> and <b>ilvl</b> actually mean, how '
-      + 'dungeons differ, and what a raid is for.'
-      + '<br><br>It is written from the game\'s own data, so it is never out of date. Open it '
-      + 'whenever something is unexplained.',
+    title: 'The Guide',
+    body: 'This tour covered the basics. Everything else is in the guide.'
+      + '<br><br>It explains every class, every trait and skill, what short words like <b>dps</b> '
+      + 'and <b>ehp</b> mean, how the dungeons differ, and what raids are for.'
+      + '<br><br>Open it any time something is not clear.',
     advance: 'next',
   },
   {

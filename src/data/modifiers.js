@@ -60,7 +60,7 @@ const DOWNSIDES = [
   // ---- Enemy strength ------------------------------------------------------
   {
     id: 'teeming', name: 'Teeming', danger: 30,
-    desc: 'Enemies have 60% more life.',
+    desc: 'Enemies have 60% more health.',
     profile: { life: 1.60 },
   },
   {
@@ -90,7 +90,7 @@ const DOWNSIDES = [
   },
   {
     id: 'martyrdom', name: 'Martyrdom', danger: 14, minTier: 10,
-    desc: 'When an enemy dies, every survivor gains 25% attack damage and speed.',
+    desc: 'Every time an enemy dies, the rest hit 25% harder and 25% faster.',
     reactions: [{
       trigger: 'kill', key: 'mod-martyrdom',
       run: (ctx) => {
@@ -109,18 +109,17 @@ const DOWNSIDES = [
   // brings a bench of twelve classes back into use.
   {
     id: 'hexwrought', name: 'Hexwrought', danger: 10,
-    desc: 'Almost everything here casts. A melee-resistant tank is little help.',
+    desc: 'Almost every enemy casts spells. A Tank who resists weapons will not help much.',
     profile: { attackMix: { melee: 15, spell: 85 } },
   },
   {
     id: 'brutish', name: 'Brutish', danger: 10,
-    desc: 'Almost everything here swings. A spell-resistant tank is little help.',
+    desc: 'Almost every enemy fights up close. A Tank who resists spells will not help much.',
     profile: { attackMix: { melee: 85, spell: 15 } },
   },
   {
     id: 'contempt', name: 'Contempt', danger: 16, minTier: 10,
-    desc: 'Nothing here respects a shield. Threat is ignored entirely and '
-      + 'attacks fall wherever they please.',
+    desc: 'Enemies ignore your Tank and attack whoever they like.',
     // Threat is a multiplier on being picked, so flattening everyone to the
     // same value makes targeting uniform — which is exactly "the tank cannot
     // hold anything" without needing a second targeting path in the engine.
@@ -135,12 +134,12 @@ const DOWNSIDES = [
   },
   {
     id: 'mortal_wounds', name: 'Mortal Wounds', danger: 18, minTier: 12,
-    desc: 'Heroes cannot be healed above half their life.',
+    desc: 'Heroes cannot be healed above half their health.',
     curse: { capHeal: 50 },
   },
   {
     id: 'withering', name: 'Withering', danger: 20, minTier: 12,
-    desc: 'Heroes lose 5% of their maximum life every second.',
+    desc: 'Heroes lose 5% of their health every second.',
     reactions: [{
       trigger: 'combatStart', key: 'mod-withering',
       run: (ctx) => {
@@ -168,29 +167,29 @@ const DOWNSIDES = [
   },
   {
     id: 'dense_fog', name: 'Dense Fog', danger: 18, minTier: 8,
-    desc: 'The party has a 25% chance to miss outright.',
+    desc: 'Every attack has a 25% chance to miss.',
     curse: { missChance: 25 },
   },
   {
     id: 'sundered', name: 'Sundered', danger: 12, minTier: 10,
-    desc: 'The party has 50% less accuracy and 50% less resistance.',
+    desc: 'Your party has 50% less accuracy and 50% less resistance.',
     curse: { incAccuracy: -50, resAll: -50 },
   },
   {
     id: 'dulled_edge', name: 'Dulled Edge', danger: 10, minTier: 8,
-    desc: 'Critical strikes deal no additional damage.',
+    desc: 'Critical hits do no extra damage.',
     curse: { critMulti: -100 },
   },
   {
     id: 'torpor', name: 'Torpor', danger: 10, minTier: 10,
-    desc: 'Every cooldown in the party is 50% longer.',
+    desc: 'Abilities take 50% longer to become ready again.',
     curse: { cooldownMult: 50 },
   },
 
   // ---- Reactive -----------------------------------------------------------
   {
     id: 'bloodfeast', name: 'Bloodfeast', danger: 34, minTier: 12,
-    desc: 'Critical strikes heal the enemy struck for 500% of the damage dealt.',
+    desc: 'Critical hits heal the enemy instead of hurting them.',
     reactions: [{
       trigger: 'crit', key: 'mod-bloodfeast',
       run: (ctx) => {
@@ -207,7 +206,7 @@ const DOWNSIDES = [
     // rewards it loses on throughput — which is the point. A shelf where
     // every contract is worth running is a shelf with no decisions on it;
     // some should read as "absolutely not" and be left to rot.
-    desc: '4% of the damage a hero deals is reflected back at them.',
+    desc: 'Heroes take 4% of the damage they deal back at themselves.',
     reactions: [{
       trigger: 'hit', key: 'mod-thornskin',
       run: (ctx) => {
@@ -222,7 +221,7 @@ const DOWNSIDES = [
   },
   {
     id: 'shared_pain', name: 'Shared Pain', danger: 16, minTier: 12,
-    desc: 'When a hero is struck, every other hero takes 30% of the damage.',
+    desc: 'When a hero is hit, everyone else takes 30% of that damage too.',
     reactions: [{
       trigger: 'takeHit', key: 'mod-sharedpain',
       run: (ctx) => splash(ctx, ctx.run.combatants, 0.30, 'mod-sharedpain', 'Shared Pain'),
@@ -230,7 +229,7 @@ const DOWNSIDES = [
   },
   {
     id: 'corrupted', name: 'Corrupted Ground', danger: 14, minTier: 12,
-    desc: 'Damage taken by the tank is split across the rest of the party.',
+    desc: 'A quarter of the damage your Tank takes is also dealt to everyone else.',
     reactions: [{
       trigger: 'takeHit', key: 'mod-corrupted',
       run: (ctx) => {
@@ -241,8 +240,8 @@ const DOWNSIDES = [
   },
   {
     id: 'sympathetic', name: 'Sympathetic Agony', danger: 12, minTier: 12,
-    desc: 'While the tank is below half life, every blow it takes is dealt to '
-      + 'the rest of the party as well.',
+    desc: 'While your Tank is below half health, every hit they take also hits '
+      + 'everyone else.',
     reactions: [{
       trigger: 'takeHit', key: 'mod-sympathetic',
       run: (ctx) => {
@@ -254,7 +253,7 @@ const DOWNSIDES = [
   },
   {
     id: 'vengeful', name: 'Vengeful', danger: 10, minTier: 10,
-    desc: 'Killing an enemy costs the killer 7% of their maximum life.',
+    desc: 'Killing an enemy costs the hero who killed it 7% of their health.',
     reactions: [{
       trigger: 'kill', key: 'mod-vengeful',
       run: (ctx) => {
@@ -279,17 +278,17 @@ const DOWNSIDES = [
   // ---- Restrictions -------------------------------------------------------
   {
     id: 'sanctified', name: 'Sanctified Ground', danger: 22, minTier: 8,
-    desc: 'No hero who fights hand to hand may enter.',
+    desc: 'Heroes who fight up close cannot go.',
     restrict: { reach: 'melee' },
   },
   {
     id: 'close_quarters', name: 'Close Quarters', danger: 22, minTier: 8,
-    desc: 'No hero who fights at range may enter.',
+    desc: 'Heroes who fight from a distance cannot go.',
     restrict: { reach: 'ranged' },
   },
   {
     id: 'silence', name: 'Silence', danger: 26, minTier: 8,
-    desc: 'No hero who casts may enter.',
+    desc: 'Heroes who cast spells cannot go.',
     restrict: { school: 'spell' },
   },
 ];
@@ -323,7 +322,7 @@ const CLASS_BANS = HERO_CLASSES.map((cls) => ({
 const BOONS = [
   {
     id: 'rich_veins', name: 'Rich Veins', danger: -7, boon: true,
-    desc: 'Enemies here carry 60% more gold.',
+    desc: 'Enemies drop 60% more gold.',
     find: { gold: 60 },
   },
   {
@@ -343,12 +342,12 @@ const BOONS = [
   },
   {
     id: 'fabled', name: 'Fabled', danger: -10, boon: true,
-    desc: 'Uniques are three times as likely to drop.',
+    desc: 'Unique items are three times as likely to drop.',
     find: { unique: 200 },
   },
   {
     id: 'wellspring', name: 'Wellspring', danger: -4, boon: true,
-    desc: 'The party regenerates resources 80% faster.',
+    desc: 'Mana, Rage and Energy refill 80% faster.',
     curse: { resourceRegen: 80 },
   },
   {

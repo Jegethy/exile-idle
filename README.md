@@ -149,8 +149,15 @@ Neither a tank nor a healer is required. An over-geared party farming Tier 1
 for a unique it never found should not be made to bring a tank it does not
 need, so the composition notices are advice and can be switched off entirely.
 
-Your three starters are all **Common** on purpose. Handing out free Uncommons
-would make the first genuinely better recruit feel like a sidegrade.
+Your three starters are **fixed, not rolled**: Brak the Defender (Warrior),
+Elowen the Restorer (Cleric) and Flynn the Assassin (Rogue). The names say the
+job out loud, because a new player has no idea what a Templar is.
+
+Every part of them is the plainest the game can produce — Common, one tier-1
+trait each, and three skills drawn from the handful any class can take rather
+than anything their class is known for. That is the point: the first genuinely
+good recruit has to read as an *upgrade*, and it cannot if a starter happened
+to roll Flurry and a Rare's worth of traits.
 
 **Roles are mechanical, not cosmetic.** Enemies pick targets by threat weight, so
 a Guardian at 6.0× soaks nearly everything. Healers spend their turn mending the
@@ -564,10 +571,16 @@ first time a multiplier changes and nobody notices for a month; a generated one
 cannot drift, and tests assert that every trait, skill, class, dungeon, raid and
 upgrade actually appears with its effect text.
 
-What is written by hand is the part data cannot state for itself: why loot is
-all-or-nothing, why the level gap is consulted in both directions, why ordinary
-attacks are free when a resource runs dry, and what `ehp` and `ilvl` actually
-mean.
+The prose rule for the guide is **plain English only**. The reader is someone
+who has just started and does not know what a Templar is, what "rarity" means,
+or why an item level matters. Short sentences, no jargon without a definition
+beside it, no flourishes. Explanations of *why* a system works the way it does
+belong in the source comments, not on the page — a player wants to know that
+Item Rarity makes drops better rather than more numerous, not that healing was
+capped because a Cleric once restored three times the party's life pool.
+
+The same rule applies to every string a player can read: modifier descriptions,
+skill and trait text, and the tutorial.
 
 ## Project layout
 

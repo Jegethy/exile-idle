@@ -425,14 +425,46 @@ export function heroInfo(hero) {
  * They do get basic kit, though — unarmed heroes deal almost no damage, which
  * is the difference between a first expedition that works and one that stalls.
  */
+/**
+ * The three heroes a new guild opens with. Fixed, not rolled.
+ *
+ * Every part of them is the plainest the game can produce: Common rarity, one
+ * tier-1 trait apiece, and three skills drawn from the handful any class can
+ * take rather than anything their class is actually known for. That is the
+ * whole point — the first genuinely good recruit has to read as an *upgrade*,
+ * and it cannot if the starters were rolled and one of them happened to come
+ * out holding Flurry and a Rare's worth of traits.
+ *
+ * The names say the job out loud. A new player has no idea what a Templar is
+ * or what Rare means, but "Brak the Defender" needs no glossary.
+ */
+const STARTERS = [
+  {
+    classId: 'warrior', name: 'Brak the Defender',
+    trait: 'sturdy',
+  },
+  {
+    classId: 'cleric', name: 'Elowen the Restorer',
+    trait: 'hardy',
+  },
+  {
+    classId: 'rogue', name: 'Flynn the Assassin',
+    trait: 'quick',
+  },
+];
+
+/** The three skills every starter is offered. Available to any class, and dull. */
+const STARTER_SKILLS = ['second_wind', 'adrenaline', 'resolute'];
+
 export function startingRoster() {
-  // One of each role, so a new guild starts with a party that works: someone
-  // to hold the line, someone to kill things, someone to keep them standing.
-  const roster = [
-    rollHero({ classId: 'guardian', rarity: 'common' }),
-    rollHero({ classId: 'rogue', rarity: 'common' }),
-    rollHero({ classId: 'cleric', rarity: 'common' }),
-  ];
+  const roster = STARTERS.map((spec) => {
+    const hero = rollHero({ classId: spec.classId, rarity: 'common' });
+    hero.name = spec.name;
+    hero.traits = [spec.trait];
+    hero.skills = STARTER_SKILLS.slice();
+    [hero.skill] = hero.skills;
+    return hero;
+  });
   for (const hero of roster) {
     const prefers = CLASS_BY_ID[hero.classId].prefers ?? ['sword1h'];
     hero.equipment.weapon = createItem({ baseId: prefers[0], ilvl: 1, rarity: 'normal' });
