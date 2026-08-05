@@ -9,6 +9,7 @@ import { RARITY } from '../items.js';
 export const ui = {
   craftRecipe: null,
   equipTarget: null,     // heroUid the vault is currently gearing
+  benchTarget: null,     // partyId the bench adds to on click
   dispatchTier: 1,
   dungeonFilter: 'all',
   logFilter: 'all',

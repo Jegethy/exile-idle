@@ -173,6 +173,13 @@ function pageRoles() {
           + 'A Tank cannot block spells aimed at somebody else unless their ability specifically '
           + 'protects the party.'],
       ])),
+    section('Changing who is in a party',
+      p('Everyone not in a party waits on the <b>bench</b>, at the bottom of the Parties tab.'),
+      p('Click a hero on the bench to add them to a party. Press <b>✕</b> beside a name to send',
+        'them back to the bench. With more than one party, click the party you want first — the',
+        'bench says which one it is adding to.'),
+      p('Clicking the <i>name</i> of a hero still opens their full sheet, for gear and skills.'),
+      p('You cannot change a party while it is out on an expedition.')),
     section('You do not have to bring a Tank or a Healer',
       p('The game will warn you, and you can turn the warning off. If you take a strong party back',
         'to easy content, you do not need a full setup.')));

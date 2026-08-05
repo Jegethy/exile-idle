@@ -75,6 +75,18 @@ export const STEPS = [
     advance: 'next',
   },
   {
+    id: 'bench',
+    tab: 'parties', target: '#benchPanel',
+    title: 'The Bench',
+    body: 'Anyone not in a party waits here.'
+      + '<br><br>Click a hero on the bench to add them to a party, and press <b>✕</b> next to a '
+      + 'name to send them back. If you have more than one party, click the one you want first '
+      + '— it will say so.'
+      + '<br><br>You will use this more than you expect. Later on you will find contracts that '
+      + 'refuse to admit certain classes, and swapping someone out is how you take them.',
+    advance: 'next',
+  },
+  {
     id: 'tier',
     tab: 'expeditions', target: '.dispatch-bar',
     title: 'Tier — How Hard',

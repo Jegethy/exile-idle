@@ -1432,3 +1432,42 @@ body.splash-open { overflow:hidden; }
 .mr-bar.m-taken { background:#c9a227; }
 .mr-bar.m-heal { background:#6fbf5f; }
 .mr-val { position:relative; }
+
+/* --- The bench ----------------------------------------------------------
+   Changing a party used to mean opening a hero's sheet and assigning from
+   inside it. Contracts that ban a class made that a routine action rather
+   than a one-off, so the whole operation lives here now: x to bench someone,
+   click to add someone. */
+.party-card { cursor:pointer; }
+.party-card.running { cursor:default; }
+.party-card.target { border-color:var(--gold-dim); background:rgba(200,170,110,.05); }
+.party-card.target .party-name::after {
+  content:' 90 adding here'; font-size:10px; letter-spacing:.5px;
+  color:var(--gold-dim); text-transform:uppercase; font-weight:400;
+}
+.pm { display:inline-flex; align-items:center; gap:5px; }
+.pm-name { cursor:pointer; }
+.pm-name:hover { color:var(--gold); text-decoration:underline; }
+.pm-out {
+  border:0; background:none; padding:0 1px; cursor:pointer; line-height:1;
+  font-size:11px; color:var(--ink-faint); opacity:.5; transition:opacity .12s,color .12s;
+}
+.pm:hover .pm-out { opacity:1; }
+.pm-out:hover { color:#c95c4a; }
+
+.bench { display:flex; flex-wrap:wrap; gap:5px; padding:2px 0 4px; }
+.bench-hero {
+  display:grid; gap:1px; text-align:left; cursor:pointer; font:inherit;
+  padding:5px 9px; border-radius:3px; color:inherit;
+  border:1px solid var(--line); border-left-width:3px; background:var(--bg-2);
+  transition:border-color .12s, background .12s;
+}
+.bench-hero:hover:not(:disabled) { background:var(--bg-3,var(--bg-2)); border-color:var(--gold-dim); }
+.bench-hero:disabled { opacity:.45; cursor:not-allowed; }
+.bench-hero.h-common { border-left-color:var(--r-normal); }
+.bench-hero.h-uncommon { border-left-color:var(--r-magic); }
+.bench-hero.h-rare { border-left-color:var(--r-rare); }
+.bench-hero.h-epic { border-left-color:var(--r-epic,#a970d8); }
+.bench-hero.h-legendary { border-left-color:var(--r-unique); }
+.bh-name { font-size:12px; color:var(--ink); }
+.bh-sub { font-size:11px; color:var(--ink-faint); display:flex; align-items:center; gap:5px; }

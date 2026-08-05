@@ -485,6 +485,29 @@ by absorbing, while a spell-resistant one would only ever protect itself. No
 resistance number can balance that, which is why the Paladin's Consecrate wards
 the *party* against spells rather than merely hardening the Paladin.
 
+## The bench
+
+Changing a party used to mean opening a hero's full character sheet and
+assigning from inside it. Swapping two heroes was seven interactions across
+three tabs. That was tolerable when a party was set once and forgotten.
+
+Contracts stopped it being tolerable. Roughly one in six carries a class ban,
+so choosing what to run now regularly means swapping somebody out — and at
+seven interactions a time the rational response is to discard every contract
+with a ban, which would quietly delete the reason bans exist at all.
+
+So the whole operation lives on the Parties tab now. Everyone unassigned sits
+on a bench below the party cards. Click a hero to add them, press ✕ beside a
+name to send them back, and click a party first if you have more than one — the
+bench states which party it is adding to, and the matching card is marked.
+Clicking a hero's *name* still opens their sheet, so nothing was taken away.
+
+Two details that matter more than they look: the highlight follows the
+*effective* target rather than the stored one, so on a fresh guild the header
+and the highlighted card agree without anyone having clicked a party; and a
+party in the field offers neither control, because editing a party that is
+currently underground is not a thing that can be made to mean anything.
+
 ## The after-action summary
 
 Combat resolves on its own, which means the interesting part is over before you
