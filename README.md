@@ -616,6 +616,23 @@ Nine levels under is a hard afternoon. Ten is survivable and takes nearly twice
 as long. Twelve is a coin flip you lose. Fifteen is a wall — and the reported
 case that prompted this, a level 12 party in Tier 9, is eighteen under.
 
+### And the wall had to be visible
+
+A cliff you cannot see coming is the same complaint it was built to answer.
+The dispatch panel had always printed the level of what lives down there —
+"enemy level ~30" — and never once compared it to anything.
+
+Every idle party is now shown against the tier on the selector: **Ready**,
+**Fair fight**, **Hard** or **Out of reach**, with the two levels side by side,
+how many equipment slots are still empty, and the party's average item level
+when it has fallen a long way behind what the tier drops. A Send button that
+would throw a party at a wall is marked and its tooltip says exactly what will
+happen to them.
+
+It is never disabled. Composition notices are advice and so is this: a player
+who wants to throw a party at a wall to see what happens is entitled to, and an
+over-geared party farming something it outgrew does not need permission.
+
 ### Which meant hero levels had to keep pace
 
 The cliff could not be added on its own. Measured over a full playthrough,

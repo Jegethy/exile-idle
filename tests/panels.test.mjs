@@ -146,6 +146,77 @@ export default async function run(browser) {
     return `exported ${r.chars} chars`;
   });
 
+  await test('the roster sorts as a view, and never rewrites your order', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { rollHero } = await import('./src/heroes.js');
+      const { rosterView, moveHero } = await import('./src/ui/roster.js');
+      const { refreshSheets } = await import('./src/sheets.js');
+
+      G.state.heroes.length = 0;
+      for (const [name, lvl] of [['Cass', 5], ['Adin', 40], ['Bree', 20]]) {
+        const h = rollHero({ classId: 'archer', rarity: 'common' });
+        h.name = name; h.level = lvl;
+        G.state.heroes.push(h);
+      }
+      refreshSheets();
+      const stored = () => G.state.heroes.map((h) => h.name).join(',');
+      const before = stored();
+      const view = (sort) => rosterView(G.state.heroes, sort).map((h) => h.name).join(',');
+
+      const byLevel = view('level');
+      const byName = view('name');
+      const custom = view('custom');
+      const untouched = stored() === before;
+
+      // Dragging edits the stored order itself, which is what Custom shows.
+      moveHero(G.state.heroes.find((h) => h.name === 'Bree').uid,
+        G.state.heroes.find((h) => h.name === 'Cass').uid);
+      return { before, byLevel, byName, custom, untouched, afterDrag: stored() };
+    });
+    eq(r.byLevel, 'Adin,Bree,Cass', `by level: ${r.byLevel}`);
+    eq(r.byName, 'Adin,Bree,Cass', `by name: ${r.byName}`);
+    eq(r.custom, r.before, 'Custom is not the stored order');
+    ok(r.untouched, 'sorting the view reorganised the roster underneath it');
+    eq(r.afterDrag, 'Bree,Cass,Adin', `dragging left the order as ${r.afterDrag}`);
+    return `sorted views over a stored order of ${r.before}, drag moved it to ${r.afterDrag}`;
+  });
+
+  await test('the Guild Hall overview reports what the guild has done', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { renderHall } = await import('./src/ui/hall.js');
+      const { gotoTab } = await import('./src/ui/shell.js');
+      G.state.stats.runs = 40;
+      G.state.stats.runsFailed = 10;
+      G.state.stats.kills = 1234;
+      G.state.progress.highestTier = 12;
+      gotoTab('hall');
+      renderHall();
+      const host = document.querySelector('#hallOverview');
+      const text = host.textContent.replace(/\s+/g, ' ');
+      return {
+        groups: host.querySelectorAll('.ledger-group').length,
+        cells: host.querySelectorAll('.ledger-cell').length,
+        // 40 cleared of 50 attempted.
+        clearRate: text.includes('80%'),
+        deepest: text.includes('Deepest tier'),
+        kills: text.includes('1,234') || text.includes('1234'),
+        // The four sub-tabs, and only one of them showing at a time.
+        tabs: document.querySelectorAll('#tab-hall > .tabs.sub .tab').length,
+        active: document.querySelectorAll('#tab-hall > .tab-body.active').length,
+      };
+    });
+    ok(r.groups >= 4, `only ${r.groups} groups on the overview`);
+    ok(r.cells >= 24, `only ${r.cells} figures on the overview`);
+    ok(r.clearRate, 'the clear rate is not derived from runs and wipes');
+    ok(r.deepest, 'the deepest tier is not reported');
+    ok(r.kills, 'the kill count is not reported');
+    eq(r.tabs, 4, `${r.tabs} sub-tabs in the Guild Hall`);
+    eq(r.active, 1, `${r.active} hall sub-panels showing at once`);
+    return `${r.cells} figures across ${r.groups} groups, behind ${r.tabs} sub-tabs`;
+  });
+
   await test('no page errors', () => clean(errors));
   await page.close();
 }

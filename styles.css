@@ -1713,3 +1713,31 @@ body.splash-open { overflow:hidden; }
 .hero-card[draggable="true"] { cursor:grab; }
 .hero-card.dragging { opacity:.45; }
 .hero-card.drop-before { box-shadow:inset 0 3px 0 -1px var(--gold); }
+
+/* --- Party readiness ----------------------------------------------------
+   The dispatch panel printed the level of what lives down there and never
+   compared it to anything, which stopped being survivable when ten levels
+   under became an outright wall. */
+.ready-row { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px; }
+.ready {
+  display:inline-flex; align-items:baseline; gap:7px; padding:4px 9px;
+  border:1px solid var(--line); border-left-width:3px; border-radius:4px;
+  background:var(--bg-2); font-size:11px; color:var(--ink-faint);
+}
+.ready b { font-size:11.5px; color:var(--ink); font-weight:600; }
+.ready-lv { font-variant-numeric:tabular-nums; }
+.ready-band { font-size:10px; letter-spacing:.05em; text-transform:uppercase; }
+.ready-gear { font-size:10px; opacity:.8; }
+.ready-ready { border-left-color:var(--good,#6fae62); }
+.ready-ready .ready-band { color:var(--good,#6fae62); }
+.ready-fair { border-left-color:var(--gold-dim); }
+.ready-fair .ready-band { color:var(--gold-dim); }
+.ready-hard { border-left-color:#c8913f; }
+.ready-hard .ready-band { color:#c8913f; }
+.ready-wall { border-left-color:var(--bad,#b5483f); background:rgba(181,72,63,.10); }
+.ready-wall .ready-band { color:var(--bad,#b5483f); font-weight:600; }
+
+/* A Send button that would throw the party at a wall. Never disabled — this
+   is advice, exactly as the composition notices are. */
+.btn.warn-send { border-color:var(--bad,#b5483f); color:var(--bad,#b5483f); }
+.btn.warn-send:hover { background:rgba(181,72,63,.14); }

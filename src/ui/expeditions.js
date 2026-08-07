@@ -13,6 +13,7 @@ import { clamp, escapeHtml, fmt, fmtTime, qs } from '../util.js';
 import { setStatus, gotoTab } from './shell.js';
 import { ui } from './state.js';
 import { reports, dismissReport, dismissReportsFor, peakOf } from '../reports.js';
+import { readiness, readinessLine } from '../readiness.js';
 
 // ===========================================================================
 // Expeditions
@@ -134,6 +135,33 @@ function mixBar(mix) {
   </div>`;
 }
 
+/**
+ * One line per idle party: how it stands against the tier on the selector.
+ *
+ * The panel has always printed the level of what lives down there and never
+ * once compared it to anything. That was survivable while the penalty for
+ * being under-levelled was a gentle slope; it is not survivable now that ten
+ * levels under is an outright wall. A wall you cannot see coming is the same
+ * complaint the cliff was built to answer.
+ */
+function readinessRow(idleParties, tier) {
+  if (!idleParties.length) return '';
+  return `<div class="ready-row">${idleParties.map((p) => {
+    const r = readiness(p, tier);
+    if (!r.size) return '';
+    const gearBehind = r.ilvl > 0 && r.contentIlvl - r.ilvl >= 12;
+    return `<span class="ready ready-${r.band.id}" title="${escapeHtml(r.band.hint)}">
+      <b>${escapeHtml(p.name)}</b>
+      <span class="ready-lv">Lv ${r.level} vs ${r.content}</span>
+      <span class="ready-band">${escapeHtml(r.band.name)}</span>
+      ${gearBehind ? `<span class="ready-gear" title="Average item level of what they are wearing,
+        against what this tier drops.">gear ${r.ilvl}/${r.contentIlvl}</span>` : ''}
+      ${r.empties > 0 ? `<span class="ready-gear" title="Equipment slots nobody has filled.
+        Gear Up on the Parties tab fills them.">${r.empties} empty</span>` : ''}
+    </span>`;
+  }).join('')}</div>`;
+}
+
 export function renderDispatch() {
   const s = G.state;
   const host = qs('#dispatchPanel');
@@ -152,7 +180,7 @@ export function renderDispatch() {
       <button class="btn tiny" id="tierDown" ${tier <= 1 ? 'disabled' : ''}>−</button>
       <b class="tier-value">${tier}</b>
       <button class="btn tiny" id="tierUp" ${tier >= maxTier ? 'disabled' : ''}>+</button>
-      <span class="hint">enemy level ~${tierToLevel(tier)} · ${staminaCost(tier)} stamina each</span>
+      <span class="hint">enemies level ${tierToLevel(tier)} · ${staminaCost(tier)} stamina each</span>
       <span class="hint">${free} charter${free === 1 ? '' : 's'} free</span>
       ${(s.contracts?.length ?? 0)
     ? `<button class="btn tiny" id="btnToContracts">${s.contracts.length} sealed
@@ -160,6 +188,7 @@ export function renderDispatch() {
     : ''}
       ${autoDispatchControl()}
     </div>
+    ${readinessRow(idleParties, tier)}
     <div class="dungeon-filters">${DUNGEON_CATEGORIES.map((c) => {
     const n = dungeonsIn(c.id).length;
     return `<button class="btn tiny ${ui.dungeonFilter === c.id ? 'active' : ''}"
@@ -185,9 +214,15 @@ export function renderDispatch() {
       ? idleParties.map((p) => {
         const check = canDispatch(p, staminaCost(tier));
         const blocked = free <= 0 || !check.ok;
-        const why = free <= 0 ? 'No charters free' : check.ok ? `Send ${p.name}` : check.msg;
-        return `<button class="btn tiny ${blocked ? '' : 'primary'}" data-send="${p.id}" data-dg="${d.id}"
-              ${blocked ? 'disabled' : ''} title="${escapeHtml(why)}">Send ${escapeHtml(p.name)}</button>`;
+        const r = readiness(p, tier);
+        const wall = !blocked && r.band.id === 'wall';
+        const why = free <= 0 ? 'No charters free'
+          : !check.ok ? check.msg
+            : `${readinessLine(r)}. ${r.band.hint}`;
+        return `<button class="btn tiny ${blocked ? '' : wall ? 'warn-send' : 'primary'}"
+              data-send="${p.id}" data-dg="${d.id}"
+              ${blocked ? 'disabled' : ''} title="${escapeHtml(why)}"
+              >Send ${escapeHtml(p.name)}${wall ? ' \u26a0' : ''}</button>`;
       }).join('')
       : '<span class="hint">All parties are busy.</span>'}</div>
       </div>`;
