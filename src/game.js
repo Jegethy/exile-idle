@@ -11,6 +11,7 @@ import { tickReports, partyIsReading, clearReports } from './reports.js';
 import { tickAchievements, backfill } from './achievements.js';
 import { tickCharter, backfillCharter, offlineHours } from './charter.js';
 import { autoUpgradePass, reservesPass, redeployOrders } from './orders.js';
+import { tickAlchemy, resetAlchemyTimer } from './alchemy.js';
 
 export { refreshSheets };
 import { guildEffects } from './data/upgrades.js';
@@ -211,6 +212,7 @@ function simulate(dt, quiet = false) {
   tickCharter(dt);
   handleRedeploy(dt);
   autoUpgradePass(dt);
+  tickAlchemy(dt);
 
   if (quiet) return;
   autosaveTimer += dt;
@@ -321,7 +323,7 @@ function handleRedeploy(dt) {
   }
 }
 
-on('loaded', () => { refreshSheets(); redeployTimer = 0; });
+on('loaded', () => { refreshSheets(); redeployTimer = 0; resetAlchemyTimer(); });
 
 window.IDLE_GUILD = { G, Save, rng, refreshSheets };
 

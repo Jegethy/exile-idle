@@ -507,8 +507,15 @@ function pageCrafting() {
       table(['Option', 'What it does'],
         RECIPES.map((r) => [`<b>${esc(r.name)}</b>`, esc(r.desc)]))),
     section('Flasks',
-      p('Brewed from herbs. Give one to a party before they leave and they drink it on the way.',
-        'It is used up either way.'),
+      p('Brewed from herbs at the <b>alchemy stand</b>, below the workbench. A flask buffs your',
+        'whole party for a whole expedition, which is a lot — but each party drinks one every',
+        'time it leaves, win or lose.'),
+      p('Assign one on the <b>Parties</b> tab. The party card shows how many are left, and says',
+        'so plainly when a party is about to leave without one. The alchemy stand lists which',
+        'parties are waiting on which flask.'),
+      p('Herbs come from the <b>Dark Forest</b> and <b>Silkmoth Hollow</b>. Which grade of herb',
+        'drops depends on the tier, so the cheap flasks are brewed from low-tier herbs and the',
+        'elixirs from deep ones.'),
       table(['Flask', 'What it does'],
         FLASKS.map((f) => [`<b>${esc(f.name)}</b>`, esc(f.effectText ?? f.desc ?? '')]))));
 }

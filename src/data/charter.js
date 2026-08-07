@@ -85,6 +85,12 @@ export const PRIVILEGES = [
       + 'Never touches a locked item, and never disturbs a hero in the field.',
   },
   {
+    id: 'standingStock', level: 12, kind: 'automation', icon: 'flask', switchable: true,
+    name: 'Standing Stock',
+    desc: 'The alchemy stand keeps every flask a party has been assigned brewed and ready, '
+      + 'up to three expeditions ahead. Only ever brews what somebody has actually asked for.',
+  },
+  {
     id: 'repeatCraft', level: 13, kind: 'ability', icon: 'hammer',
     name: "Master's Bench",
     desc: 'A <b>×10</b> button on every bench recipe. Runs it until it lands ten times, you '

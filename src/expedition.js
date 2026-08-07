@@ -16,6 +16,7 @@ import {
   DUNGEON_BY_ID, RAID_BY_ID, tierToLevel, tierToIlvl, staminaCost, wavesFor,
 } from './data/dungeons.js';
 import { spendFlask } from './inventory.js';
+import { FLASK_BY_ID } from './data/recipes.js';
 import { guildEffects } from './data/upgrades.js';
 import { clamp, fmt } from './util.js';
 import {
@@ -78,8 +79,19 @@ export function dispatch(partyId, dungeonId, tier, contractId = null) {
   for (const hero of members) hero.stamina -= staminaCostFor(hero, cost);
 
   // A flask is drunk on the way out, not saved for a rainy day.
+  //
+  // Going without is said out loud. It used to be silent, which meant the
+  // ordinary experience of alchemy was a buff that stopped working three runs
+  // after it was assigned and never came back — with auto-redeploy, without
+  // anyone watching, and with the party card on another tab.
   let flaskId = null;
-  if (party.flask && spendFlask(party.flask, 1)) flaskId = party.flask;
+  if (party.flask) {
+    if (spendFlask(party.flask, 1)) flaskId = party.flask;
+    else {
+      log(`${party.name} has no ${FLASK_BY_ID[party.flask]?.name ?? 'flask'} left and goes `
+        + 'without. Brew more at the alchemy stand.', 'danger');
+    }
+  }
 
   const mods = contract?.mods ?? [];
   const profile = applyModifiersToProfile(

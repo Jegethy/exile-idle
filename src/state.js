@@ -136,6 +136,7 @@ export function createState(name = 'The Wayfarers') {
       salvageSpare: false,
       autoEquip: false,
       standingAccounts: false,
+      standingStock: false,
       reserves: false,
       autoContract: false,
       pushOrders: false,

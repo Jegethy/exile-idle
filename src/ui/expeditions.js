@@ -14,6 +14,7 @@ import { setStatus, gotoTab } from './shell.js';
 import { ui } from './state.js';
 import { reports, dismissReport, dismissReportsFor, peakOf } from '../reports.js';
 import { readiness, readinessLine } from '../readiness.js';
+import { FLASK_BY_ID } from '../data/recipes.js';
 
 // ===========================================================================
 // Expeditions
@@ -38,7 +39,9 @@ export function renderRuns() {
     return `<div class="map-banner running run-card">
       <div class="map-banner-top">
         <span class="map-title">${escapeHtml(party?.name ?? 'Party')} — ${escapeHtml(run.name)}</span>
-        <span class="map-meta">${run.raidId ? 'RAID' : `Tier ${run.tier}`}</span>
+        <span class="map-meta">${run.raidId ? 'RAID' : `Tier ${run.tier}`}${run.flaskId
+    ? ` · <span class="run-flask" title="${escapeHtml(FLASK_BY_ID[run.flaskId]?.effectText ?? '')}"
+        >${escapeHtml(FLASK_BY_ID[run.flaskId]?.name ?? 'flask')}</span>` : ''}</span>
       </div>
       <div class="progress-track">
         <div class="progress-fill" data-prog="${run.id}"></div>

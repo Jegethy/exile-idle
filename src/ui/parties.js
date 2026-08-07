@@ -7,7 +7,7 @@ import {
   MAX_MEMBERS, createParty, deleteParty, partyById, partyMembers, assignToParty,
   removeFromParty, isDeployed, heroById,
 } from '../heroes.js';
-import { G, on, partySlots } from '../state.js';
+import { G, on, emit, partySlots } from '../state.js';
 import { guildEffects } from '../data/upgrades.js';
 import { escapeHtml, fmt, qs } from '../util.js';
 import { ui } from './state.js';
@@ -134,6 +134,7 @@ Each party decides for itself, so one can farm while another waits for you.">
         const id = flask.dataset.setflask;
         party.flask = party.flask === id ? null : (id || null);
         renderParties();
+        emit('materials');            // the alchemy stand lists standing orders
         setStatus(party.flask
           ? `${party.name} will drink ${FLASKS.find((f) => f.id === party.flask).name} on dispatch.`
           : `${party.name} will carry no flask.`);
@@ -167,16 +168,36 @@ Each party decides for itself, so one can farm while another waits for you.">
  */
 function flaskPicker(party) {
   const stock = FLASKS.filter((f) => (G.state.flasks[f.id] ?? 0) > 0);
-  if (!stock.length && !party.flask) return '';
   const chosen = party.flask ? FLASKS.find((f) => f.id === party.flask) : null;
-  return `<div class="flask-picker">
+
+  // Shown even with nothing brewed and nothing assigned. It used to hide
+  // itself in exactly that case, which is the state every new guild is in —
+  // so the one moment a player might have discovered that a party can carry a
+  // flask was the one moment the control was invisible.
+  if (!stock.length && !chosen) {
+    return `<div class="flask-picker empty">
+      <span class="fp-label">Flask</span>
+      <span class="hint">None brewed. Flasks buff the whole party for a whole expedition —
+        brew them at the <b>alchemy stand</b> on the Workshop tab.</span>
+    </div>`;
+  }
+
+  const held = chosen ? (G.state.flasks[chosen.id] ?? 0) : 0;
+  const out = chosen && held <= 0;
+  return `<div class="flask-picker ${out ? 'out' : ''}">
     <span class="fp-label">Flask</span>
+    ${chosen ? `<button class="btn tiny" data-setflask="" data-party="${party.id}"
+        title="Carry nothing, and stop spending flasks on this party.">None</button>` : ''}
     ${stock.map((f) => `<button class="btn tiny ${party.flask === f.id ? 'active' : ''}"
         data-setflask="${f.id}" data-party="${party.id}"
         title="${escapeHtml(f.effectText)}">${escapeHtml(f.name.replace(/^(Flask|Elixir) of /, ''))}
         <small>${G.state.flasks[f.id]}</small></button>`).join('')}
-    ${chosen && !(G.state.flasks[chosen.id] > 0)
-    ? `<span class="hint">${escapeHtml(chosen.name)} — none left</span>` : ''}
+    ${chosen && !stock.some((f) => f.id === chosen.id)
+    ? `<button class="btn tiny active" data-setflask="${chosen.id}" data-party="${party.id}"
+        >${escapeHtml(chosen.name.replace(/^(Flask|Elixir) of /, ''))} <small>0</small></button>` : ''}
+    ${out
+    ? '<span class="hint fp-out">Out — this party is leaving without it.</span>'
+    : chosen ? `<span class="hint">${held} left</span>` : ''}
   </div>`;
 }
 

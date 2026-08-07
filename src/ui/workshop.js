@@ -2,6 +2,7 @@
 
 import { brew, craft, craftRepeat } from '../crafting.js';
 import { hasPrivilege, REPEAT_CRAFTS } from '../charter.js';
+import { flaskStatus, standingOrders } from '../alchemy.js';
 import { FAMILIES, MATERIAL_BY_ID, familyMaterials } from '../data/materials.js';
 import { FLASKS, RECIPES, flaskCost } from '../data/recipes.js';
 import { findItem, hasMaterials } from '../inventory.js';
@@ -110,6 +111,36 @@ export function renderCraftPanel() {
   renderAlchemy();
 }
 
+/**
+ * What the parties are actually waiting on.
+ *
+ * The stand used to be a price list. It never said that three parties were
+ * assigned the same flask and the guild held two, which is the only thing
+ * about alchemy a player needs to know between runs.
+ */
+function standingOrdersPanel() {
+  const orders = standingOrders();
+  if (!orders.length) return '';
+  const auto = hasPrivilege('standingStock');
+  const on = auto && !!G.state.settings.standingStock;
+  return `<div class="standing-orders">
+    <div class="so-head">
+      <span>Standing orders</span>
+      ${auto ? `<button class="toggle ${on ? 'on' : ''}" id="btnStandingStock" role="switch"
+        aria-checked="${on}" title="Keep every assigned flask brewed, up to three expeditions ahead.">
+        <span class="toggle-track"><span class="toggle-knob"></span></span>
+        <span class="toggle-label">Keep stocked</span></button>` : ''}
+    </div>
+    ${orders.map((st) => `<div class="so-row ${st.short ? 'short' : ''}">
+      <span class="so-name">${escapeHtml(st.def?.name ?? st.id)}</span>
+      <span class="so-who">${st.parties.map((p) => escapeHtml(p.name)).join(', ')}</span>
+      <span class="so-left">${st.short
+    ? 'not enough to go round'
+    : `${st.runsLeft} run${st.runsLeft === 1 ? '' : 's'} left`}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
 /** The alchemy stand: flasks, brewed in batches. Its own panel so the tutorial
  *  can point at it without also pointing at every bench recipe. */
 export function renderAlchemy() {
@@ -119,6 +150,7 @@ export function renderAlchemy() {
     <p class="hint">Flasks are brewed a few at a time from herbs. Give one to a party on the
       Parties tab and they drink it as they leave, buffing everyone for the whole expedition.
       It is used up whether the run goes well or not.</p>
+    ${standingOrdersPanel()}
     <div class="flask-list">${FLASKS.map((f) => {
     const cost = flaskCost(f);
     const afford = hasMaterials(cost);
@@ -129,6 +161,13 @@ export function renderAlchemy() {
           <span class="fl-held">${held ? `${held} in stock` : ''}</span>
         </div>
         <div class="fl-effect">${escapeHtml(f.effectText)}</div>
+        ${(() => {
+      const st = flaskStatus(f.id);
+      if (!st.want) return '';
+      return `<div class="fl-orders ${st.short ? 'short' : ''}">
+          ${st.want} part${st.want === 1 ? 'y' : 'ies'} waiting ·
+          ${st.runsLeft} run${st.runsLeft === 1 ? '' : 's'} of stock</div>`;
+    })()}
         <div class="fl-cost">${cost.map((c) =>
       `<span class="${(G.state.materials[c.id] ?? 0) >= c.qty ? '' : 'short'}">${c.qty}\u00d7 ${
         escapeHtml(MATERIAL_BY_ID[c.id].name)}</span>`).join('')}</div>
@@ -137,6 +176,14 @@ export function renderAlchemy() {
   }).join('')}</div>`;
 
   host.onclick = (e) => {
+    if (e.target.closest('#btnStandingStock')) {
+      G.state.settings.standingStock = !G.state.settings.standingStock;
+      renderAlchemy();
+      setStatus(G.state.settings.standingStock
+        ? 'The stand will keep every assigned flask brewed.'
+        : 'Standing Stock switched off.');
+      return;
+    }
     const b = e.target.closest('[data-brew]');
     if (b && !b.disabled) setStatus(brew(b.dataset.brew).msg);
   };

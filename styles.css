@@ -1741,3 +1741,32 @@ body.splash-open { overflow:hidden; }
    is advice, exactly as the composition notices are. */
 .btn.warn-send { border-color:var(--bad,#b5483f); color:var(--bad,#b5483f); }
 .btn.warn-send:hover { background:rgba(181,72,63,.14); }
+
+/* --- Alchemy: standing orders and stock ---------------------------------
+   The stand used to be a price list. It never said that three parties were
+   assigned the same flask and the guild held two, which is the only thing
+   about alchemy a player needs to know between expeditions. */
+.standing-orders {
+  margin:0 0 10px; padding:8px 10px; border-radius:4px;
+  border:1px solid var(--line); background:var(--bg-2);
+}
+.so-head {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:5px;
+}
+.so-row {
+  display:grid; grid-template-columns:1fr auto auto; gap:4px 10px; align-items:baseline;
+  font-size:11px; padding:3px 0; border-top:1px solid var(--line);
+}
+.so-name { color:var(--ink); }
+.so-who { color:var(--ink-faint); font-size:10px; }
+.so-left { color:var(--ink-faint); white-space:nowrap; }
+.so-row.short .so-left { color:var(--bad,#b5483f); }
+.fl-orders { font-size:10px; color:var(--ink-faint); margin-top:2px; }
+.fl-orders.short { color:var(--bad,#b5483f); }
+
+.flask-picker.empty .hint { font-size:10.5px; }
+.flask-picker.out { border-left:2px solid var(--bad,#b5483f); padding-left:6px; }
+.fp-out { color:var(--bad,#b5483f); }
+.run-flask { color:var(--gold-dim); }

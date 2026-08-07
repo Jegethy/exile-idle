@@ -248,7 +248,8 @@ click.
 **Alchemy** — Flasks and elixirs brewed from herbs. A flask is assigned to a
 party and drunk on dispatch, buffing that whole expedition — armour, life,
 damage, attack speed, or the elixirs that raise item rarity and gold. Deciding
-which company gets the good one is the point.
+which company gets the good one is the point. See [Alchemy was
+broken](#alchemy-was-broken-not-neglected).
 
 **Guild Hall** — Fourteen permanent upgrades across four sub-tabs, opening on
 an **Overview** of thirty figures the guild had no other way to read: clear
@@ -410,6 +411,47 @@ Re-outfitting twenty heroes against a two-hundred item vault runs thousands of
 stat sheets. Offline catch-up finishes dozens of expeditions inside a budget of
 a second and a half, so the batch version considers only what the party walked
 in with — which is also the honest reading of "gear that came home".
+
+## Alchemy was broken, not neglected
+
+Flasks were a complete system nobody used, and the investigation into why found
+something worse than neglect: **`FLASK_BY_ID` was referenced in
+`expedition.js` without being imported there.** Any party that actually carried
+a flask threw a `ReferenceError` inside `buildRun` and the dispatch died on the
+spot.
+
+It had been that way since the commit that split `expedition.js` along its
+seams — the code moved and the import did not come with it — and it survived a
+dozen commits with the whole suite green, because no test had ever dispatched a
+party with a flask and a reference to a missing binding costs nothing until the
+line runs.
+
+`tests/imports.test.mjs` now guards the class rather than the instance. It is
+deliberately narrow rather than a half-written linter: it looks only at
+`SHOUTING_CASE` and `*_BY_ID` names — the project's data tables and constants,
+which is exactly what gets left behind when code moves between files — and only
+flags one that some module in `src` actually exports. Reverting the import
+makes it fail.
+
+### The rest of it was being invisible at both ends
+
+Supply was never the problem. Measured, a Tier 12 run in the Dark Forest brings
+home about **fifteen herbs** against a three-herb flask.
+
+| Was | Now |
+|---|---|
+| The picker on a party card hid itself until you already held a flask — so the one moment a new player might have discovered flasks exist was the one moment the control was invisible | Always shown, and when the cupboard is empty it says what flasks do and where they are brewed |
+| A party assigned a flask it had run out of left without it, silently | Logged, and the party card is marked *"Out — this party is leaving without it"* |
+| Nothing said which flask was in effect on a run | Named on the expedition card |
+| The stand was a price list. It never said that three parties were assigned the same flask and the guild held two | Standing orders are listed, with who is waiting and how many rounds the guild can actually pour |
+
+With auto-redeploy a batch of three burns off in three expeditions, so the
+usual experience of alchemy — once the crash is fixed — would still have been a
+buff that quietly stopped working. **Standing Stock**, a Charter privilege at
+Guild Level 12, keeps every *assigned* flask brewed up to three expeditions
+ahead. It never brews anything nobody asked for: spending the guild's herbs on
+a flask no party wants would be the automation deciding what to play, which is
+the line every Charter automation stays on the right side of.
 
 ## Balance
 
