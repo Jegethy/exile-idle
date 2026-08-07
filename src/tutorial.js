@@ -15,7 +15,8 @@
 // which meant a fast expedition skipped the text out from under the player.
 
 import { G, log, emit } from './state.js';
-import { qs, qsa } from './util.js';
+import { qs, qsa, fmtInt } from './util.js';
+import { upgradeCost } from './data/upgrades.js';
 
 let active = false;
 let index = 0;
@@ -245,7 +246,7 @@ export const STEPS = [
     tab: 'expeditions', target: '#autoDispatchBox',
     title: 'Doing It Yourself',
     body: 'Auto-redeploy lives here, and it is locked until you buy <b>Standing Orders</b> in the '
-      + 'Guild Hall for 1,500 gold.'
+      + `Guild Hall for ${fmtInt(upgradeCost('autoDispatch', 0)?.amount ?? 0)} gold.`
       + '<br><br>That is deliberate. Sending the first several expeditions by hand is how you learn '
       + 'which dungeon pays what and how far your party can be pushed. Once that is second nature, '
       + 'buy it and let idle parties repeat their last run on their own.',

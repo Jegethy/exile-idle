@@ -4,7 +4,9 @@ import { rng } from '../rng.js';
 import { G, emit, log } from '../state.js';
 import { armourReduction, hitChance } from '../stats.js';
 import { clamp, fmt, uid } from '../util.js';
-import { DAMAGE_TYPES, WAVE_GAP, flaskFx, levelGap } from './balance.js';
+import {
+  DAMAGE_TYPES, WAVE_GAP, flaskFx, levelGap, gapMissChance, gapCrushChance, CRUSH_MULT,
+} from './balance.js';
 import { makeEnemy, makeGuardian } from './enemies.js';
 import { finishRun, onEnemyKilled } from './rewards.js';
 import { fireTrigger, modFrom, tickEffects } from './effects.js';
@@ -206,6 +208,20 @@ function heroAct(run, c, sheet) {
     if (rng.chance(0.05)) log(`${c.name} swings wide.`, 'hit');
     return;
   }
+  // Ten levels under and almost nothing you swing connects, whatever your
+  // accuracy says. See gapMissChance.
+  //
+  // The zero case is short-circuited rather than rolled: rng.chance(0) is
+  // always false but still draws, and a draw that changes nothing still shifts
+  // every seeded fight after it. Guarding it keeps parties below the cliff
+  // behaving exactly as they did.
+  const gapMiss = gapMissChance(c.level ?? run.level, run.level);
+  if (gapMiss > 0 && rng.chance(gapMiss)) {
+    if (rng.chance(0.04)) {
+      log(`${c.name} cannot reach ${target.name} — far above their level.`, 'danger');
+    }
+    return;
+  }
   const acc = sheet.accuracy * (1 + modFrom(c, 'incAccuracy') / 100);
   if (!rng.chance(hitChance(acc, target.evasion))) {
     if (rng.chance(0.05)) log(`${c.name} misses ${target.name}.`, 'hit');
@@ -303,6 +319,20 @@ function enemyAct(run, e) {
   // A shield only helps against what it is shaped to stop. A 'mixed' attacker
   // — the Worldeater — switches between the two, so no single shield answers it.
   const incoming = e.attack === 'mixed' ? (rng.chance(0.5) ? 'spell' : 'melee') : e.attack;
+
+  // A crushing blow: nothing turns it aside and nothing takes the edge off it.
+  // Only ever thrown by something well above the hero's level.
+  const crushChance = gapCrushChance(target.level ?? run.level, run.level);
+  if (crushChance > 0 && rng.chance(crushChance)) {
+    const raw = e.dmg * rng.range(0.85, 1.15) * CRUSH_MULT
+      * levelGap(target.level ?? run.level, run.level).incoming;
+    if (rng.chance(0.10)) log(`${e.name} lands a crushing blow on ${target.name}.`, 'danger');
+    gain(target, 'onTakeHit');
+    fireTrigger('takeHit', { run, self: target, target: e, amount: raw, kind: incoming });
+    damageHero(run, target, raw);
+    return;
+  }
+
   const chance = (incoming === 'spell' ? sheet.blockSpell : sheet.blockMelee)
     + modFrom(target, incoming === 'spell' ? 'blockSpell' : 'blockMelee');
   if (chance > 0 && rng.chance(chance / 100)) {

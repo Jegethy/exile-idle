@@ -71,8 +71,15 @@ export default async function run(browser) {
     const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
       const { dispatch, tickAll } = await import('./src/expedition.js');
+      const { tierToLevel } = await import('./src/data/dungeons.js');
       const trial = (blockMelee, blockSpell, attack) => {
-        for (const h of G.state.heroes) h.stamina = 100;
+        for (const h of G.state.heroes) {
+          h.stamina = 100;
+          // At the content's own level, so the level gap is not in play. Ten
+          // levels under, four in five blows crush straight through a block by
+          // design, and this test is about block rather than about levels.
+          h.level = tierToLevel(8);
+        }
         while (G.state.expeditions.length) G.state.expeditions.pop();
         dispatch(G.state.parties[0].id, 'mines', 8);
         const r_ = G.state.expeditions[0];
@@ -136,6 +143,45 @@ export default async function run(browser) {
     ok(!r.mods.some((m) => /Resistance|Life|Strength/i.test(m)),
       `Bulwark rolled an extra stat: ${r.mods.join('; ')}`);
     return `${r.name} — +${r.melee}/${r.spell}% block, no base stats`;
+  });
+
+  await test('a crushing blow goes through a full block', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { dispatch, tickAll } = await import('./src/expedition.js');
+      const { tierToLevel } = await import('./src/data/dungeons.js');
+      const { GAP_CLIFF } = await import('./src/expedition/balance.js');
+
+      const trial = (levelsDown) => {
+        for (const h of G.state.heroes) {
+          h.stamina = 100;
+          h.level = Math.max(1, tierToLevel(8) - levelsDown);
+        }
+        while (G.state.expeditions.length) G.state.expeditions.pop();
+        dispatch(G.state.parties[0].id, 'mines', 8);
+        const run = G.state.expeditions[0];
+        for (const c of run.combatants) {
+          const sh = G.sheets[c.uid];
+          sh.blockMelee = 100; sh.blockSpell = 100;   // nothing may be blocked away
+          sh.evasion = 0;
+          sh.armour = 1e9;                            // nor mitigated
+          for (const k of Object.keys(sh.res)) sh.res[k].value = 90;
+        }
+        const start = run.combatants.reduce((a, c) => a + c.life + c.es, 0);
+        for (let i = 0; i < 120 && G.state.expeditions.length; i++) {
+          for (const e of run.enemies) e.attack = 'melee';
+          tickAll(0.1);
+        }
+        return Math.round(start - run.combatants.reduce((a, c) => a + c.life + c.es, 0));
+      };
+      return { atLevel: trial(0), belowCliff: trial(GAP_CLIFF - 1), overCliff: trial(GAP_CLIFF + 4), cliff: GAP_CLIFF };
+    });
+    eq(r.atLevel, 0, 'a fully blocking party at its own level took damage');
+    eq(r.belowCliff, 0, `a party ${r.cliff - 1} levels under still had blows crush through`);
+    ok(r.overCliff > 0,
+      `nothing crushed through a full block ${r.cliff + 4} levels under the content`);
+    return `blocked entirely at level and below the cliff; ${r.overCliff} crushed through `
+      + `${r.cliff + 4} levels under`;
   });
 
   await test('no page errors', () => clean(errors));

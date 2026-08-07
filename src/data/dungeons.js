@@ -9,6 +9,8 @@
 // Each dungeon also has a defensive slant, so party composition is a real
 // decision rather than "bring the five strongest heroes".
 
+import { xpToNext } from '../state.js';
+
 export const DUNGEONS = [
   {
     id: 'mines', name: 'The Deepmines', focus: 'Gold', category: 'gold', icon: 'pick',
@@ -256,6 +258,56 @@ export function tierToLevel(tier) {
 /** Item level of gear dropped at a tier. */
 export function tierToIlvl(tier) {
   return tier <= 20 ? Math.round(1 + (tier - 1) * 4.4) : 85 + Math.round((tier - 20) * 2.2);
+}
+
+/**
+ * Roughly how many enemies a full clear kills.
+ *
+ * Measured rather than derived: nine at Tier 1, thirteen at Tier 2, and flat
+ * at about twenty-five from Tier 6 upwards, whatever the dungeon. Wave counts
+ * stop growing there, which is what makes the figure so stable.
+ */
+export function nominalKills(tier) {
+  return Math.min(25, 6 + tier * 3.5);
+}
+
+/**
+ * Hero experience for one kill at this tier.
+ *
+ * Expressed as a share of the level curve at the *content's* level rather than
+ * as a formula of its own, which fixes the single worst thing measurement
+ * turned up: hero levels fell about one level behind per tier, so a party
+ * farming Tier 9 was level 21 against level 30 enemies and a party at Tier 11
+ * was thirteen levels under. The level gap could then either be gentle enough
+ * to let that happen — which is what it was, and why deep-ish tiers were far
+ * too easy — or steep enough to be honest, which would have walled the game
+ * off at about Tier 4.
+ *
+ * Anchoring to `xpToNext(tierToLevel(tier))` makes a full clear worth about a
+ * quarter of a level to each of five heroes fighting at their own level, so
+ * four runs is a level and a tier's worth of levels is fifteen or so runs.
+ *
+ * It also makes over-levelling self-limiting, with no rule needed for it:
+ * farming a tier you have outgrown pays a share of *that* tier's level, which
+ * next to your own is nothing.
+ */
+export function xpPerKill(tier) {
+  const LEVEL_SHARE = 1 / 4;             // of a level, per clear, per hero
+  const PARTY_REF = 5;                   // the party size the share assumes
+  return (LEVEL_SHARE * xpToNext(tierToLevel(tier)) * PARTY_REF) / nominalKills(tier);
+}
+
+/**
+ * Guild experience for one cleared expedition.
+ *
+ * Flat per tier, and paid on completion rather than per kill. It used to be
+ * twelve per cent of the party's own experience, which meant the Proving Arena
+ * — an experience dungeon, with a 2.4x multiplier on it — levelled the guild
+ * three times faster than the Deepmines for the same work. Guild level is not
+ * a reward for choosing a particular dungeon.
+ */
+export function guildXpFor(tier) {
+  return 25 + tier * 15;
 }
 
 /** Stamina a single hero spends on one expedition at this tier. */

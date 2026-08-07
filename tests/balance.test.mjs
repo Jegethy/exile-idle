@@ -629,5 +629,73 @@ export default async function run() {
     return `${deep.length} bosses: beatable at tier, refused well below it`;
   });
 
+  // ---- The level cliff ---------------------------------------------------
+  await test('ten levels under is a wall, and nine is not', async () => {
+    // The reported problem: a level 12 party clearing Tier 9, whose enemies are
+    // level 30. The old penalty was linear and something enough gear could
+    // simply out-stat, so eighteen levels under still cleared twenty runs in
+    // twenty. What it could never do was say *why* a tier was out of reach.
+    const { tierToLevel } = await import('../src/data/dungeons.js');
+    const REF = ['guardian', 'cleric', 'archer', 'rogue', 'wizard'];
+    const TIER = 9;
+    const rows = [];
+    for (const down of [0, 5, 9, 10, 12, 15, 18]) {
+      const t = trial(REF, TIER, 12, 'mines', down);
+      rows.push({ down, clear: t.clearRate, secs: t.seconds });
+    }
+    console.log(`\n     Tier ${TIER}, enemies level ${tierToLevel(TIER)}   clear     time`);
+    for (const r of rows) {
+      console.log(`       ${String(r.down).padStart(2)} levels under `
+        + `${pct(r.clear).padStart(10)}${r.secs.toFixed(0).padStart(8)}s`);
+    }
+    const at = (d) => rows.find((r) => r.down === d);
+    ok(at(9).clear > 0.8, `nine levels under should still be fine, got ${pct(at(9).clear)}`);
+    ok(at(15).clear < 0.2, `fifteen levels under should be hopeless, got ${pct(at(15).clear)}`);
+    ok(at(18).clear < 0.05, `the reported case still clears ${pct(at(18).clear)} of the time`);
+    ok(at(10).secs > at(9).secs * 1.3,
+      'crossing the cliff should be felt even where it is still survivable');
+    return `9 under ${pct(at(9).clear)}, 12 under ${pct(at(12).clear)}, `
+      + `15 under ${pct(at(15).clear)}, 18 under ${pct(at(18).clear)}`;
+  });
+
+  await test('hero levels keep pace with what they are sent against', async () => {
+    // Before experience was anchored to the level curve, a party fell about a
+    // level behind per tier: farming Tier 9 left them level 21 against level 30
+    // enemies, and by Tier 12 they were seventeen under. That is what made the
+    // cliff above impossible to add without this.
+    const { xpPerKill, nominalKills, tierToLevel } = await import('../src/data/dungeons.js');
+    const { xpToNext } = await import('../src/state.js');
+    const rows = [4, 9, 16, 24, 32].map((tier) => ({
+      tier,
+      share: (xpPerKill(tier) * nominalKills(tier)) / 5 / xpToNext(tierToLevel(tier)),
+    }));
+    for (const x of rows) {
+      ok(x.share > 0.15 && x.share < 0.4,
+        `a Tier ${x.tier} clear is worth ${(x.share * 100).toFixed(0)}% of a level, not a quarter`);
+    }
+    return `a clear is worth about ${(rows[0].share * 100).toFixed(0)}% of a level at every depth`;
+  });
+
+  await test('guild experience is the same wherever it is earned', async () => {
+    // It used to be twelve per cent of the party's own experience, so the
+    // Proving Arena — which multiplies experience by 2.4 — levelled the guild
+    // three times faster than the Deepmines for identical work.
+    const { DUNGEONS, guildXpFor } = await import('../src/data/dungeons.js');
+    const { guildXpToNext } = await import('../src/state.js');
+    const spread = new Set(DUNGEONS.map((d) => guildXpFor(10)));
+    let cum = 0;
+    const marks = {};
+    for (let lv = 1; lv <= 30; lv++) {
+      cum += guildXpToNext(lv);
+      marks[lv] = Math.round(cum / guildXpFor(Math.min(30, lv * 1.5)));
+    }
+    eq(spread.size, 1, 'guild experience still depends on which dungeon you ran');
+    ok(marks[2] < 40, `Level 2 takes ${marks[2]} clears — the first privilege should be early`);
+    ok(marks[20] > 500, `Level 20 takes only ${marks[20]} clears`);
+    ok(marks[30] > 4000, `Level 30 takes only ${marks[30]} clears — not a marathon`);
+    return `same in every dungeon; roughly ${marks[2]}, ${marks[10]}, ${marks[20]} and `
+      + `${marks[30]} clears to Levels 2, 10, 20 and 30`;
+  });
+
   await test('no page errors', () => clean([]));
 }

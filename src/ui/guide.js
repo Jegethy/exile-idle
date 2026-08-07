@@ -340,8 +340,17 @@ function pageExpeditions() {
     section('Bring heroes of the right level',
       p('Every dungeon shows the level of the enemies inside. If your heroes are below that level,',
         'they deal less damage <i>and</i> take more. The bigger the gap, the worse it gets.'),
-      p('Once your heroes match the enemy level, there is no penalty at all. Levelling up is not',
-        'optional.')),
+      p(`<b>Ten levels below is a wall.</b> Past that, most of what your heroes swing misses no
+        matter how accurate they are, and a growing share of what hits them is a <b>crushing
+        blow</b> — it ignores armour, resistances and shields completely and hits half again as
+        hard. No amount of gear gets you through it. There is nothing to do but level up.`),
+      p('Nine levels below is a hard afternoon. Ten is survivable and takes about twice as long.',
+        'Fifteen is hopeless.'),
+      p('Once your heroes match the enemy level there is no penalty at all, and being <i>above</i>',
+        'it gives no bonus — clearing old content quickly is already the reward for having',
+        'outgrown it.'),
+      p('Levelling keeps up on its own if you actually run the tier you are on: about four',
+        'expeditions is a level. Skipping ahead is what puts you behind.')),
     section('The summary at the end',
       p('When an expedition finishes you get a summary: what you found, how long it took, and',
         'what each hero did.'),

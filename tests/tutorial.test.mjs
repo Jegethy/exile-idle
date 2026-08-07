@@ -11,6 +11,41 @@ const title = (page) => page.evaluate(() =>
   document.querySelector('#tutTitle')?.textContent?.trim() ?? '');
 
 /**
+ * Records how the current step looks, once per step.
+ *
+ * A step that names a target must actually cut a hole around it — the Guild
+ * Hall step once pointed at an element that had been pushed below the fold of
+ * its own tab, so the screen darkened and nothing lit up.
+ */
+async function sample(page, seen) {
+  const read = () => page.evaluate(async () => {
+    const { STEPS } = await import('./src/tutorial.js');
+    const label = document.querySelector('#tutStep')?.textContent ?? '';
+    const i = (Number(label.match(/Step (\d+)/)?.[1]) || 0) - 1;
+    const step = STEPS[i];
+    const ring = document.querySelector('#tutRing');
+    const r = ring?.getBoundingClientRect();
+    return {
+      id: step?.id ?? `#${i}`,
+      wants: step?.target ?? null,
+      resolves: step?.target ? !!document.querySelector(step.target) : true,
+      lit: !!ring && !ring.classList.contains('hidden')
+        && (r?.width ?? 0) > 1 && (r?.height ?? 0) > 1,
+    };
+  });
+
+  const first = await read();
+  if (first.id === seen[seen.length - 1]?.id) return first;
+  // A step that has only just opened has not had its cut-out measured yet:
+  // openStep schedules that for the next frame. Give it one, then look — the
+  // claim is that a step lights up, not that it does so within a frame.
+  await page.waitForTimeout(200);
+  const settled = await read();
+  if (settled.id !== seen[seen.length - 1]?.id) seen.push(settled);
+  return settled;
+}
+
+/**
  * Does whatever a player could do on the current step: press Continue if it is
  * visible and enabled, otherwise click the highlighted target. Returns what it
  * did, or null when the step is waiting on the game.
@@ -47,32 +82,10 @@ export default async function run(browser) {
       let last = '';
       seen.length = 0;
       while (guard++ < 140) {
-        // Recorded on the way past, for the highlight test below. A step that
-        // names a target must actually cut a hole around it -- the Guild Hall
-        // step once pointed at an element that had been pushed below the fold
-        // of its own tab, so the screen darkened and nothing lit up.
-        const sample = await page.evaluate(async () => {
-          const { STEPS } = await import('./src/tutorial.js');
-          const label = document.querySelector('#tutStep')?.textContent ?? '';
-          const i = (Number(label.match(/Step (\d+)/)?.[1]) || 0) - 1;
-          const step = STEPS[i];
-          const ring = document.querySelector('#tutRing');
-          const r = ring?.getBoundingClientRect();
-          return {
-            id: step?.id ?? `#${i}`,
-            wants: step?.target ?? null,
-            resolves: step?.target ? !!document.querySelector(step.target) : true,
-            lit: !!ring && !ring.classList.contains('hidden')
-              && (r?.width ?? 0) > 1 && (r?.height ?? 0) > 1,
-          };
-        });
-        // Once per step, as it opens. Sampling every pass through the loop
-        // also catches steps mid-transition -- the dispatch step's target is
-        // the Send button, which the click that advances the step disables.
-        if (sample.id !== seen[seen.length - 1]?.id) seen.push(sample);
         const done = await page.evaluate(async () =>
           (await import('./src/tutorial.js')).isTutorialActive() === false);
         if (done) break;
+        await sample(page, seen);
         last = await title(page);
         const acted = await act(page);
         if (acted) { await page.waitForTimeout(250); continue; }
@@ -82,6 +95,10 @@ export default async function run(browser) {
         // Deliberately not page.waitForFunction: its callback cannot be async,
         // because a returned Promise is truthy and the wait resolves at once.
         for (let w = 0; w < 240; w++) {
+          // Sampled in here as well as above. A click step schedules its own
+          // advance on a timer, so the two steps that follow a dispatch open
+          // and close entirely inside this poll — and were never looked at.
+          await sample(page, seen);
           const home = await page.evaluate(async () =>
             (await import('./src/state.js')).G.state.expeditions.length === 0);
           if (home) break;

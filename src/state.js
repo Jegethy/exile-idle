@@ -37,9 +37,19 @@ export function xpToNext(level) {
   return Math.floor(70 * Math.pow(level, 1.92) * Math.pow(1.045, level)) + 40;
 }
 
-/** XP required to raise the guild from `level` to `level + 1`. */
+/**
+ * XP required to raise the guild from `level` to `level + 1`.
+ *
+ * A marathon on purpose. Guild level buys charter privileges and nothing else,
+ * and a privilege that arrives every twenty minutes is a stream of
+ * interruptions rather than a ladder. Sized against a flat award per cleared
+ * expedition (see guildXpFor): roughly fifteen runs to Level 2, a hundred and
+ * seventy to Level 10, a thousand to Level 20, and ten thousand to Level 30 —
+ * which is thirty-odd hours with four parties in the field, and is meant to
+ * be.
+ */
 export function guildXpToNext(level) {
-  return Math.floor(900 * Math.pow(level, 1.80) * Math.pow(1.075, level)) + 400;
+  return Math.floor(420 * Math.pow(1.30, level)) + 220;
 }
 
 /** Cost in gold of the next recruit. Rises so roster growth stays a decision. */

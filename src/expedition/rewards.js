@@ -4,7 +4,7 @@
 // only becomes the guild's when somebody walks out with it.
 
 import {
-  DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl, DEEP_ILVL, BLANK_ILVL,
+  DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl, DEEP_ILVL, BLANK_ILVL, xpPerKill, guildXpFor,
 } from '../data/dungeons.js';
 import { gradeForIlvl, materialOf } from '../data/materials.js';
 import { guildEffects } from '../data/upgrades.js';
@@ -46,14 +46,13 @@ export function onEnemyKilled(run, enemy) {
   run.rewards.gold += gold;
 
   // --- Experience, split across the party ---
-  const xpTotal = (14 * Math.pow(run.tier, 1.6) + run.tier * 10) * enemy.xpMult * focus.xp;
+  const xpTotal = xpPerKill(run.tier) * enemy.xpMult * focus.xp;
   const survivors = run.combatants.filter((c) => !c.down);
   for (const c of survivors) {
     const share = xpTotal / Math.max(1, survivors.length);
     run.haul.heroXp[c.uid] = (run.haul.heroXp[c.uid] ?? 0) + share;
   }
   run.rewards.xp += xpTotal;
-  run.haul.guildXp += xpTotal * 0.12;
 
   // --- Gear ---
   // A guild equips a whole roster, not one character: five heroes across nine
@@ -259,6 +258,10 @@ export function finishRun(run, success) {
 function grantClearBonus(run) {
   const s = G.state;
   const gu = guildEffects(s.upgrades);
+  // Flat for the tier, and only for finishing. A recalled party keeps its haul
+  // but not the guild's credit for the expedition: the charter is a record of
+  // work completed.
+  run.haul.guildXp += guildXpFor(run.tier);
   const dungeon = DUNGEON_BY_ID[run.dungeonId];
   const key = `${run.dungeonId}:${run.tier}`;
   const first = !s.progress.cleared[key];

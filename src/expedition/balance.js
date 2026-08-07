@@ -90,3 +90,51 @@ export function levelGap(heroLevel, contentLevel) {
     incoming: 1 + gap * GAP_INCOMING,
   };
 }
+
+/**
+ * Where fighting above your level stops being expensive and starts being
+ * pointless.
+ *
+ * Ten levels, and it is a cliff rather than a slope on purpose. The gradual
+ * version of this was measured doing far too little: a party eleven levels
+ * under content still cleared it twenty times out of twenty, because a linear
+ * penalty on damage dealt and taken is something enough gear can simply
+ * out-stat. What it could not do was tell the player *why* a tier was out of
+ * reach — Tier 11 was fine and Tier 12 was impossible, with nothing on screen
+ * to say so.
+ *
+ * A cliff at a stated number is legible. The dispatch panel prints the level
+ * of what lives down there, and now that number means something exact.
+ */
+export const GAP_CLIFF = 10;
+
+/**
+ * How often a hero simply cannot land a blow on something far above them.
+ *
+ * Nothing at all until the cliff, then most swings, rising to almost all of
+ * them. This is not accuracy — accuracy is answered by more accuracy, and the
+ * point of this is that no amount of gear answers being under-levelled.
+ */
+export function gapMissChance(heroLevel, contentLevel) {
+  const gap = Math.max(0, contentLevel - heroLevel);
+  if (gap < GAP_CLIFF) return 0;
+  return Math.min(0.92, 0.55 + (gap - GAP_CLIFF) * 0.045);
+}
+
+/**
+ * How often a blow from far above lands as a *crushing* one.
+ *
+ * A crushing blow ignores armour, resistances and block outright and lands
+ * half again as hard. Mitigation is the other thing gear buys, so if the miss
+ * chance above were the only cliff a party could still turtle behind a
+ * Guardian and grind down anything at all, slowly. This closes that door: the
+ * one thing you cannot gear your way out of is being ten levels down.
+ */
+export function gapCrushChance(heroLevel, contentLevel) {
+  const gap = Math.max(0, contentLevel - heroLevel);
+  if (gap < GAP_CLIFF) return 0;
+  return Math.min(0.8, 0.2 + (gap - GAP_CLIFF) * 0.06);
+}
+
+/** What a crushing blow multiplies the hit by, on top of ignoring everything. */
+export const CRUSH_MULT = 1.5;

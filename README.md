@@ -152,6 +152,13 @@ are cooldowns and triggers on the combat effects layer.
 | **Inquisitor** | DPS | Mediocre at everything, and makes the whole party better. |
 | **Bard** | Support | Fights barely harder than the tank. Keeps everyone else going. |
 
+**Dual wielding is a fighting style, not a permission.** The Rogue holds a
+one-handed weapon in each hand and cannot take a shield or a two-hander at all.
+Letting it pick up a greatsword made the class's one distinguishing feature
+optional, and an off-hand that accepts both a second dagger and a tower shield
+cannot be filled automatically without guessing which build was wanted. A
+second weapon also displaces the *weaker* hand rather than always the main one.
+
 Five rarities from Common to Legendary set stat multipliers and how many
 **traits** a hero rolls — 28 traits across three tiers, from `Sturdy` to
 `Executioner`. Rogues bring back more gold; Treasure Hunters more still.
@@ -190,7 +197,7 @@ flagged in the UI, and dies accordingly.
 depth matters: you rotate parties rather than running the same five heroes forever.
 
 **Dispatching by hand, at first.** Auto-redeploy is locked behind **Standing
-Orders**, a one-off 1,500 gold purchase in the Guild Hall. Sending the opening
+Orders**, a one-off 12,000 gold purchase in the Guild Hall. Sending the opening
 expeditions yourself is how you learn which dungeon pays what and how far a
 party can be pushed; once that is second nature, buy it and the toggle appears
 on the Expeditions tab. Early runs are also deliberately short — dungeons reach
@@ -243,9 +250,19 @@ party and drunk on dispatch, buffing that whole expedition — armour, life,
 damage, attack speed, or the elixirs that raise item rarity and gold. Deciding
 which company gets the good one is the point.
 
-**Guild Hall** — Fourteen permanent upgrades. **Expedition Charters** are the
-headline purchase: each one lets another party run concurrently, which changes
-how the game plays more than any stat.
+**Guild Hall** — Fourteen permanent upgrades across four sub-tabs, opening on
+an **Overview** of thirty figures the guild had no other way to read: clear
+rate, deepest tier, average item level, empty equipment slots, gold an hour,
+collection progress. **Expedition Charters** are the headline purchase: each
+one lets another party run concurrently, which changes how the game plays more
+than any stat.
+
+Prices are set against measured income. A Deepmines clear pays about 590 gold
+at Tier 2, 1,145 at Tier 4 and 2,200 at Tier 8 — and at the old prices *every*
+rank-one upgrade cost one to three runs, with the second charter and
+auto-redeploy together coming to under ten expeditions. A first rank is now a
+few runs' work and the two that change how the game plays are goals: 25,000 for
+a charter, 12,000 for Standing Orders.
 
 **The Guild Charter** — Fourteen privileges granted by Guild Level, free and in
 a fixed order. Where the Guild Hall sells numbers for gold, the Charter hands
@@ -255,6 +272,11 @@ parties that pick their own tier. See [The Charter](#the-charter).
 
 **Raids** — Five milestone bosses gated by tier and Raid Seals. Pure stat checks
 with guaranteed payouts; every first kill permanently raises guild rewards.
+
+**Sealed contracts** have a tab of their own, badged with how many you hold. A
+full board is sixteen dense cards, and wedged into the Expeditions tab between
+the tier selector and the dungeon grid they pushed the thing you came for off
+the bottom of the screen.
 
 **The vault** — Filter by slot and by base type, sort by power, item level,
 rarity, slot or name, and every item is marked with who it would improve and by
@@ -302,17 +324,18 @@ whole design:
 | 27 | Standing Seals | A party on its own orders spends a contract that fits them |
 | 30 | Push Orders | A party climbs a tier on three clean clears, and falls back on a wipe |
 
-The levels were placed against measured guild experience, not guessed. Guild XP
-is 12% of the party's, so a Deepmines clear pays 2,157 at Tier 8, 8,605 at Tier
-20 and 18,821 at Tier 30, against a level curve of 1.075 per level.
+Guild experience is **flat for the tier and paid only for finishing** — 25 plus
+15 a tier, so 40 at Tier 1 and 325 at Tier 20. It used to be twelve per cent of
+the party's own experience, which meant the Proving Arena, an experience
+dungeon carrying a 2.4× multiplier, levelled the guild three times faster than
+the Deepmines for identical work. Guild level is not a reward for picking a
+particular dungeon.
 
-At a modest twenty-five runs a tier, simply *climbing* the ladder carries a
-guild to roughly Level 7 by Tier 8, Level 10 by Tier 12, Level 15 by Tier 20
-and Level 22 by Tier 36 — so everything up to the Sealed Archive arrives on the
-way up. The last three rungs are not reachable by climbing at all; they want
-farming, which is the point of putting the automation there. Four parties on
-Tier 30 turn over about 6.8M guild XP an hour, which is Level 21 in an hour of
-it and Level 30 in an evening.
+Against that, the level curve is deliberately a marathon: roughly **24 clears
+to Level 2, 100 to Level 10, 730 to Level 20 and 10,000 to Level 30** — which
+is thirty-odd hours with four parties in the field, and is meant to be. A
+privilege arriving every twenty minutes is a stream of interruptions rather
+than a ladder.
 
 **Nothing was moved behind a gate.** Every privilege is new capability, so a
 save from before the Charter loses nothing and is credited silently on load for
@@ -354,6 +377,26 @@ good as it is.
 It is greedy over three sweeps rather than exhaustive. Nine slots against a
 full vault is a search far too large to solve properly and far too small to be
 worth solving.
+
+**Gear Up allocates rather than hands out.** It used to work down the party,
+which meant the first hero took the best of everything and the fifth got what
+was left — a party geared that way came out lopsided and half of it had to be
+undone by hand. Every hero now bids for every item and the largest improvement
+wins, repeatedly. Three things fall out of that without being asked for: empty
+and badly outdated slots fill first, because a bare slot is where the largest
+gain always is; the party comes up together, since a hero who has taken a few
+pieces bids less than one still in rags; and a unique lands on whoever it helps
+most, because that is simply the biggest number.
+
+Main hands and off hands are separate rounds. Deciding the pair outright and
+claiming both let a bare Wizard — whose relative gain from being armed at all
+is enormous — walk off with the party's only shield, since nothing else could
+go in its off hand. Deciding the main hand alone would fail the other way: a
+two-hander beats a one-hander on its own nearly every time, so a tank would
+take the greatsword and never be offered a shield. The main hand is chosen with
+the whole pair in view and only the weapon claimed; the off hand is then bid for
+on its own, where the marginal value of a shield to a Guardian and to a Wizard
+are finally comparable.
 
 **Locked items are never taken.** A lock already means hands-off to
 auto-salvage, and the most valuable thing anyone locks is a blank base being
@@ -538,32 +581,76 @@ widens from there. What holds at *every* depth tried is that the Bard's party
 loses fewer heroes — 3.14 against 3.54 at eight levels down, 0.48 against 0.74
 at five — which is the more honest statement of what it does.
 
-## Level matters
+## Level matters, and past ten levels it is the only thing that matters
 
-Every dungeon states the level of what lives in it, and that used to be
-decoration: enemy strength came from the tier and hero strength from levels and
-gear, but the distance between the two was never consulted. A level-9 party
-could grind down level-33 content, because two healers out-sustained damage
-that never became more threatening for being far above them.
+Every dungeon states the level of what lives in it, and for a long time that
+number was nearly decoration. Fighting above your level cut what you dealt and
+raised what you took, both linearly — and a linear penalty is something enough
+gear can simply out-stat. Measured, a party **eleven levels under** content
+still cleared it twenty runs out of twenty.
 
-Fighting above your level now cuts what you deal and raises what you take.
-Being over-levelled grants nothing — clearing old content quickly is already
-the reward for having outgrown it.
+Worse, it could never say *why* a tier was out of reach. Tier 11 was fine and
+Tier 12 was impossible, with nothing on screen to explain the difference.
 
-| Level-9 party in the Deepmines | Clear rate |
+**Ten levels is now a cliff.** Past it, two things happen that no amount of
+gear answers:
+
+| | |
 |---|---|
-| Tier 4 (level 12) | 100% |
-| Tier 6 (level 19) | 100% |
-| Tier 8 (level 26) | 50% |
-| Tier 10 (level 33) | 0% |
+| **You cannot land a blow** | 55% of your swings miss outright at ten levels under, rising to 92%. This is not accuracy — accuracy is answered by more accuracy. |
+| **Their blows crush** | A growing share of what hits you ignores armour, resistances and block entirely, and lands half again as hard. Mitigation is the other thing gear buys; this closes that door too. |
 
-Flattening the enemy damage curve was tried first and abandoned. Raising the
-base enough to pressure a geared mid-game party makes tier 1 unclearable for
-three level-1 heroes with a club between them: the distance between a starter
-and a fully geared party of the same level is far larger than the distance
-between tiers. The level gap works precisely because it only touches parties
-fighting above their own level, so it cannot make anyone's first expedition
-harder.
+Measured at Tier 9, whose enemies are level 30:
+
+| Levels under | Clear rate | Time |
+|---|---|---|
+| 0 | 100% | 17s |
+| 5 | 100% | 22s |
+| 9 | 100% | 27s |
+| **10** | **83%** | **47s** |
+| 12 | 25% | 49s |
+| 15 | 0% | — |
+| 18 | 0% | — |
+
+Nine levels under is a hard afternoon. Ten is survivable and takes nearly twice
+as long. Twelve is a coin flip you lose. Fifteen is a wall — and the reported
+case that prompted this, a level 12 party in Tier 9, is eighteen under.
+
+### Which meant hero levels had to keep pace
+
+The cliff could not be added on its own. Measured over a full playthrough,
+hero levels fell about **one level behind per tier**: a party farming Tier 9
+was level 21 against level 30 enemies, and by Tier 12 they were seventeen
+under. Every tier past about six was being cleared from the wrong side of a
+gap that was simply too weak to notice. A cliff on top of that would have
+walled the game off at roughly Tier 4.
+
+Hero experience is now expressed as a **share of the level curve at the
+content's own level** rather than as a formula of its own:
+
+```
+xpPerKill(tier) = ⅕ of a level × 5 heroes ÷ kills per clear,
+                  measured at tierToLevel(tier)
+```
+
+A full clear is worth about a quarter of a level to each of five heroes
+fighting at their own level, so four runs is a level and a tier's worth of
+levels is fifteen or so runs. Measured over eighteen tiers at twelve runs
+each, a party now sits a steady **three to five levels above** what it fights,
+where it used to fall behind by one a tier.
+
+Two things fall out of that shape for free. Being *under*-levelled pays
+enormously — the experience is sized for the content's level and applied to
+your lower one — so the gap always closes if you farm. And being
+*over*-levelled pays almost nothing, because a tier you have outgrown is
+handing you a share of its level rather than yours. No rule was needed for
+either.
+
+Flattening the enemy damage curve was tried first, long ago, and abandoned:
+raising the base enough to pressure a geared mid-game party makes Tier 1
+unclearable for three level-1 heroes with a club between them. The level gap
+works precisely because it only touches parties fighting above their own level,
+so it can never make anyone's first expedition harder.
 
 **The Rogue's burst profile is real, and resources are what made it real.** A
 flat damage buff had nothing to multiply in a wave that is over in two swings,
