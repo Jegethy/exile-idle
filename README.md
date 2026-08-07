@@ -1118,6 +1118,66 @@ and the highlighted card agree without anyone having clicked a party; and a
 party in the field offers neither control, because editing a party that is
 currently underground is not a thing that can be made to mean anything.
 
+## Stamina is a pool with a floor, not a cooldown
+
+It used to be a cooldown by accident, and the accident hollowed out an upgrade.
+
+A party on auto-redeploy spent its pool down once and then bounced between zero
+and the price of a single run for ever. Measured over twenty simulated minutes
+at Tier 6: **thirty-nine consecutive expeditions with the bar never once above
+15 of 100.** Eighty-five percent of the pool was unreachable after the opening
+burst, so the number that mattered was not "how much stamina do I have" but "how
+many seconds until I can afford one more run" — and Guild Quarters, the upgrade
+whose entire purpose is stamina recovery, bought a slightly shorter seventeen
+second wait rather than anything a player could feel.
+
+The rule now has two halves, and **either half alone restores the sawtooth**:
+
+1. A party whose members have run out cannot be dispatched — by the player or by
+   any automation. `dispatch` gates on `canDispatch`, so there is one door.
+2. A hero who runs out rests **all the way back to full** before going anywhere.
+
+The second is a latch rather than a threshold, because hysteresis is the whole
+point: without it, "cannot dispatch below the cost of a run" is just the same
+bounce one notch higher.
+
+Exhaustion is latched on *"cannot afford to repeat what I just did"* rather than
+on a fixed number, so it scales with what the party is actually doing without
+anything having to know the tier: eleven runs at a cheap tier, two at an
+expensive one, one for a raid at double price.
+
+### What it bought
+
+Twenty simulated minutes, one party told to keep going:
+
+| Tier | Quarters | Regen/s | Cost | Expeditions | Runs per burst | Time resting |
+|---|---|---|---|---|---|---|
+| 6 | — | 0.85 | 15 | 36 | 6 | 60% |
+| 6 | 5 | 1.36 | 15 | 47 | 6 | 48% |
+| 6 | 15 | 2.38 | 15 | 54 | 6 | 40% |
+| 12 | — | 0.85 | 22 | 28 | 4 | 63% |
+| 20 | — | 0.85 | 32 | 12 | 2 | 66% |
+| 20 | 15 | 2.38 | 32 | 20 | 3 | 51% |
+
+Total throughput barely moved at rank 0 — 39 expeditions became 36 — so this is
+not a nerf, it is a change of shape. What moved is that **Guild Quarters at full
+rank is now worth 50% more expeditions** instead of a few seconds nobody could
+see, and that the guild works in bursts with real downtime between them.
+
+That downtime is what gives three existing things a job they never quite had: a
+second Expedition Charter, the Reserve Roster privilege (which now reads the
+latch rather than the bar, and will not field a spent hero as relief), and
+Quarters itself.
+
+### Saying so
+
+A party that silently refuses to dispatch is worse than one that never rests, so
+the card carries a banner naming who is spent, stating that rest goes to full,
+and counting down to the second. The countdown is retimed in the tick rather
+than by re-rendering the panel, which is the same treatment the stamina bars
+already get — a number that changes ten times a second is not a reason to
+rebuild a panel the player may be dragging heroes around in.
+
 ## You are shown the run you asked for
 
 Reported as a tutorial bug and it was not one.

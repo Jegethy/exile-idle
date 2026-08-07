@@ -6,12 +6,12 @@ import {
   BASE_STAMINA, assignToParty, boardCosts, dismiss, heroById, heroInfo, isDeployed,
   partyById, recruit, recruitBoard, rerollCost, rerollRecruits, removeFromParty,
   toggleRecruitLock, unequipFromHero, equipSkill, rerollSkills, rerollCostFor,
-  canRerollSkills,
+  canRerollSkills, restSeconds,
 } from '../heroes.js';
 import { itemBaseStats } from '../items.js';
 import { G, emit, on } from '../state.js';
 import { ehp, heroStats } from '../stats.js';
-import { clamp, escapeHtml, fmt, fmtInt, qs } from '../util.js';
+import { clamp, escapeHtml, fmt, fmtInt, fmtTime, qs } from '../util.js';
 import { closeModals, confirmAction, openModal } from './modals.js';
 import { gotoTab, setStatus } from './shell.js';
 import { R, ui } from './state.js';
@@ -265,13 +265,17 @@ export function renderRoster() {
         <span>${fmt(sheet?.life ?? 0)} hp</span>
         ${sheet?.healPower > 0 ? `<span>${fmt(sheet.healPower)} heal</span>` : ''}
       </div>
-      <div class="stam-track" title="Stamina">
+      <div class="stam-track ${h.resting ? 'resting' : ''}" data-stamtrack="${h.uid}"
+        title="Stamina. A hero who runs out rests all the way back to full before going out again.">
         <i class="stam-fill" data-stam="${h.uid}" style="width:${stam}%"></i>
         <span class="stam-text" data-stamtext="${h.uid}">${Math.round(h.stamina)}</span>
       </div>
       <div class="hero-foot">${out ? '<span class="tag out">In the field</span>'
     : party ? `<span class="tag">${escapeHtml(party.name)}</span>`
-      : '<span class="tag idle">Unassigned</span>'}</div>
+      : '<span class="tag idle">Unassigned</span>'}
+        ${!out && h.resting
+    ? `<span class="tag resting" data-rest="${h.uid}">Resting ${fmtTime(Math.ceil(restSeconds(h)))}</span>`
+    : ''}</div>
     </div>`;
   }).join('');
 
@@ -297,6 +301,12 @@ export function updateStaminaBars() {
     bar.style.width = `${clamp((h.stamina / BASE_STAMINA) * 100, 0, 100)}%`;
     const txt = qs(`[data-stamtext="${h.uid}"]`);
     if (txt) txt.textContent = Math.round(h.stamina);
+    // Retimed here rather than by re-rendering the roster once a second: a
+    // countdown is the one thing on the card that changes every tick.
+    const track = qs(`[data-stamtrack="${h.uid}"]`);
+    if (track) track.classList.toggle('resting', !!h.resting);
+    const rest = qs(`[data-rest="${h.uid}"]`);
+    if (rest) rest.textContent = `Resting ${fmtTime(Math.ceil(restSeconds(h)))}`;
   }
 }
 

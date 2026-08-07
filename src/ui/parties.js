@@ -5,11 +5,11 @@ import { FLASKS } from '../data/recipes.js';
 import { dispatch } from '../expedition.js';
 import {
   MAX_MEMBERS, createParty, deleteParty, partyById, partyMembers, assignToParty,
-  removeFromParty, isDeployed, heroById,
+  removeFromParty, isDeployed, heroById, restSeconds,
 } from '../heroes.js';
 import { G, on, emit, partySlots } from '../state.js';
 import { guildEffects } from '../data/upgrades.js';
-import { escapeHtml, fmt, qs } from '../util.js';
+import { escapeHtml, fmt, fmtTime, qs } from '../util.js';
 import { ui } from './state.js';
 import { confirmAction } from './modals.js';
 import { openHeroModal } from './roster.js';
@@ -20,6 +20,44 @@ import { gearUpParty, pct } from '../outfit.js';
 // ===========================================================================
 // Parties
 // ===========================================================================
+/**
+ * Why this party is going nowhere, and for how long.
+ *
+ * A party that simply refuses to dispatch with no explanation is worse than one
+ * that never rests. The rule — run out of stamina and you rest all the way back
+ * to full — is stated here rather than left to be inferred from a greyed-out
+ * button, and the countdown is real so the wait has a visible end.
+ */
+function restingBanner(party, members, running) {
+  if (running) return '';
+  const spent = members.filter((h) => h.resting);
+  if (!spent.length) return '';
+  const wait = Math.ceil(Math.max(...spent.map((h) => restSeconds(h))));
+  return `<div class="party-resting" data-partyrest="${party.id}">
+    <b>Resting</b> — ${escapeHtml(spent.map((h) => h.name).join(', '))}
+    ran out of stamina and ${spent.length === 1 ? 'rests' : 'rest'} to full before going out again.
+    <span class="pr-when">Ready in <b data-restwhen="${party.id}">${fmtTime(wait)}</b>.</span>
+  </div>`;
+}
+
+
+/**
+ * Retimes the rest countdowns without rebuilding the cards.
+ *
+ * Same reasoning as the stamina bars: a number that changes every tick is not a
+ * reason to re-render a panel the player may be dragging heroes around in.
+ */
+export function updatePartyRest() {
+  const s = G.state;
+  if (!s) return;
+  for (const party of s.parties) {
+    const el = qs(`[data-restwhen="${party.id}"]`);
+    if (!el) continue;
+    const spent = partyMembers(party).filter((h) => h.resting);
+    if (!spent.length) continue;
+    el.textContent = fmtTime(Math.ceil(Math.max(...spent.map((h) => restSeconds(h)))));
+  }
+}
 
 export function renderParties() {
   const s = G.state;
@@ -71,7 +109,8 @@ export function renderParties() {
         ${roles.length && !roles.includes('Healer') && !G.state.settings.hideCompWarnings
     ? '<span class="warn" title="Nobody will mend the party. Fine for content you outgear.">no healer</span>' : ''}
       </div>
-      <div class="party-members">${members.map((h) => `<span class="pm ${RARITY_BY_ID[h.rarity].cls}">
+      ${restingBanner(p, members, running)}
+      <div class="party-members">${members.map((h) => `<span class="pm ${RARITY_BY_ID[h.rarity].cls} ${h.resting ? 'spent' : ''}">
         <i class="pm-dot"></i><span class="pm-name" data-hero="${h.uid}"
           title="Open ${escapeHtml(h.name)}'s sheet">${escapeHtml(h.name)}</span>
         <small>${escapeHtml(CLASS_BY_ID[h.classId].role)} · Lv${h.level}</small>

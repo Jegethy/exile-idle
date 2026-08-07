@@ -97,9 +97,17 @@ function pageBasics() {
         'and only give up the bonus for finishing. If a run is going badly, recalling is usually',
         'the right call.')),
     section('Stamina',
-      p('Every expedition uses up stamina, which refills while a hero rests. A tired hero cannot',
-        'be sent out. This is why it helps to have more heroes than you need: while one party',
-        'rests, another can go.')));
+      p('Every expedition uses up stamina. How much depends on the tier: a cheap tier lets a hero',
+        'go out ten or eleven times before they are spent, a deep one only two or three.'),
+      p('When a hero no longer has enough left for another run of the same kind, they are',
+        '<b>spent</b> and start <b>resting</b> — and resting goes all the way back to full. They',
+        'cannot be sent anywhere until it does, and neither can the party they are in. The card',
+        'tells you who is resting and how long is left.'),
+      p('So your guild works in bursts: a run of expeditions, then a rest. Three things shorten',
+        'the rest or fill it. <b>Guild Quarters</b> in the Guild Hall speeds recovery up, and at',
+        'full rank it is worth about half as many expeditions again. A <b>second party</b> can go',
+        'out while the first sleeps. And the <b>Reserve Roster</b> swaps a spent hero for a rested',
+        'one off the bench without you doing anything.')));
 }
 
 function pageClasses() {
@@ -420,8 +428,8 @@ function pageExpeditions() {
     section('Sending parties out automatically',
       p('Buy <b>Standing Orders</b> in the Guild Hall to unlock this.'),
       p('The switch is <b>per party</b>. If you turn it on for one party, only that party keeps',
-        'going. When they run out of stamina they wait until it refills, then carry on. Your other',
-        'parties stay put unless you turn it on for them too.')),
+        'going. When they run out of stamina they rest all the way back to full and then carry',
+        'on by themselves. Your other parties stay put unless you turn it on for them too.')),
     section('Closing the tab',
       p('The game keeps running in a background tab. If you close it entirely, you get credit for',
         'time passed when you come back, up to a limit, for any party set to repeat automatically.')));

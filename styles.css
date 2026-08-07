@@ -1877,3 +1877,26 @@ body.splash-open { overflow:hidden; }
   border-top:1px solid var(--line); padding-top:10px; margin-top:4px;
 }
 .sp-commit .hint { flex:1 1 220px; font-size:10.5px; line-height:1.4; }
+
+/* ==========================================================================
+   Resting — stamina is a pool with a floor, not a cooldown
+   ==========================================================================
+   A party that refuses to dispatch with no explanation is worse than one that
+   never rests, so the rule and the countdown are both stated on the card. */
+.party-resting {
+  margin:6px 0; padding:6px 9px; border-radius:3px; font-size:11px; line-height:1.45;
+  border:1px solid var(--line-2); border-left:2px solid var(--xp);
+  background:rgba(138,95,208,.08); color:var(--ink-dim);
+}
+.party-resting b { color:var(--ink); }
+.pr-when { display:block; margin-top:2px; color:var(--ink-faint); }
+.pr-when b { color:var(--xp); }
+
+.pm.spent .pm-name { color:var(--ink-faint); }
+.pm.spent .pm-dot { background:var(--xp); }
+
+.tag.resting { color:var(--xp); border-color:rgba(138,95,208,.45); background:rgba(138,95,208,.10); }
+.stam-track.resting { border-color:rgba(138,95,208,.5); }
+.stam-track.resting .stam-fill { background:linear-gradient(90deg,#4a3374,var(--xp)); }
+.ready.ready-resting { border-color:rgba(138,95,208,.45); background:rgba(138,95,208,.08); }
+.ready.ready-resting .ready-band { color:var(--xp); }

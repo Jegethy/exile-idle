@@ -20,7 +20,7 @@ import { FLASK_BY_ID } from './data/recipes.js';
 import { guildEffects } from './data/upgrades.js';
 import { clamp, fmt } from './util.js';
 import {
-  partyById, partyMembers, canDispatch, staminaCostFor,
+  partyById, partyMembers, canDispatch, spendStamina,
 } from './heroes.js';
 
 import { CLASS_BY_ID } from './data/heroclasses.js';
@@ -76,7 +76,7 @@ export function dispatch(partyId, dungeonId, tier, contractId = null) {
     }
   }
 
-  for (const hero of members) hero.stamina -= staminaCostFor(hero, cost);
+  for (const hero of members) spendStamina(hero, cost);
 
   // A flask is drunk on the way out, not saved for a rainy day.
   //
@@ -156,7 +156,7 @@ export function dispatchRaid(partyId, raidId) {
 
   s.guild.seals -= def.seals;
   const members = partyMembers(party);
-  for (const hero of members) hero.stamina -= staminaCostFor(hero, cost);
+  for (const hero of members) spendStamina(hero, cost);
 
   const run = buildRun({
     partyId, members, tier: def.tier,

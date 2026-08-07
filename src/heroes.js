@@ -1,7 +1,7 @@
 // heroes.js — the roster: recruitment, levelling, stamina and equipment.
 
 import { rng } from './rng.js';
-import { uid } from './util.js';
+import { fmtTime, uid } from './util.js';
 import { G, log, emit, xpToNext, recruitCost, spendGold } from './state.js';
 import {
   HERO_CLASSES, CLASS_BY_ID, HERO_RARITIES, RARITY_BY_ID, FIRST_NAMES, EPITHETS,
@@ -68,6 +68,8 @@ export function rollHero(opts = {}) {
     // Chosen, not rolled — and never at recruitment. See specs.js.
     specs: [],
     specDeferred: 0,
+    // Latched when they run out of stamina, cleared at full. See spendStamina.
+    resting: false,
     equipment,
     stamina: BASE_STAMINA,
     partyId: null,
@@ -224,12 +226,76 @@ export function staminaCostFor(hero, baseCost) {
   return Math.max(1, Math.round(baseCost * (1 + perks.staminaCost / 100)));
 }
 
-export function restAll(dt) {
+/**
+ * Spends an expedition's stamina, and latches exhaustion when it runs out.
+ *
+ * The latch is the whole point. Without it, stamina was a cooldown wearing a
+ * resource's clothing: a party on auto-redeploy spent down to nothing once and
+ * then bounced between zero and the price of a single run forever. Measured
+ * over twenty simulated minutes at Tier 6, the bar sat between 0 and 15 of 100
+ * for thirty-nine consecutive expeditions — so eighty-five percent of the pool
+ * was never touched again, and Guild Quarters bought a slightly shorter
+ * seventeen-second wait rather than anything that felt like rest.
+ *
+ * A hero who can no longer afford to repeat what they just did is spent, and
+ * has to come back to full before going anywhere. That makes the pool mean
+ * something (how many runs you get before a rest), makes the regeneration rate
+ * mean something (how long the rest takes), and gives a second party and the
+ * Reserve Roster an actual job.
+ *
+ * Latching on "cannot repeat this" rather than a fixed threshold makes it scale
+ * with what the party is doing on its own: eleven runs at a cheap tier, two at
+ * an expensive one, one for a raid at double price.
+ */
+export function spendStamina(hero, baseCost) {
+  const price = staminaCostFor(hero, baseCost);
+  hero.stamina = Math.max(0, hero.stamina - price);
+  if (hero.stamina < price) hero.resting = true;
+  return price;
+}
+
+/** Whether this hero is sitting out until they are back to full. */
+export function isResting(hero) {
+  return !!hero?.resting;
+}
+
+/** Seconds until a resting hero is ready, or 0 if they already are. */
+export function restSeconds(hero) {
+  if (!hero?.resting) return 0;
   const regen = staminaRegen();
-  for (const hero of G.state.heroes) {
-    if (isDeployed(hero) || hero.stamina >= BASE_STAMINA) continue;
-    hero.stamina = Math.min(BASE_STAMINA, hero.stamina + regen * dt);
+  if (regen <= 0) return Infinity;
+  return Math.max(0, (BASE_STAMINA - hero.stamina) / regen);
+}
+
+export function restAll(dt) {
+  const s = G.state;
+  const regen = staminaRegen();
+  // Recorded before anything moves, so a party can be told it is ready exactly
+  // once rather than on every tick it spends at full.
+  const wasResting = new Set();
+  for (const hero of s.heroes) if (hero.resting) wasResting.add(hero.uid);
+
+  let recovered = false;
+  for (const hero of s.heroes) {
+    if (!isDeployed(hero) && hero.stamina < BASE_STAMINA) {
+      hero.stamina = Math.min(BASE_STAMINA, hero.stamina + regen * dt);
+    }
+    if (hero.resting && hero.stamina >= BASE_STAMINA) {
+      hero.resting = false;
+      recovered = true;
+    }
   }
+  if (!recovered) return;
+
+  // One line per party rather than one per hero. The player now has real
+  // downtime, and the thing they want to know is when it is over.
+  for (const party of s.parties) {
+    const members = partyMembers(party);
+    if (!members.length || members.some((h) => h.resting)) continue;
+    if (!members.some((h) => wasResting.has(h.uid))) continue;
+    log(`${party.name} is rested and ready.`, 'sys');
+  }
+  emit('roster');
 }
 
 export function isDeployed(hero) {
@@ -304,16 +370,30 @@ export function removeFromParty(heroUid) {
   return true;
 }
 
-/** Party is dispatchable: has members, none deployed, all with enough stamina. */
+/** Party is dispatchable: has members, none deployed, none resting, all with enough stamina. */
 export function canDispatch(party, cost) {
   const members = partyMembers(party);
   if (!members.length) return { ok: false, msg: 'This party has no members.' };
   if (G.state.expeditions.some((e) => e.partyId === party.id)) {
     return { ok: false, msg: 'This party is already on an expedition.' };
   }
+  // Checked before the general stamina test, and reported differently, because
+  // the two are different situations: "not enough for this tier, try a cheaper
+  // one" against "spent, and going nowhere until fully rested".
+  const resting = members.filter((h) => h.resting);
+  if (resting.length) {
+    const wait = Math.ceil(Math.max(...resting.map((h) => restSeconds(h))));
+    return {
+      ok: false,
+      resting: true,
+      msg: `${resting.map((h) => h.name).join(', ')} ${resting.length === 1 ? 'is' : 'are'} `
+        + `resting — ready in ${fmtTime(wait)}. A hero who runs out of stamina rests to full `
+        + 'before going out again.',
+    };
+  }
   const tired = members.filter((h) => h.stamina < staminaCostFor(h, cost));
   if (tired.length) {
-    return { ok: false, msg: `${tired.map((h) => h.name).join(', ')} ${tired.length === 1 ? 'is' : 'are'} too tired.` };
+    return { ok: false, msg: `${tired.map((h) => h.name).join(', ')} ${tired.length === 1 ? 'is' : 'are'} too tired for this tier.` };
   }
   return { ok: true, msg: '' };
 }

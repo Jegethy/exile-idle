@@ -26,7 +26,7 @@ import { pumpToasts } from './ui/toast.js';
 import { recordFeat } from './achievements.js';
 import { wireModals, openModal, closeModals, renderSlots, renderSettings } from './ui/modals.js';
 import { renderRoster, updateStaminaBars, renderRecruitBoard } from './ui/roster.js';
-import { renderParties } from './ui/parties.js';
+import { renderParties, updatePartyRest } from './ui/parties.js';
 import {
   renderRuns, updateRunBars, renderDispatch, updateReportTimers, updateDispatchButtons,
 } from './ui/expeditions.js';
@@ -131,6 +131,7 @@ export function tick() {
   pumpCharterToasts();
   pumpToasts();
   updateStaminaBars();
+  updatePartyRest();
   renderStatus();
   tutorialTick();
 }

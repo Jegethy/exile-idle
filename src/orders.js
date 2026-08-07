@@ -95,10 +95,13 @@ export function reservesPass(party, cost) {
 
   let swapped = 0;
   for (const hero of partyMembers(party)) {
-    if (hero.stamina >= staminaCostFor(hero, cost)) continue;
+    // A resting hero is spent whatever their current bar says: they are sitting
+    // out until they are back to full, which is precisely who this is for.
+    if (!hero.resting && hero.stamina >= staminaCostFor(hero, cost)) continue;
     const relief = s.heroes.find((h) => h.partyId === null
       && h.classId === hero.classId
       && !isDeployed(h)
+      && !h.resting
       && h.stamina >= staminaCostFor(h, cost));
     if (!relief) continue;
     removeFromParty(hero.uid);

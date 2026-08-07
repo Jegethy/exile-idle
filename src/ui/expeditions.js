@@ -7,7 +7,7 @@ import {
 import { RESOURCES } from '../data/resources.js';
 import { guildEffects } from '../data/upgrades.js';
 import { dispatch, recall, runProgress } from '../expedition.js';
-import { canDispatch, partyById } from '../heroes.js';
+import { canDispatch, partyById, partyMembers, restSeconds } from '../heroes.js';
 import { G, on, emit, partySlots } from '../state.js';
 import { clamp, escapeHtml, fmt, fmtTime, qs } from '../util.js';
 import { setStatus, gotoTab } from './shell.js';
@@ -187,6 +187,19 @@ function readinessRow(idleParties, tier) {
     const r = readiness(p, tier);
     if (!r.size) return '';
     const gearBehind = r.ilvl > 0 && r.contentIlvl - r.ilvl >= 12;
+    // A party that is resting is not ready, whatever its levels say. Printing
+    // the readiness band beside a Send button greyed out for stamina is the
+    // panel contradicting itself.
+    const spent = partyMembers(p).filter((h) => h.resting);
+    if (spent.length) {
+      const wait = Math.ceil(Math.max(...spent.map((h) => restSeconds(h))));
+      return `<span class="ready ready-resting"
+        title="Ran out of stamina. A hero who does rests all the way back to full before going out again.">
+        <b>${escapeHtml(p.name)}</b>
+        <span class="ready-lv">Lv ${r.level} vs ${r.content}</span>
+        <span class="ready-band">Resting ${fmtTime(wait)}</span>
+      </span>`;
+    }
     return `<span class="ready ready-${r.band.id}" title="${escapeHtml(r.band.hint)}">
       <b>${escapeHtml(p.name)}</b>
       <span class="ready-lv">Lv ${r.level} vs ${r.content}</span>
