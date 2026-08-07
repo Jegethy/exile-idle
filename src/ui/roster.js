@@ -18,6 +18,10 @@ import { R, ui } from './state.js';
 import { hideTooltip, moveTooltip, showHeroTooltip, showItemTooltip } from './tooltip.js';
 import { hasPrivilege } from '../charter.js';
 import { gearUpHero } from '../outfit.js';
+import {
+  heroesAwaitingChoice, levelFor, nagging, optionsFor, pendingTier, specsOf,
+} from '../specs.js';
+import { openSpecModal } from './specs.js';
 
 // ===========================================================================
 // Roster
@@ -27,9 +31,15 @@ function renderRosterHeader() {
   const s = G.state;
   const cheapest = Math.min(...boardCosts());
   const afford = s.guild.gold >= cheapest;
+  // Nothing interrupts. Twelve heroes cross level 15 within an hour of each
+  // other, and a modal twelve times over would get twelve decisions made at
+  // random — which is the opposite of what a permanent choice is for.
+  const owed = heroesAwaitingChoice(s);
   qs('#rosterHeader').innerHTML = `
     <div class="panel-head">
       <span class="hint">${s.heroes.length} hero${s.heroes.length === 1 ? '' : 'es'}</span>
+      ${owed.length ? `<button class="btn tiny spec-call" id="btnSpecNext">
+        ${owed.length} specialisation${owed.length === 1 ? '' : 's'} waiting</button>` : ''}
       <button class="btn tiny ${afford ? 'primary' : ''}" id="btnRecruit">
         Hiring Hall${afford ? '' : ` — from ${fmtInt(cheapest)}g`}
       </button>
@@ -42,6 +52,8 @@ function renderRosterHeader() {
     ? 'Drag a hero to reorder.' : 'Sorting never changes your own order.'}</span>
     </div>`;
   qs('#btnRecruit').onclick = () => { renderRecruitBoard(); openModal('modalRecruit'); };
+  const specBtn = qs('#btnSpecNext');
+  if (specBtn) specBtn.onclick = () => openSpecModal(owed[0].uid);
   qs('#rosterSorts').onclick = (e) => {
     const b = e.target.closest('[data-rsort]');
     if (!b) return;
@@ -243,6 +255,11 @@ export function renderRoster() {
         <span class="role role-${info.cls.role.toLowerCase()}">${info.cls.role}</span>
         <span class="hero-rarity">${info.rarity.name}</span>
       </div>
+      ${specsOf(h).length || nagging(h) ? `<div class="hero-specs">
+        ${specsOf(h).map((sp) => `<span class="spec-chip ${sp.axis}"
+          title="${escapeHtml(sp.desc)}">${escapeHtml(sp.name)}</span>`).join('')}
+        ${nagging(h) ? '<span class="spec-chip waiting">Choice waiting</span>' : ''}
+      </div>` : ''}
       <div class="hero-stats">
         <span>${fmt(sheet?.dps ?? 0)} dps</span>
         <span>${fmt(sheet?.life ?? 0)} hp</span>
@@ -287,6 +304,39 @@ export function updateStaminaBars() {
 // Hero modal
 // ===========================================================================
 
+/**
+ * What this hero has become, and what is still open.
+ *
+ * A deferred choice is shown here exactly as an unspent one is — deferring
+ * silences the roster badge, not the sheet. The hero's own page is where a
+ * player goes to look, and hiding an available decision there would turn "not
+ * yet" into "never", which is not what was asked for.
+ */
+function specSection(hero) {
+  const taken = specsOf(hero);
+  const tier = pendingTier(hero);
+  const rows = taken.map((sp) => `<div class="spec-row ${sp.axis}">
+      <b>${escapeHtml(sp.name)}</b><span>${escapeHtml(sp.desc)}</span>
+    </div>`).join('');
+
+  if (tier) {
+    const n = optionsFor(hero, tier).length;
+    return `${rows}<div class="spec-open">
+      <button class="btn primary" id="btnSpecChoose">Choose — ${n} option${n === 1 ? '' : 's'}</button>
+      <span class="hint">${taken.length ? 'Their second and last choice.' : 'Their first choice.'}
+        It cannot be undone, and taking it later costs nothing.</span>
+    </div>`;
+  }
+  if (!taken.length) {
+    return `<p class="hint">Nothing yet. ${escapeHtml(hero.name)} chooses at level ${levelFor(1)}
+      and again at level ${levelFor(2)}, and both choices are permanent.</p>`;
+  }
+  const next = taken.length < 2 ? levelFor(taken.length + 1) : null;
+  return `${rows}<p class="hint">${next
+    ? `Specialises again at level ${next}.`
+    : 'Both choices made. Nothing further to decide.'}</p>`;
+}
+
 export function openHeroModal(heroUid) {
   const hero = heroById(heroUid);
   if (!hero) return;
@@ -314,6 +364,12 @@ export function openHeroModal(heroUid) {
         <span><b>${fmt(ehp(sheet))}</b> ehp</span>
       </div>
     </div>
+
+    <div class="section-head"><span>Specialisation</span>
+      <div class="head-actions"><span class="hint">Permanent · levels ${
+  levelFor(1)} and ${levelFor(2)}</span></div>
+    </div>
+    ${specSection(hero)}
 
     <div class="section-head"><span>Traits</span></div>
     <div class="trait-list">${info.traits.length
@@ -373,6 +429,9 @@ export function openHeroModal(heroUid) {
   for (const btn of qs('#heroModalBody').querySelectorAll('[data-skill]')) {
     btn.onclick = () => { equipSkill(hero, btn.dataset.skill); openHeroModal(hero.uid); };
   }
+
+  const chooseBtn = qs('#btnSpecChoose');
+  if (chooseBtn) chooseBtn.onclick = () => openSpecModal(hero.uid);
 
   // Rerolling destroys two skills the player may have been using, so it asks
   // first and names what it costs. It is confirmed rather than undoable

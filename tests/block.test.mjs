@@ -174,14 +174,23 @@ export default async function run(browser) {
         }
         return Math.round(start - run.combatants.reduce((a, c) => a + c.life + c.es, 0));
       };
-      return { atLevel: trial(0), belowCliff: trial(GAP_CLIFF - 1), overCliff: trial(GAP_CLIFF + 4), cliff: GAP_CLIFF };
+      // The two "nothing gets through" trials are absolute and need one run
+      // each. The one that has to *see* a crush is a dice roll on a twelve
+      // second window, and a single window has come back empty — so it is
+      // summed over several. Measuring "never" once is sound; measuring
+      // "sometimes" once is a coin toss.
+      const atLevel = trial(0);
+      const belowCliff = trial(GAP_CLIFF - 1);
+      let overCliff = 0;
+      for (let i = 0; i < 5; i++) overCliff += trial(GAP_CLIFF + 4);
+      return { atLevel, belowCliff, overCliff, cliff: GAP_CLIFF };
     });
     eq(r.atLevel, 0, 'a fully blocking party at its own level took damage');
     eq(r.belowCliff, 0, `a party ${r.cliff - 1} levels under still had blows crush through`);
     ok(r.overCliff > 0,
-      `nothing crushed through a full block ${r.cliff + 4} levels under the content`);
+      `nothing crushed through a full block in five runs ${r.cliff + 4} levels under the content`);
     return `blocked entirely at level and below the cliff; ${r.overCliff} crushed through `
-      + `${r.cliff + 4} levels under`;
+      + `over five runs ${r.cliff + 4} levels under`;
   });
 
   await test('no page errors', () => clean(errors));

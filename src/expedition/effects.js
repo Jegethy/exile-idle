@@ -17,7 +17,7 @@
 
 import { rng } from '../rng.js';
 import { clamp } from '../util.js';
-import { spend } from './resource.js';
+import { costOf, spend } from './resource.js';
 
 /** Modifier keys an effect may contribute. Anything else is ignored. */
 export const MOD_KEYS = [
@@ -32,6 +32,28 @@ export const MOD_KEYS = [
   // How fast a hero's pool refills. This is what a support class trades its
   // own damage for: it does not heal, it makes the healer able to keep going.
   'resourceRegen',
+  // Standing in front of someone. `redirect` is the share of a covered ally's
+  // blow this hero takes instead; `redirectAll` above zero extends the cover
+  // past the front line to the whole party; `redirectShave` is the reduction
+  // applied on the way across. Only direct blows are moved — a bleed already
+  // inside somebody is not something you can step in front of.
+  'redirect', 'redirectAll', 'redirectShave',
+  // Standing against the level gap. `crushResist` takes a percentage off a
+  // crushing blow, which is otherwise the one thing nothing mitigates;
+  // `noCrit` above zero means an enemy's critical lands as an ordinary hit.
+  // `dodgeChance` is a flat chance to be missed, which evasion cannot be
+  // out-scaled into and enemy accuracy cannot answer.
+  'crushResist', 'noCrit', 'dodgeChance',
+  // What an action costs, as a percentage change. Negative is a discount.
+  // A class ability the hero cannot afford is a class ability that does not
+  // exist, which is why this is worth as much to a party as raw regeneration.
+  'costMult',
+  // Damage that depends on the state of what is being hit rather than on the
+  // hero: the opener against something untouched, the finisher against
+  // something nearly dead.
+  'openerDamage', 'finisherDamage',
+  // How much more a ward placed by this hero absorbs.
+  'wardPower',
 ];
 
 /**
@@ -81,6 +103,15 @@ export function applyEffect(target, effect) {
     existing.duration = Math.max(existing.duration, effect.duration);
     if (effect.dps) existing.dps = Math.max(existing.dps ?? 0, effect.dps);
     if (effect.hps) existing.hps = Math.max(existing.hps ?? 0, effect.hps);
+    // ...except where the whole point is that the value moves. An effect sized
+    // from something that changes during the fight — how badly hurt the hero
+    // is, most of all — must be allowed to shrink as well as grow, or it pins
+    // itself at whatever it happened to be worth the first time it landed.
+    // Opt-in, so nothing that relies on refresh-never-downgrades is touched.
+    if (effect.rescale && effect.mods) {
+      existing.mods = effect.mods;
+      existing.magnitude = 1;
+    }
     return true;
   }
 
@@ -186,7 +217,16 @@ export function fireTrigger(trigger, ctx) {
     // A class ability costs the hero's resource; an item's effect does not.
     // Paying is checked after the roll and before the cooldown, so a reaction
     // that could not be afforded has not burnt its cooldown either.
-    if (r.costs && !spend(ctx.self, r.costs)) continue;
+    //
+    // The price is resolved here rather than inside spend() so a discount can
+    // apply to a named cost as well as a numeric one: 'ability' and 'heal' are
+    // looked up on the combatant, and there is nowhere else that knows both
+    // the name and who is being asked to pay.
+    if (r.costs) {
+      const price = costOf(ctx.self, r.costs)
+        * Math.max(0, 1 + modFrom(ctx.self, 'costMult') / 100);
+      if (price > 0 && !spend(ctx.self, price)) continue;
+    }
     if (r.cooldown) {
       const until = ctx.self.cooldowns?.[r.key] ?? 0;
       if (ctx.run.elapsed < until) continue;

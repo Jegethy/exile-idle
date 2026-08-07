@@ -8,18 +8,25 @@
 import { CLASS_BY_ID } from '../data/heroclasses.js';
 import { UNIQUE_BY_ID } from '../data/uniques.js';
 import { SKILL_BY_ID } from '../data/skills.js';
+import { SPEC_BY_ID } from '../data/specs.js';
 
 /**
- * Every reaction a hero brings into a run: their class ability, their equipped
- * skill, plus the effect of any unique item they are wearing.
+ * Every reaction a hero brings into a run: their class ability, whichever
+ * specialisations they have taken, their equipped skill, plus the effect of any
+ * unique item they are wearing.
  *
- * All three are the same shape, which is the whole reason this stays short.
+ * All four are the same shape, which is the whole reason this stays short.
  */
 export function reactionsFor(hero, sheet) {
   const out = [];
 
   const cls = CLASS_BY_ID[hero.classId];
   if (cls?.ability?.reactions) out.push(...cls.ability.reactions);
+
+  for (const id of hero.specs ?? []) {
+    const spec = SPEC_BY_ID[id];
+    if (spec?.reactions) out.push(...spec.reactions);
+  }
 
   const skill = hero.skill ? SKILL_BY_ID[hero.skill] : null;
   if (skill?.reactions) out.push(...skill.reactions);

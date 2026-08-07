@@ -17,6 +17,7 @@
 import { HERO_CLASSES, HERO_RARITIES, ROLES } from '../data/heroclasses.js';
 import { TRAITS } from '../data/traits.js';
 import { SKILLS, skillPoolFor, SKILL_CHOICES } from '../data/skills.js';
+import { SPECS, AXES, SPEC_LEVELS, specPoolFor } from '../data/specs.js';
 import { RESOURCES, CLASS_RESOURCE } from '../data/resources.js';
 import { DUNGEONS, RAIDS, DEEP_ILVL } from '../data/dungeons.js';
 import { MODIFIERS } from '../data/modifiers.js';
@@ -250,6 +251,57 @@ function pageTraits() {
       ])),
     p(`Here are all ${TRAITS.length} of them.`),
     byTier);
+}
+
+function pageSpecs() {
+  const branches = SPECS.filter((s) => s.tier === 1);
+  const tips = SPECS.filter((s) => s.tier === 2);
+  const axisTag = (id) => `<span class="ax-${id}">${esc(AXES.find((a) => a.id === id)?.name ?? id)}</span>`;
+  const nameOf = (id) => SPECS.find((s) => s.id === id)?.name ?? id;
+
+  return section('Specialisations',
+    p(`At level <b>${SPEC_LEVELS[0]}</b> a hero picks what kind of fighter they are going to be,`,
+      `and at level <b>${SPEC_LEVELS[1]}</b> they pick again from a shorter list that follows on`,
+      'from the first. Everything else about a hero was rolled when you hired them. This is the',
+      'part you choose.'),
+    section('It cannot be undone',
+      p('There is no retraining. Not for gold, not for Echo Stones, not for anything. Once a hero',
+        'has chosen, that is what they are for as long as they are in your guild. If you want a',
+        'hero built differently, you hire one and specialise them differently.'),
+      p('You do not have to choose at all. A hero can stay unspecialised forever — they are simply',
+        'a bit weaker. The choice never expires, so you can leave it and come back at any level.',
+        'Press <b>Decide Later</b> and nothing happens.'),
+      p('When you open the choice, click an option to see what it does to that hero\'s own numbers',
+        'before you commit.')),
+    section('Three shapes',
+      p('Every option is one of three kinds, in every role. Once you have specialised one hero you',
+        'already know roughly what the other two options mean.'),
+      table(['Kind', 'What it means'],
+        AXES.map((a) => [axisTag(a.id), esc(a.hint)]))),
+    section('What each hero can pick',
+      p('Options are shared between classes that do the same job. A Warrior and a Paladin can both',
+        'become Bulwarks — they still fight differently, because their class is unchanged. Heroes',
+        'are never offered something they could not use.'),
+      table(['Class', `At level ${SPEC_LEVELS[0]}`],
+        HERO_CLASSES.map((c) => [
+          `<b>${esc(c.name)}</b>`,
+          specPoolFor(c, 1).map((s) => esc(s.name)).join(', '),
+        ]))),
+    section(`The ${branches.length} first choices`,
+      table(['Specialisation', 'Job', 'Kind', 'What it does'],
+        branches.map((s) => [
+          `<b>${esc(s.name)}</b>`, roleTag(s.role), axisTag(s.axis), esc(s.desc),
+        ]))),
+    section(`The ${tips.length} second choices`,
+      p(`At level ${SPEC_LEVELS[1]} a hero picks again, but only from the ones that follow on from`,
+        'their first choice. A Bulwark can become a Defender. A Bulwark can never become a',
+        'Daredevil, and can never go back to being an ordinary Warrior.'),
+      table(['Specialisation', 'Follows on from', 'Kind', 'What it does'],
+        tips.map((s) => [
+          `<b>${esc(s.name)}</b>`,
+          (s.from ?? []).map((id) => esc(nameOf(id))).join(', '),
+          axisTag(s.axis), esc(s.desc),
+        ]))));
 }
 
 function pageSkills() {
@@ -574,6 +626,7 @@ const PAGES = [
   { id: 'stats', label: 'Words & Numbers', render: pageStats },
   { id: 'traits', label: 'Traits', render: pageTraits },
   { id: 'skills', label: 'Skills', render: pageSkills },
+  { id: 'specs', label: 'Specialisations', render: pageSpecs },
   { id: 'items', label: 'Items', render: pageItems },
   { id: 'expeditions', label: 'Expeditions', render: pageExpeditions },
   { id: 'raids', label: 'Raids', render: pageRaids },

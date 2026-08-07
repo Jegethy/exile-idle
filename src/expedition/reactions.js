@@ -12,11 +12,74 @@ import { rng } from '../rng.js';
 import { log } from '../state.js';
 import { applyEffect } from './effects.js';
 import { healHero } from './vitals.js';
+import { kindOf } from './resource.js';
 
 /** A timed modifier on whoever acted. */
 export function selfBuff(id, name, mods, duration, extra = {}) {
   return (ctx) => {
     applyEffect(ctx.self, { id, name, mods, duration, ...extra });
+  };
+}
+
+/**
+ * A timed modifier on every standing ally, including the one who acted.
+ *
+ * Scoped to the source, so two heroes carrying the same aura both contribute
+ * rather than taking turns overwriting each other. Four class abilities had
+ * hand-rolled this loop before the specialisations wanted it a dozen more
+ * times.
+ */
+export function partyBuff(id, name, mods, duration = Infinity) {
+  return (ctx) => {
+    for (const ally of ctx.run.combatants) {
+      if (ally.down) continue;
+      applyEffect(ally, {
+        id: `${id}:${ctx.self.uid}`, name, mods, duration, source: ctx.self.uid,
+      });
+    }
+  };
+}
+
+/** A timed modifier on one other combatant, usually the target of the trigger. */
+export function buffTarget(id, name, mods, duration) {
+  return (ctx) => {
+    if (!ctx.target || ctx.target.down) return;
+    applyEffect(ctx.target, {
+      id: `${id}:${ctx.self.uid}`, name, mods, duration, source: ctx.self.uid,
+    });
+  };
+}
+
+/**
+ * Puts points back into whoever acted, never past their maximum.
+ *
+ * A class with no pool is unaffected rather than erroring — the same rule
+ * spend() follows, so a reaction that refunds is safe to hang on any trigger.
+ */
+export function restoreResource(amount) {
+  return (ctx) => {
+    const r = ctx.self?.resource;
+    if (!r || !kindOf(ctx.self)) return;
+    r.cur = Math.min(r.max, r.cur + amount);
+  };
+}
+
+/**
+ * A self buff whose size is read from how badly hurt the hero is.
+ *
+ * "Stronger as life falls" cannot be a static modifier — it has to be recomputed
+ * as the fight turns. Hanging it on `takeHit` is what makes that true without
+ * the combat tick having to know the idea exists: a hero being beaten on is
+ * getting the value refreshed constantly, and a hero standing untouched at full
+ * life does not need it.
+ */
+export function woundScaledBuff(id, name, key, maxBonus, duration = 6) {
+  return (ctx) => {
+    const missing = 1 - (ctx.self.life / Math.max(1, ctx.self.maxLife));
+    if (missing <= 0) return;
+    applyEffect(ctx.self, {
+      id, name, duration, rescale: true, mods: { [key]: Math.round(maxBonus * missing) },
+    });
   };
 }
 

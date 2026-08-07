@@ -11,7 +11,7 @@ import { makeEnemy, makeGuardian } from './enemies.js';
 import { finishRun, onEnemyKilled } from './rewards.js';
 import { fireTrigger, modFrom, tickEffects } from './effects.js';
 import { addWard, damageHero, healHero } from './vitals.js';
-import { canAfford, gain, spend, tickResource } from './resource.js';
+import { canAfford, costOf, gain, spend, tickResource } from './resource.js';
 
 /** Advances every running expedition by `dt` seconds. */
 export function tickAll(dt) {
@@ -184,11 +184,15 @@ function heroAct(run, c, sheet) {
   // only while they can pay for it. A healer with nothing left picks up their
   // mace and joins in, which is worse for the party and better than watching
   // somebody stand still.
-  if (sheet.healPower > 0 && canAfford(c, 'heal')) {
+  // A discount applies to the cast itself and not only to triggered abilities:
+  // for a healer this *is* the ability, and a support that made everything
+  // else cheaper but not the healing would be missing the point of itself.
+  const healCost = costOf(c, 'heal') * Math.max(0, 1 + modFrom(c, 'costMult') / 100);
+  if (sheet.healPower > 0 && canAfford(c, healCost)) {
     const wounded = run.combatants
       .filter((x) => !x.down && x.life < x.maxLife * 0.92)
       .sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife))[0];
-    if (wounded && spend(c, 'heal')) {
+    if (wounded && spend(c, healCost)) {
       const power = sheet.healPower * (1 + modFrom(c, 'incHeal') / 100);
       const healed = healHero(wounded, power, c);
       fireTrigger('heal', { run, self: c, target: wounded, amount: healed });
@@ -244,12 +248,25 @@ export function swing(run, c, sheet, target, depth) {
     ? Math.max(1, (sheet.critMulti * (1 + modFrom(c, 'critMulti') / 100)) / 100)
     : 1;
   // Energy classes spend to hit harder. Affording it is a bonus, not a
-  // requirement: the swing happens either way.
-  const empowered = spend(c, 'empower');
+  // requirement: the swing happens either way. The discount reaches this too —
+  // a Rogue's empower is priced above what its energy sustains on purpose, so
+  // "opens fast and tapers" is exactly the thing a support exists to relieve.
+  const empowered = spend(c, costOf(c, 'empower')
+    * Math.max(0, 1 + modFrom(c, 'costMult') / 100));
   const bonus = empowered ? (c.empowerBonus ?? 0) : 0;
 
+  // Damage that depends on the state of the thing being hit rather than on the
+  // hero. An opener is worth nothing on a target already bleeding, and a
+  // finisher nothing on one at full health, so neither can be folded into the
+  // stat sheet — they have to be read here, where the target is known.
+  let situational = 0;
+  const opener = modFrom(c, 'openerDamage');
+  if (opener > 0 && target.life >= target.maxLife * 0.8) situational += opener;
+  const finisher = modFrom(c, 'finisherDamage');
+  if (finisher > 0 && target.life <= target.maxLife / 3) situational += finisher;
+
   const dmgMult = (1
-    + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage') + bonus) / 100)
+    + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage') + bonus + situational) / 100)
     // Fighting above your level takes the edge off everything you swing.
     * levelGap(c.level ?? run.level, run.level).outgoing;
 
@@ -267,6 +284,13 @@ export function swing(run, c, sheet, target, depth) {
     }
     total += d;
   }
+
+  // An enemy can be made easier to hurt, which is the whole contribution of a
+  // curse or a torn wound: it costs the caster damage and pays it back through
+  // everyone else. Applied last, so it multiplies the finished figure rather
+  // than racing the armour and resistance calculations above.
+  const vulnerable = modFrom(target, 'damageTaken');
+  if (vulnerable) total *= Math.max(0, 1 + vulnerable / 100);
 
   target.life -= total;
   c.damageDealt = (c.damageDealt ?? 0) + total;
@@ -297,6 +321,44 @@ export function swing(run, c, sheet, target, depth) {
 /** How many times a single attack may be repeated by an effect. */
 export const MAX_REPEAT_DEPTH = 2;
 
+/**
+ * Whoever is standing in front of `victim`, if anyone is.
+ *
+ * Only the first is used, deliberately: two Wardens each taking a share of a
+ * share is a party that cannot be damaged, and "somebody stepped in front of
+ * that" does not compose. A Warden covers the front line; a Vanguard's cover
+ * reaches the back row as well.
+ */
+function guardianFor(run, victim) {
+  for (const c of run.combatants) {
+    if (c === victim || c.down) continue;
+    if (modFrom(c, 'redirect') <= 0) continue;
+    if (victim.row !== 'front' && modFrom(c, 'redirectAll') <= 0) continue;
+    return c;
+  }
+  return null;
+}
+
+/**
+ * Lands a blow on a hero, after anyone guarding them has taken their share.
+ *
+ * The redirected portion goes through damageHero without firing `takeHit` on
+ * the guardian. That is a choice rather than an oversight: one enemy swing
+ * firing the full trigger chain on two heroes would double every on-hit
+ * reaction in the party, and the blow was aimed at somebody else.
+ */
+export function deliver(run, victim, amount) {
+  if (amount <= 0) return;
+  const guard = guardianFor(run, victim);
+  if (!guard) { damageHero(run, victim, amount); return; }
+
+  const share = Math.min(0.75, modFrom(guard, 'redirect') / 100);
+  const moved = amount * share;
+  const shave = Math.max(0, 1 - modFrom(guard, 'redirectShave') / 100);
+  damageHero(run, victim, amount - moved);
+  damageHero(run, guard, moved * shave);
+}
+
 function enemyAct(run, e) {
   const alive = run.combatants.filter((c) => !c.down);
   if (!alive.length) return;
@@ -316,6 +378,15 @@ function enemyAct(run, e) {
 
   if (!rng.chance(hitChance(e.accuracy, sheet.evasion))) return;
 
+  // A flat chance to be missed, which no amount of enemy accuracy answers.
+  // Short-circuited at zero: rng.chance(0) is always false but still draws, and
+  // a draw that changes nothing still shifts every seeded fight after it.
+  const dodge = modFrom(target, 'dodgeChance');
+  if (dodge > 0 && rng.chance(dodge / 100)) {
+    if (rng.chance(0.05)) log(`${e.name} cannot find ${target.name}.`, 'hit');
+    return;
+  }
+
   // A shield only helps against what it is shaped to stop. A 'mixed' attacker
   // — the Worldeater — switches between the two, so no single shield answers it.
   const incoming = e.attack === 'mixed' ? (rng.chance(0.5) ? 'spell' : 'melee') : e.attack;
@@ -324,12 +395,17 @@ function enemyAct(run, e) {
   // Only ever thrown by something well above the hero's level.
   const crushChance = gapCrushChance(target.level ?? run.level, run.level);
   if (crushChance > 0 && rng.chance(crushChance)) {
-    const raw = e.dmg * rng.range(0.85, 1.15) * CRUSH_MULT
+    let raw = e.dmg * rng.range(0.85, 1.15) * CRUSH_MULT
       * levelGap(target.level ?? run.level, run.level).incoming;
+    // The one thing in the game that takes the edge off a crushing blow, and
+    // it is bought with a permanent decision rather than stacked from gear.
+    // Never total, so the level cliff still means something.
+    const tough = modFrom(target, 'crushResist');
+    if (tough > 0) raw *= Math.max(0.1, 1 - tough / 100);
     if (rng.chance(0.10)) log(`${e.name} lands a crushing blow on ${target.name}.`, 'danger');
     gain(target, 'onTakeHit');
     fireTrigger('takeHit', { run, self: target, target: e, amount: raw, kind: incoming });
-    damageHero(run, target, raw);
+    deliver(run, target, raw);
     return;
   }
 
@@ -344,7 +420,10 @@ function enemyAct(run, e) {
     return;
   }
 
-  const crit = rng.chance(e.crit / 100);
+  // The draw happens either way and only its result is suppressed: skipping it
+  // for a hero who cannot be crit would shift the seeded stream for everyone
+  // else in the party.
+  const crit = rng.chance(e.crit / 100) && modFrom(target, 'noCrit') <= 0;
   const base = e.dmg * rng.range(0.85, 1.15) * (crit ? 1.5 : 1);
 
   let taken = 0;
@@ -369,7 +448,7 @@ function enemyAct(run, e) {
 
   gain(target, 'onTakeHit');
   fireTrigger('takeHit', { run, self: target, target: e, amount: taken, kind: incoming });
-  damageHero(run, target, taken);
+  deliver(run, target, taken);
 
   if (sheet.reflect > 0) {
     e.life -= taken * sheet.reflect / 100;

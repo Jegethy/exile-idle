@@ -37,6 +37,14 @@ export function ok(cond, message) {
   return cond;
 }
 
+/** Within `tolerance`, for figures that come out of the stat pipeline rounded. */
+export function near(actual, expected, tolerance, what = 'value') {
+  if (!(Math.abs(actual - expected) <= tolerance)) {
+    throw new Error(`${what}: expected ${expected} ±${tolerance}, got ${actual}`);
+  }
+  return actual;
+}
+
 /** Asserts the page produced no console or runtime errors. */
 export function clean(errors) {
   if (errors.length) throw new Error(`page errors: ${errors.join(' | ')}`);

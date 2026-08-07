@@ -40,7 +40,7 @@ export function kindOf(combatant) {
  * Archer's swing costs exactly what its energy regenerates, so it never runs
  * short; a Rogue's costs nearly twice that, so it opens fast and tapers.
  */
-function costOf(c, action) {
+export function costOf(c, action) {
   if (typeof action === 'number') return action;
   return c.resource?.costs?.[action] ?? 0;
 }

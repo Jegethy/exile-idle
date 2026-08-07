@@ -21,6 +21,8 @@ export const ui = {
   vaultSort: 'power',
   // 'custom' is the roster's own order, which drag and drop edits directly.
   rosterSort: 'custom',
+  specHero: null,        // heroUid the specialisation screen is open on
+  specTier: 0,
   confirmCb: null,
 };
 

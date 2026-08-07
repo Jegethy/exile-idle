@@ -599,6 +599,131 @@ every other reroll a waste.
 If the equipped skill comes up again it stays equipped, so a reroll aimed at the
 other two slots never silently changes how a hero fights.
 
+## Specialisations, and the arithmetic that shaped them
+
+Everything about a hero was rolled: class, rarity, traits, and which three
+skills they were offered. Past hiring, there was no decision left — a hero was a
+stat block that levelled. Specialisations are the one thing about a hero the
+player chooses, at level **15** and again at level **50**, and they are
+**permanent**. No retraining, at any price.
+
+Permanence is enforced in `specs.js` rather than merely hidden in the interface.
+`chooseSpec` refuses to overwrite a filled slot and no undo is exported at all,
+so no future feature, UI bug or console can quietly hand one back. Declining is
+a first-class outcome: `deferSpec` silences the roster badge and spends nothing,
+and the choice stays open at any later level forever. An unspecialised hero is
+simply weaker, which a player is entitled to choose.
+
+### 144 entries became 56
+
+Private trees per class would have been 12 × 3 branches and 12 × 3 × 3 tips:
+**144 entries**, each needing a name, a description worth deciding on, a
+reaction and a balance pass. More content than the rest of the game put
+together, and it would have been the last feature this project ever shipped.
+
+So specialisations are pooled by **role** and filtered by `req`, which is the
+trick `data/skills.js` already uses for exactly the same reason. A Warrior and a
+Paladin can both become Bulwarks; what still separates them is what already did
+— the block profile, the school resistances, the class ability. The
+specialisation is *how a hero fights*; the class is *what it is*.
+
+The second tier is pooled per role rather than per branch, with each branch
+naming what it can reach. The overlap is deliberate: two branches sharing a
+capstone is one destination arrived at from two directions.
+
+|  | Per class | Pooled by role |
+|---|---|---|
+| First choices | 36 | 20 |
+| Second choices | 108 | 36 |
+| **Total** | **144** | **56** |
+
+Every class sees at least three at both tiers, and `tests/specs.test.mjs` fails
+if a new entry ever breaks that — or is added where no class can reach it.
+
+### Level 15 and 50, not 15 and 30
+
+`tierToLevel` puts level 15 at Tier 5 and level 30 at Tier 9. Both thresholds
+inside the first third would have spent the entire content budget on the part of
+the game that already had decisions in it, and left the long middle exactly as
+empty as it was. Level 50 is Tier 15, which brackets the dead zone instead.
+
+### The three axes
+
+Every branch is one of three shapes, and the same three in every role, so a
+player who has specialised one hero already knows what the other two options
+mean before reading them:
+
+| Axis | What it is |
+|---|---|
+| **Edge** | More of what the class already does, harder, at a price |
+| **Anchor** | Reliability — fewer bad runs rather than better good ones |
+| **Chorus** | The hero makes the other four better |
+
+### What measurement changed
+
+`tests/specbalance.mjs` runs branches against an identical party at identical
+seeds. Three things came out of it that no amount of design would have caught.
+
+**Conductor was worth exactly nothing.** Its whole effect was a 25% cooldown
+reduction across the party, and twenty simulated runs came back *identical to
+the decimal* — a party of five holds about one cooldown between them. What
+actually stops a class ability firing is the price of it: the Templar runs dry,
+the Cleric cannot afford to cast, a Rogue's empower is deliberately priced above
+what its energy sustains. Conductor now discounts costs as well, through a new
+`costMult` read in `fireTrigger`, in the healer's cast and on empower. That took
+it from +0 to +7 points of clear rate.
+
+**Assassin almost never fired.** "Hits against an enemy at full life" sounds
+like an opener and is not one: five heroes focus the same target, so whoever
+lands the full-life blow is whoever happened to swing first, about one time in
+five. Widened to 80% — the same idea, a window a Rogue can actually reach.
+
+**Lorekeeper ate its siblings.** School resistance multiplies the *finished*
+damage figure at the end of the calculation, so a few points across five heroes
+is worth far more than it reads. At 10 it was +28 points of clear rate against
++8 for Skald; at 5 it was worth nothing at all. It sits at 7.
+
+Tier 20, level-matched, 96 runs per row — the only band where a single branch on
+a single hero is visible at all:
+
+| | Unspecialised | Edge | Anchor | Chorus |
+|---|---|---|---|---|
+| Tank | 50% | Berserker 65% | Bulwark 72% | Warden 68% |
+| Damage | 50% | Assassin 64% | Duelist 60% | Ravager 69% |
+| Support | 75% | Skald 73% | Lorekeeper 79% | Conductor 82% |
+
+### The noise floor is higher than it looks
+
+A first pass at 40 runs reported **five branches as net negative** and sent the
+tuning off after ghosts. At a 50% clear rate the standard error over 40 runs is
+about 8 points, so nothing under ±15 points is distinguishable from luck — and
+the same configurations at 96 runs were all comfortably positive. Two of the
+three fixes above survived the larger sample; the other five "problems" were
+never there. The tool now says so at the top of the file.
+
+### What the engine gained
+
+Ten of the fifty-six needed something the combat tick could not do. All of it is
+ordinary `MOD_KEYS`, so a unique item or a class ability could use any of it
+tomorrow:
+
+- **`redirect` / `redirectAll` / `redirectShave`** — standing in front of
+  somebody. Only the first guardian applies: two Wardens each taking a share of
+  a share is a party that cannot be damaged, and "somebody stepped in front of
+  that" does not compose. Redirected damage does not re-fire `takeHit`, or one
+  enemy swing would double every on-hit reaction in the party.
+- **`crushResist` / `noCrit` / `dodgeChance`** — the first answer in the game to
+  a crushing blow. Halved, never negated, so the level cliff still means
+  something.
+- **`openerDamage` / `finisherDamage`** — damage that depends on the state of
+  the target rather than the hero, so it cannot live on a stat sheet.
+- **`damageTaken` on enemies** — read only on heroes until now, which would have
+  made every curse in the list a no-op that read beautifully.
+- **`wardPower`, `costMult`, `blockCap`** — and `rescale`, an opt-in on
+  `applyEffect` for a modifier sized from something that changes mid-fight.
+  Refreshing deliberately never downgrades, which would have pinned a Berserker
+  at whatever it was worth the first time it was hit.
+
 ## Support
 
 A Bard occupies a slot a damage class would have had, so it has to be worth
@@ -1142,6 +1267,8 @@ src/
   rng.js            seeded PRNG
   util.js           formatting and DOM helpers
   crafting.js       bench recipes and alchemy
+  specs.js          specialisations: eligibility, the choice, and the refusal
+                    to undo it
   ui.js             orchestrator: which event redraws which panel
   ui/
     state.js        transient interface state (selection, filters)
@@ -1149,6 +1276,7 @@ src/
     modals.js       modal plumbing, confirm, save slots, settings
     tooltip.js      the single floating tooltip and its markup
     roster.js       roster list and hero sheet
+    specs.js        the specialisation choice screen and its badges
     guide.js        the Guild Handbook, generated from the data modules
     achievements.js the score window and the unlock toast
     icons.js        inline SVG symbols
@@ -1163,9 +1291,11 @@ src/
     workshop.js     materials, bench recipes, alchemy
     log.js          guild log and its filters
   data/             bases, affixes, uniques, materials, recipes, monsters,
-                    heroclasses, traits, skills, resources, modifiers, dungeons,
-                    upgrades
+                    heroclasses, traits, skills, specs, resources, modifiers,
+                    dungeons, upgrades
 tests/              headless browser suites (npm test)
+  sim.mjs           the real engine, driven headlessly for balance figures
+  specbalance.mjs   what each specialisation is worth (run by hand, not in CI)
 ```
 
 A panel never imports another panel to redraw it — it emits, and `ui.js` decides

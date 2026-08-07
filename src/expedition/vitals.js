@@ -94,6 +94,10 @@ export function healHero(c, amount, from = null) {
  */
 export function addWard(c, amount, capFraction = 0.20, from = null) {
   if (c.down || amount <= 0) return 0;
+  // Read from whoever placed it, not from whoever is wearing it: a ward is
+  // worth what the hero who put it there can make it worth.
+  const power = from ? modFrom(from, 'wardPower') : 0;
+  if (power) amount *= 1 + power / 100;
   const cap = c.maxLife * capFraction;
   const banked = Math.min(amount, Math.max(0, cap - (c.ward ?? 0)));
   c.ward = (c.ward ?? 0) + banked;

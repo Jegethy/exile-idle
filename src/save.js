@@ -5,6 +5,7 @@ import { rng } from './rng.js';
 import { uidCounter, setUidFloor, defaults } from './util.js';
 import { CLASS_BY_ID, RETIRED_CLASSES } from './data/heroclasses.js';
 import { grantMissingSkills } from './heroes.js';
+import { migrateSpecs, nagging } from './specs.js';
 
 export const SLOT_COUNT = 3;
 const KEY = (slot) => `idleGuild.slot${slot}`;
@@ -107,6 +108,15 @@ function migrate(state) {
     // A skill that has since been removed, or one the class was never
     // eligible for, would silently do nothing. Fall back to a valid choice.
     if (hero.skill && !hero.skills.includes(hero.skill)) hero.skill = hero.skills[0] ?? null;
+    // Specialisations arrived after these heroes did. An empty array is the
+    // unspecialised state and needs nothing; a retired id has to be cleared, or
+    // it sits in the slot forever blocking a choice it can no longer make.
+    migrateSpecs(hero);
+  }
+  const owed = (state.heroes ?? []).filter(nagging).length;
+  if (owed) {
+    notes.push(`${owed} hero${owed === 1 ? ' has a specialisation' : 'es have specialisations'} `
+      + 'waiting. Each is a permanent choice — open them from the roster when you are ready.');
   }
   if (taughtSkills) {
     notes.push(`${taughtSkills} hero${taughtSkills === 1 ? '' : 'es'} learned skills. Check the roster — each has three to choose from.`);

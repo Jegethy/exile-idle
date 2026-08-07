@@ -65,6 +65,9 @@ export function rollHero(opts = {}) {
     traits,
     skills,
     skill: skills[0] ?? null,
+    // Chosen, not rolled — and never at recruitment. See specs.js.
+    specs: [],
+    specDeferred: 0,
     equipment,
     stamina: BASE_STAMINA,
     partyId: null,

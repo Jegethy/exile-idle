@@ -1770,3 +1770,110 @@ body.splash-open { overflow:hidden; }
 .flask-picker.out { border-left:2px solid var(--bad,#b5483f); padding-left:6px; }
 .fp-out { color:var(--bad,#b5483f); }
 .run-flask { color:var(--gold-dim); }
+
+/* ==========================================================================
+   Specialisations — the one permanent choice
+   ==========================================================================
+   The three axes get three colours and keep them everywhere they appear: on
+   the roster chip, on the hero sheet, on the choice card. A player who has
+   specialised once should be able to read the shape of an option before they
+   have read its name. */
+:root {
+  --ax-edge:#d0703f;      /* more of what it does, at a price */
+  --ax-anchor:#5f9ec4;    /* reliability */
+  --ax-chorus:#8fae5c;    /* makes the party better */
+}
+
+.spec-chip {
+  display:inline-block; font-size:10px; padding:1px 6px; border-radius:9px;
+  border:1px solid var(--line-2); color:var(--ink-dim); background:var(--bg-2);
+}
+.spec-chip.edge   { color:var(--ax-edge);   border-color:rgba(208,112,63,.45); }
+.spec-chip.anchor { color:var(--ax-anchor); border-color:rgba(95,158,196,.45); }
+.spec-chip.chorus { color:var(--ax-chorus); border-color:rgba(143,174,92,.45); }
+.spec-chip.waiting {
+  color:var(--gold); border-color:var(--gold-dim); background:rgba(200,170,110,.10);
+}
+.hero-specs { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 2px; }
+
+.ax-edge { color:var(--ax-edge); }
+.ax-anchor { color:var(--ax-anchor); }
+.ax-chorus { color:var(--ax-chorus); }
+
+/* The roster's standing invitation. Never a modal — twelve heroes cross the
+   threshold within an hour of each other. */
+.btn.spec-call { border-color:var(--gold-dim); color:var(--gold); }
+
+.spec-row {
+  display:block; padding:6px 8px; margin-bottom:5px; border-radius:3px;
+  background:var(--bg-2); border-left:2px solid var(--line-2); font-size:11.5px;
+}
+.spec-row b { display:block; font-size:12px; margin-bottom:2px; }
+.spec-row span { color:var(--ink-dim); }
+.spec-row.edge   { border-left-color:var(--ax-edge); }
+.spec-row.anchor { border-left-color:var(--ax-anchor); }
+.spec-row.chorus { border-left-color:var(--ax-chorus); }
+.spec-row.edge b   { color:var(--ax-edge); }
+.spec-row.anchor b { color:var(--ax-anchor); }
+.spec-row.chorus b { color:var(--ax-chorus); }
+.spec-open { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:6px; }
+
+/* ---- The choice screen ---- */
+.sp-taken { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.sp-warn {
+  border:1px solid var(--danger); border-left-width:3px; border-radius:3px;
+  background:rgba(207,75,58,.08); padding:9px 11px; margin-bottom:10px;
+  font-size:12px; line-height:1.5;
+}
+.sp-warn b { color:#ff9c8c; }
+
+/* Three across in the wide modal, because the whole screen is "choose one of
+   these three" and a 2 + 1 layout reads as though the third is an afterthought.
+   A hybrid class seeing five wraps to two rows of three, which is fine — what
+   must not happen is the common case of exactly three being split. */
+.spec-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:8px; margin:10px 0;
+}
+.spec-card {
+  border:1px solid var(--line); border-top-width:2px; border-radius:4px;
+  background:var(--bg-2); padding:9px 10px; cursor:pointer;
+}
+.spec-card:hover { background:var(--bg-3); border-color:var(--line-2); }
+.spec-card.edge   { border-top-color:var(--ax-edge); }
+.spec-card.anchor { border-top-color:var(--ax-anchor); }
+.spec-card.chorus { border-top-color:var(--ax-chorus); }
+.spec-card.open { border-color:var(--gold-dim); background:var(--bg-3); }
+.sp-top { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.sp-name { font-size:14px; color:var(--ink); letter-spacing:.3px; }
+.sp-axis { font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; }
+.sp-flavour { font-size:11px; color:var(--ink-faint); font-style:italic; margin:3px 0 5px; }
+.sp-desc { font-size:12px; line-height:1.45; }
+.sp-more { font-size:10px; margin-top:6px; }
+.sp-nostats { font-size:10.5px; margin-top:7px; line-height:1.4; }
+
+/* The numbers, which are the whole reason this screen exists. */
+.sp-preview { width:100%; margin-top:7px; border-collapse:collapse; font-size:11px; }
+.sp-preview th {
+  text-align:left; font-weight:400; color:var(--ink-faint); padding:2px 0;
+}
+.sp-preview td { padding:2px 0; text-align:right; }
+.sp-before { color:var(--ink-faint); }
+.sp-arrow { color:var(--ink-faint); padding:0 6px !important; }
+.sp-after.up { color:var(--good); }
+.sp-after.down { color:var(--bad); }
+
+/* Two deliberate actions, and "decide later" of equal standing. The commit
+   button borrows the danger colour outright rather than only on hover: every
+   other .danger in the game is reversible and this one is not, so it should
+   not have to be hovered before it looks like what it is. */
+.sp-commit .btn.danger:not(:disabled) {
+  border-color:var(--danger); color:#ff9c8c; background:rgba(207,75,58,.10);
+}
+.sp-commit .btn.danger:not(:disabled):hover { background:rgba(207,75,58,.20); color:#fff; }
+/* Two deliberate actions, and "decide later" of equal standing. */
+.sp-commit {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-top:1px solid var(--line); padding-top:10px; margin-top:4px;
+}
+.sp-commit .hint { flex:1 1 220px; font-size:10.5px; line-height:1.4; }

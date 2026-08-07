@@ -10,6 +10,7 @@
 import { BASE_BY_ID } from './data/bases.js';
 import { CLASS_BY_ID, RARITY_BY_ID } from './data/heroclasses.js';
 import { TRAIT_BY_ID } from './data/traits.js';
+import { SPEC_BY_ID } from './data/specs.js';
 import { guildEffects } from './data/upgrades.js';
 import { itemBaseStats, applyItemMods } from './items.js';
 import { clamp } from './util.js';
@@ -35,6 +36,10 @@ export function emptyBag() {
     lifeLeech: 0, lifeRegenFlat: 0, lifeRegenPct: 0,
     incRarity: 0, incQuant: 0, reflect: 0, damageTaken: 0,
     incHeal: 0, noES: 0, noEle: 0,
+    // A ceiling on block lower than the global one, taken by whoever offers it
+    // — the Bastion trades the top of its block away for what it gets instead.
+    // Zero means "no ceiling of my own".
+    blockCap: 0,
   };
 }
 
@@ -74,11 +79,19 @@ export function heroStats(hero, upgrades = {}) {
     applyItemMods(item, bag);
   }
 
-  // ---- 2. Traits ---------------------------------------------------------
+  // ---- 2. Traits and specialisations -------------------------------------
+  // Both are flat contributions to the bag and both are permanent, so they
+  // travel together. The difference is only where they came from: a trait was
+  // rolled, a specialisation was chosen.
   for (const id of hero.traits ?? []) {
     const t = TRAIT_BY_ID[id];
     if (!t) continue;
     for (const [k, v] of Object.entries(t.stats ?? {})) bag[k] = (bag[k] ?? 0) + v;
+  }
+  for (const id of hero.specs ?? []) {
+    const sp = SPEC_BY_ID[id];
+    if (!sp) continue;
+    for (const [k, v] of Object.entries(sp.stats ?? {})) bag[k] = (bag[k] ?? 0) + v;
   }
 
   // ---- 3. Guild upgrades -------------------------------------------------
@@ -104,8 +117,9 @@ export function heroStats(hero, upgrades = {}) {
   // A class brings its own block on top of whatever shield is carried: a
   // Warrior turns blades aside by training, not only by equipment.
   const classBlock = cls.block ?? {};
-  const blockMelee = clamp(bag.block + bag.blockMelee + (classBlock.melee ?? 0), 0, BLOCK_CAP);
-  const blockSpell = clamp(bag.block + bag.blockSpell + (classBlock.spell ?? 0), 0, BLOCK_CAP);
+  const cap = bag.blockCap > 0 ? Math.min(BLOCK_CAP, bag.blockCap) : BLOCK_CAP;
+  const blockMelee = clamp(bag.block + bag.blockMelee + (classBlock.melee ?? 0), 0, cap);
+  const blockSpell = clamp(bag.block + bag.blockSpell + (classBlock.spell ?? 0), 0, cap);
 
   // ---- 5. Resistances ----------------------------------------------------
   // Hard ceiling on the resistance cap itself. Without one, maximum resistance
