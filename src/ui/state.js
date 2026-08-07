@@ -19,6 +19,8 @@ export const ui = {
   vaultFilter: 'all',
   vaultBaseType: 'all',
   vaultSort: 'power',
+  // 'custom' is the roster's own order, which drag and drop edits directly.
+  rosterSort: 'custom',
   confirmCb: null,
 };
 

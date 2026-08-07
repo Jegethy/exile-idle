@@ -221,7 +221,7 @@ export const STEPS = [
   },
   {
     id: 'hall',
-    tab: 'hall', target: '#upgradeList',
+    tab: 'hall', subTab: 'hallUpgrades', target: '#upgradeList',
     title: 'The Guild Hall',
     body: 'Permanent upgrades, bought with gold. Most raise your returns.'
       + '<br><br><b>Expedition Charters</b> are the one to aim for — each lets another party run '
@@ -230,9 +230,9 @@ export const STEPS = [
   },
   {
     id: 'charter',
-    tab: 'hall', target: '#charterPanel',
+    tab: 'hall', subTab: 'hallCharter', target: '#charterPanel',
     title: 'The Guild Charter',
-    body: 'Below the upgrades is the other half of the guild, and it costs nothing.'
+    body: 'The other half of the guild, and it costs nothing.'
       + '<br><br>The bar at the very top of the screen is your <b>Guild Level</b>. It fills as '
       + 'your parties come home, and at certain levels the charter grants a <b>privilege</b>.'
       + '<br><br>None of them make your heroes stronger. What they do is save you work — filling '
@@ -432,8 +432,11 @@ function openStep(i) {
   if (!step) return;
   detachClick();
 
-  // Switch to whichever tab actually contains the target.
+  // Switch to whichever tab actually contains the target. Panels with nested
+  // tab strips need both: the Guild Hall's upgrade list lives inside a sub-tab
+  // that is not the one the hall opens on.
   if (step.tab) selectTabById(step.tab);
+  if (step.subTab) selectTabById(step.subTab);
   step.onEnter?.();
 
   qs('#tutStep').textContent = `Step ${i + 1} of ${STEPS.length}`;

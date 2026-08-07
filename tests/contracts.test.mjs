@@ -223,37 +223,49 @@ export default async function run(browser) {
     return `none below T${8}, ${(r.at * 100).toFixed(0)}%-${(r.deep * 100).toFixed(0)}%, capped at ${r.cap}`;
   });
 
-  await test('the shelf renders, and hides itself when empty', async () => {
+  await test('the board renders on its own tab, and says so when empty', async () => {
     const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
-      const { renderDispatch } = await import('./src/ui/expeditions.js');
-      G.state.contracts = [];
-      renderDispatch();
-      const empty = !document.querySelector('#contractShelf');
-
+      const { renderContracts } = await import('./src/ui/contracts.js');
       const { rollContract } = await import('./src/contracts.js');
+
+      G.state.contracts = [];
+      renderContracts();
+      const panel = document.querySelector('#contractPanel');
+      const empty = {
+        cards: panel.querySelectorAll('.contract').length,
+        note: !!panel.querySelector('.empty-note'),
+        badge: document.querySelector('#contractTabCount')?.textContent ?? '',
+      };
+
       G.state.contracts = [rollContract(16, 'mines', 'legendary')];
-      renderDispatch();
-      const shelf = document.querySelector('#contractShelf');
-      const card = shelf?.querySelector('.contract');
+      renderContracts();
+      const card = panel.querySelector('.contract');
       return {
         empty,
-        shown: !!shelf,
+        shown: panel.querySelectorAll('.contract').length,
         rarityClass: [...(card?.classList ?? [])].some((c) => c.startsWith('r-')),
-        downsides: shelf?.querySelectorAll('.ct-mods.bad li').length ?? 0,
-        upsides: shelf?.querySelectorAll('.ct-mods.good li').length ?? 0,
-        find: (shelf?.querySelector('.ct-find')?.textContent ?? '').includes('quantity'),
-        discard: !!shelf?.querySelector('[data-discard]'),
+        downsides: panel.querySelectorAll('.ct-mods.bad li').length,
+        upsides: panel.querySelectorAll('.ct-mods.good li').length,
+        find: (panel.querySelector('.ct-find')?.textContent ?? '').includes('quantity'),
+        discard: !!panel.querySelector('[data-discard]'),
+        badge: document.querySelector('#contractTabCount')?.textContent ?? '',
+        // The board no longer sits on top of the dungeon grid.
+        offDispatch: !document.querySelector('#dispatchPanel .contract'),
       };
     });
-    ok(r.empty, 'an empty shelf still rendered');
-    ok(r.shown, 'the shelf did not render with a contract in it');
+    eq(r.empty.cards, 0, 'an empty board still drew cards');
+    ok(r.empty.note, 'an empty board says nothing about how to get one');
+    eq(r.empty.badge, '', `the tab shows "${r.empty.badge}" with no contracts held`);
+    eq(r.shown, 1, 'the board did not render the contract');
+    eq(r.badge, '1', `the tab badge reads "${r.badge}"`);
+    ok(r.offDispatch, 'contracts are still taking up the dispatch panel');
     ok(r.rarityClass, 'the card carries no rarity colour');
     eq(r.downsides, 3, `${r.downsides} downsides on a Legendary`);
     eq(r.upsides, 3, `${r.upsides} upsides on a Legendary`);
     ok(r.find, 'the card does not state its quantity bonus');
     ok(r.discard, 'no way to discard a contract');
-    return 'hidden when empty; Legendary shows 3 downsides, 3 upsides, find rates and a discard';
+    return 'its own tab, badged, off the dispatch panel; Legendary shows 3 down, 3 up and a discard';
   });
 
   await test('no page errors', () => clean(errors));

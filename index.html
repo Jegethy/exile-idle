@@ -71,6 +71,7 @@
     <section class="panel" id="centerPanel">
       <nav class="tabs" data-group="center">
         <button class="tab active" data-tab="expeditions">Expeditions</button>
+        <button class="tab" data-tab="contracts">Contracts <b id="contractTabCount" class="tab-n"></b></button>
         <button class="tab" data-tab="raids">Raids</button>
         <button class="tab" data-tab="hall">Guild Hall</button>
       </nav>
@@ -88,18 +89,39 @@
         <div id="guildLog" class="log"></div>
       </div>
 
+      <div class="tab-body" id="tab-contracts">
+        <div id="contractPanel"></div>
+      </div>
+
       <div class="tab-body" id="tab-raids">
         <div id="raidList"></div>
       </div>
 
       <div class="tab-body" id="tab-hall">
         <div id="hallSummary"></div>
-        <div class="section-head"><span>Guild Hall Upgrades</span></div>
-        <div id="upgradeList" class="upgrade-list"></div>
-        <div class="section-head" id="charterHead"><span>The Guild Charter</span></div>
-        <div id="charterPanel"></div>
-        <div class="section-head"><span>Unique Collection <b id="collectionCount"></b></span></div>
-        <div id="collectionList" class="collection-list"></div>
+        <nav class="tabs sub" data-group="hall">
+          <button class="tab active" data-tab="hallOverview">Overview</button>
+          <button class="tab" data-tab="hallUpgrades">Upgrades</button>
+          <button class="tab" data-tab="hallCharter">Charter</button>
+          <button class="tab" data-tab="hallCollection">Collection</button>
+        </nav>
+
+        <div class="tab-body active" id="tab-hallOverview">
+          <div id="hallOverview"></div>
+        </div>
+
+        <div class="tab-body" id="tab-hallUpgrades">
+          <div id="upgradeList" class="upgrade-list"></div>
+        </div>
+
+        <div class="tab-body" id="tab-hallCharter">
+          <div id="charterPanel"></div>
+        </div>
+
+        <div class="tab-body" id="tab-hallCollection">
+          <div class="section-head"><span>Unique Collection <b id="collectionCount"></b></span></div>
+          <div id="collectionList" class="collection-list"></div>
+        </div>
       </div>
     </section>
 

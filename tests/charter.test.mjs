@@ -327,6 +327,92 @@ export default async function run(browser) {
     return 'two daggers, and the better shield and two-hander left alone';
   });
 
+  await test('Gear Up spreads the vault across the party, not down it', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { createItem } = await import('./src/items.js');
+      const { gearUpParty } = await import('./src/outfit.js');
+      const { EQUIP_SLOTS } = await import('./src/data/bases.js');
+      const { rollHero, removeFromParty, assignToParty } = await import('./src/heroes.js');
+      const { refreshSheets } = await import('./src/sheets.js');
+
+      while (G.state.expeditions.length) G.state.expeditions.pop();
+      for (const h of G.state.heroes) removeFromParty(h.uid);
+      G.state.heroes.length = 0;
+      const party = G.state.parties[0];
+      party.members.length = 0;
+
+      // Four identical heroes, so any imbalance in the result is the
+      // allocation's doing and nothing else.
+      for (let i = 0; i < 4; i++) {
+        const h = rollHero({ classId: 'archer', rarity: 'common' });
+        h.level = 30;
+        h.traits = [];
+        for (const slot of EQUIP_SLOTS) h.equipment[slot] = null;
+        G.state.heroes.push(h);
+        assignToParty(h.uid, party.id);
+      }
+
+      // Exactly one body armour each, at four wildly different item levels.
+      // Handed out hero by hero, the first would take all four in turn and end
+      // up wearing the best; the rest would get nothing.
+      G.state.vault.length = 0;
+      for (const ilvl of [80, 60, 40, 20]) {
+        G.state.vault.push(createItem({ baseId: 'body_arev', ilvl, rarity: 'rare' }));
+      }
+      refreshSheets();
+
+      const res = gearUpParty(party.id);
+      const wearing = G.state.heroes.map((h) => h.equipment.body?.ilvl ?? 0).sort((a, b) => b - a);
+      return { res, wearing, dressed: wearing.filter(Boolean).length };
+    });
+    eq(r.dressed, 4, `only ${r.dressed} of four heroes ended up wearing body armour`);
+    eq(r.wearing.join(','), '80,60,40,20', `armour landed as ${r.wearing.join(',')}`);
+    eq(r.res.heroes, 4, `${r.res.heroes} heroes were touched`);
+    ok(r.res.dps > 1 || r.res.life > 1, 'the party got no stronger');
+    return `one each, and the report reads damage x${r.res.dps.toFixed(2)}, life x${r.res.life.toFixed(2)}`;
+  });
+
+  await test('a unique goes to whoever it helps most', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { createItem } = await import('./src/items.js');
+      const { planParty } = await import('./src/outfit.js');
+      const { EQUIP_SLOTS } = await import('./src/data/bases.js');
+      const { rollHero } = await import('./src/heroes.js');
+      const { refreshSheets } = await import('./src/sheets.js');
+      const { UNIQUES } = await import('./src/data/uniques.js');
+
+      // A tank and a damage class, both bare. A heavy shield is worth a great
+      // deal to one and very little to the other.
+      const tank = rollHero({ classId: 'guardian', rarity: 'common' });
+      const dps = rollHero({ classId: 'wizard', rarity: 'common' });
+      for (const h of [tank, dps]) {
+        h.level = 30; h.traits = [];
+        for (const slot of EQUIP_SLOTS) h.equipment[slot] = null;
+      }
+      // One shield, and a weapon apiece. Without a weapon for the tank the
+      // wizard is simply the hungrier hero and takes both hands, which is the
+      // allocation working rather than failing -- but it is not what this
+      // test is about.
+      const shield = createItem({ baseId: 'shield_str', ilvl: 70, rarity: 'rare' });
+      const wand = createItem({ baseId: 'wand', ilvl: 70, rarity: 'rare' });
+      const mace = createItem({ baseId: 'mace1h', ilvl: 70, rarity: 'rare' });
+      const pool = [shield, wand, mace];
+      refreshSheets();
+
+      const moves = planParty([dps, tank], pool, G.state.upgrades);
+      const who = (uid) => moves.find((m) => m.itemUid === uid)?.heroUid ?? null;
+      return {
+        shieldTo: who(shield.uid) === tank.uid ? 'tank' : who(shield.uid) === dps.uid ? 'dps' : 'nobody',
+        uniqueCount: UNIQUES.length,
+      };
+    });
+    // The damage class is listed first on purpose: order must not decide it.
+    eq(r.shieldTo, 'tank', `the shield went to the ${r.shieldTo}`);
+    return 'the shield went to the tank even though the wizard bid first';
+  });
+
   // -------------------------------------------------------------------------
   // Automations
   // -------------------------------------------------------------------------

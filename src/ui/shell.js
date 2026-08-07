@@ -19,8 +19,14 @@ export function wireTabs() {
 
 export function selectTab(nav, tabId) {
   const panel = nav.parentElement;
-  qsa('.tab', nav).forEach((b) => b.classList.toggle('active', b.dataset.tab === tabId));
-  qsa('.tab-body', panel).forEach((b) => b.classList.toggle('active', b.id === `tab-${tabId}`));
+  // Direct children only. The Guild Hall has a nav of its own inside its tab
+  // body, and an unscoped query would let the outer nav switch off the inner
+  // panel every time you arrived at the tab.
+  const own = (el) => el.parentElement === panel;
+  qsa('.tab', nav).filter((b) => b.parentElement === nav)
+    .forEach((b) => b.classList.toggle('active', b.dataset.tab === tabId));
+  qsa('.tab-body', panel).filter(own)
+    .forEach((b) => b.classList.toggle('active', b.id === `tab-${tabId}`));
   // Announced rather than acted on: some panels want a refresh when you arrive,
   // and the orchestrator decides which. Calling them from here would make the
   // chrome depend on every panel it can show.

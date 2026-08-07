@@ -33,8 +33,21 @@ function renderRosterHeader() {
       <button class="btn tiny ${afford ? 'primary' : ''}" id="btnRecruit">
         Hiring Hall${afford ? '' : ` — from ${fmtInt(cheapest)}g`}
       </button>
+    </div>
+    <div class="sort-bar" id="rosterSorts">
+      <span class="hint">Order</span>
+      ${ROSTER_SORTS.map((x) => `<button class="btn tiny ${ui.rosterSort === x.id ? 'active' : ''}"
+        data-rsort="${x.id}">${x.name}</button>`).join('')}
+      <span class="hint">${ui.rosterSort === 'custom'
+    ? 'Drag a hero to reorder.' : 'Sorting never changes your own order.'}</span>
     </div>`;
   qs('#btnRecruit').onclick = () => { renderRecruitBoard(); openModal('modalRecruit'); };
+  qs('#rosterSorts').onclick = (e) => {
+    const b = e.target.closest('[data-rsort]');
+    if (!b) return;
+    ui.rosterSort = b.dataset.rsort;
+    renderRoster();
+  };
 }
 
 /**
@@ -100,6 +113,105 @@ export function renderRecruitBoard() {
   };
 }
 
+/**
+ * How the roster may be ordered.
+ *
+ * Sorting is a *view*, exactly as it is in the vault: choosing one never
+ * rewrites the stored order, so switching back to Custom finds the arrangement
+ * you built still intact. Custom is the stored order itself, and is the only
+ * one you can drag in — dragging inside a sorted view would either be ignored
+ * or silently re-sorted away, and both are worse than not offering it.
+ */
+export const ROSTER_SORTS = [
+  { id: 'custom', name: 'Custom' },
+  { id: 'level', name: 'Level' },
+  { id: 'ilvl', name: 'Item Level' },
+  { id: 'rarity', name: 'Rarity' },
+  { id: 'name', name: 'Name' },
+];
+
+/** Mean item level of what a hero is wearing. Empty slots count as nothing. */
+export function heroItemLevel(hero) {
+  const worn = EQUIP_SLOTS.map((slot) => hero.equipment?.[slot]).filter(Boolean);
+  if (!worn.length) return 0;
+  return worn.reduce((a, i) => a + (i.ilvl ?? 0), 0) / worn.length;
+}
+
+/** The roster in the order the player asked for. Never mutates the roster. */
+export function rosterView(heroes, sort = ui.rosterSort) {
+  const list = heroes.slice();
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  switch (sort) {
+    case 'level':
+      return list.sort((a, b) => b.level - a.level || byName(a, b));
+    case 'ilvl':
+      return list.sort((a, b) => heroItemLevel(b) - heroItemLevel(a) || byName(a, b));
+    case 'rarity':
+      return list.sort((a, b) => RARITY_BY_ID[b.rarity].mult - RARITY_BY_ID[a.rarity].mult
+        || b.level - a.level || byName(a, b));
+    case 'name':
+      return list.sort(byName);
+    default:
+      return list;                      // custom: the stored order, untouched
+  }
+}
+
+/**
+ * Moves a hero to sit before another in the stored order.
+ *
+ * The roster array *is* the custom order, so this reorders it in place. There
+ * is no separate ordering field to keep in step with hires and dismissals.
+ */
+export function moveHero(heroUid, beforeUid) {
+  const list = G.state.heroes;
+  const from = list.findIndex((h) => h.uid === heroUid);
+  if (from < 0) return false;
+  const [hero] = list.splice(from, 1);
+  const to = beforeUid ? list.findIndex((h) => h.uid === beforeUid) : list.length;
+  list.splice(to < 0 ? list.length : to, 0, hero);
+  emit('roster');
+  return true;
+}
+
+let dragUid = null;
+
+function wireRosterDrag(host, enabled) {
+  if (!enabled) {
+    host.ondragstart = null; host.ondragover = null; host.ondrop = null; host.ondragend = null;
+    return;
+  }
+  host.ondragstart = (e) => {
+    const card = e.target.closest('[data-hero]');
+    if (!card) return;
+    dragUid = card.dataset.hero;
+    card.classList.add('dragging');
+    // Firefox refuses to start a drag without payload, and hides the tooltip
+    // machinery behind a native drag image otherwise.
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragUid);
+  };
+  host.ondragover = (e) => {
+    if (!dragUid) return;
+    e.preventDefault();
+    const card = e.target.closest('[data-hero]');
+    for (const el of host.querySelectorAll('.drop-before')) el.classList.remove('drop-before');
+    if (card && card.dataset.hero !== dragUid) card.classList.add('drop-before');
+  };
+  host.ondrop = (e) => {
+    if (!dragUid) return;
+    e.preventDefault();
+    const card = e.target.closest('[data-hero]');
+    moveHero(dragUid, card?.dataset.hero ?? null);
+    dragUid = null;
+  };
+  host.ondragend = () => {
+    dragUid = null;
+    for (const el of host.querySelectorAll('.dragging, .drop-before')) {
+      el.classList.remove('dragging', 'drop-before');
+    }
+  };
+}
+
 export function renderRoster() {
   const s = G.state;
   const host = qs('#rosterList');
@@ -111,8 +223,8 @@ export function renderRoster() {
     return;
   }
 
-  const sorted = s.heroes.slice().sort((a, b) => b.level - a.level
-    || (RARITY_BY_ID[b.rarity].mult - RARITY_BY_ID[a.rarity].mult));
+  const sorted = rosterView(s.heroes);
+  const dragging = ui.rosterSort === 'custom';
 
   host.innerHTML = sorted.map((h) => {
     const info = heroInfo(h);
@@ -120,7 +232,8 @@ export function renderRoster() {
     const out = isDeployed(h);
     const party = h.partyId ? partyById(h.partyId) : null;
     const stam = clamp((h.stamina / BASE_STAMINA) * 100, 0, 100);
-    return `<div class="hero-card ${info.rarity.cls} ${out ? 'deployed' : ''}" data-hero="${h.uid}">
+    return `<div class="hero-card ${info.rarity.cls} ${out ? 'deployed' : ''}"
+      data-hero="${h.uid}" ${dragging ? 'draggable="true"' : ''}>
       <div class="hero-top">
         <span class="hero-name">${escapeHtml(h.name)}</span>
         <span class="hero-lvl">Lv ${h.level}</span>
@@ -149,6 +262,7 @@ export function renderRoster() {
     const card = e.target.closest('[data-hero]');
     if (card) openHeroModal(card.dataset.hero);
   };
+  wireRosterDrag(host, dragging);
   host.onmouseover = (e) => {
     const card = e.target.closest('[data-hero]');
     if (card) showHeroTooltip(heroById(card.dataset.hero), e);

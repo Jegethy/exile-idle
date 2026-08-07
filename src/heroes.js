@@ -154,15 +154,21 @@ export function recruit(heroUid) {
     return { ok: false, msg: `${r.name} ${CLASS_BY_ID[hero.classId].name} costs ${cost} gold.` };
   }
 
-  board.candidates.splice(i, 1);
-  const lockedAt = board.locked.indexOf(hero.uid);
-  if (lockedAt >= 0) board.locked.splice(lockedAt, 1);
+  // Hiring clears the board entirely rather than replacing the one who left.
+  // A board that refills a single slot leaves the other candidates sitting
+  // there at a price set by a smaller roster, and turns hiring into a way of
+  // rerolling one card for free. Everyone new, including anyone locked --
+  // a lock survives a *reroll*, which is what it is for.
+  board.candidates = [];
+  board.locked = [];
   // Hiring settles the board: the next reroll starts from the base price.
   board.rerolls = 0;
-  recruitBoard();
 
   s.heroes.push(hero);
   s.stats.recruited++;
+  // Refilled after the roster grows, so the new prices reflect it.
+  recruitBoard();
+
   log(`Recruited ${hero.name}, ${r.name} ${CLASS_BY_ID[hero.classId].name}, for ${cost} gold.`,
     hero.rarity === 'common' || hero.rarity === 'uncommon' ? 'sys' : 'unique');
   emit('roster'); emit('recruits');

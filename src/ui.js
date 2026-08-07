@@ -32,6 +32,7 @@ import {
 } from './ui/expeditions.js';
 import { renderRaids } from './ui/raids.js';
 import { renderHall, renderCollection } from './ui/hall.js';
+import { renderContracts } from './ui/contracts.js';
 import { wireVaultActions, renderVault, renderEquipTarget } from './ui/vault.js';
 import {
   buildMaterialGrid, renderMaterials, renderCraftPanel, selectRecipe,
@@ -75,8 +76,11 @@ export function initUI() {
   on('charter', () => { renderCharter(); renderRoster(); renderParties(); renderCraftPanel(); });
   on('upgrades', () => { renderHall(); renderQuickStats(); renderDispatch(); });
   on('sheets', () => { renderRoster(); renderParties(); });
-  on('expeditions', () => { renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats(); });
-  on('contracts', () => { renderDispatch(); });
+  on('expeditions', () => {
+    renderRuns(); renderDispatch(); renderRoster(); renderRaids(); renderQuickStats();
+    renderContracts();
+  });
+  on('contracts', () => { renderContracts(); renderDispatch(); });
   on('achievements', () => { renderAchievements(); });
   on('reports', () => { renderRuns(); });
   on('log', () => { renderLog(); });
@@ -87,7 +91,10 @@ export function initUI() {
   // Arriving at a panel refreshes it, so affordability and stamina are never
   // stale from whatever happened while you were looking somewhere else.
   on('tab', (tabId) => {
-    if (tabId === 'hall') { renderCharter(); renderHall(); renderCollection(); }
+    if (tabId === 'hall' || tabId.startsWith('hall')) {
+      renderCharter(); renderHall(); renderCollection();
+    }
+    if (tabId === 'contracts') renderContracts();
     if (tabId === 'workshop') { renderMaterials(); renderCraftPanel(); }
     if (tabId === 'parties') renderParties();
   });
@@ -106,6 +113,7 @@ export function renderAll() {
   renderCharter();
   renderHall();
   renderCollection();
+  renderContracts();
   renderEquipTarget();
   renderVault();
   renderMaterials();

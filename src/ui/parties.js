@@ -15,7 +15,7 @@ import { confirmAction } from './modals.js';
 import { openHeroModal } from './roster.js';
 import { setStatus } from './shell.js';
 import { hasPrivilege } from '../charter.js';
-import { gearUpParty } from '../outfit.js';
+import { gearUpParty, pct } from '../outfit.js';
 
 // ===========================================================================
 // Parties
@@ -121,7 +121,8 @@ Each party decides for itself, so one can farm while another waits for you.">
     if (gear) {
       const res = gearUpParty(gear.dataset.gearparty);
       setStatus(res.slots
-        ? `${res.slots} slot${res.slots === 1 ? '' : 's'} improved across ${res.heroes} hero${res.heroes === 1 ? '' : 'es'}.`
+        ? `${res.slots} slot${res.slots === 1 ? '' : 's'} across ${res.heroes} `
+          + `hero${res.heroes === 1 ? '' : 'es'} · damage ${pct(res.dps)} · life ${pct(res.life)}`
         : 'Nothing in the vault beats what they are already carrying.');
       renderParties();
       return;

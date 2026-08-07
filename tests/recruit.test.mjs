@@ -56,11 +56,12 @@ export default async function run(browser) {
     return `common costs ${r.small}g at 3 heroes, ${r.large}g at 20`;
   });
 
-  await test('hiring takes that candidate and refills the board', async () => {
+  await test('hiring clears the board and draws a whole new one', async () => {
     const r = await page.evaluate(async () => {
       const { G } = await import('./src/state.js');
       const { recruitBoard, recruit, candidateCost } = await import('./src/heroes.js');
       const board = recruitBoard();
+      const before = board.candidates.map((h) => h.uid);
       const pick = board.candidates[1];
       const cost = candidateCost(G.state.heroes.length, pick.rarity);
       const goldBefore = G.state.guild.gold;
@@ -71,6 +72,9 @@ export default async function run(browser) {
         hired: G.state.heroes.some((h) => h.uid === pick.uid),
         stillOffered: recruitBoard().candidates.some((h) => h.uid === pick.uid),
         refilled: recruitBoard().candidates.length,
+        // Hiring is not a way to reroll one card for free: everyone who was
+        // standing there moves on, at prices set before the roster grew.
+        anySurvived: recruitBoard().candidates.some((h) => before.includes(h.uid)),
         spent: goldBefore - G.state.guild.gold,
         cost,
         grew: G.state.heroes.length - rosterBefore,
@@ -80,9 +84,10 @@ export default async function run(browser) {
     ok(r.hired, 'the chosen candidate did not join');
     ok(!r.stillOffered, 'the hired candidate is still on the board');
     eq(r.refilled, 3, 'the board should refill');
+    ok(!r.anySurvived, 'a candidate from the old board is still on offer after a hire');
     eq(r.spent, r.cost, 'gold spent should match the quoted price');
     eq(r.grew, 1, 'roster growth');
-    return `hired for ${r.spent}g, board refilled`;
+    return `hired for ${r.spent}g, a whole new board drawn`;
   });
 
   await test('rerolling replaces the unlocked and spares the locked', async () => {

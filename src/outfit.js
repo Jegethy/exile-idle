@@ -238,33 +238,215 @@ export function gearUpHero(heroUid, { quiet = false } = {}) {
 }
 
 /**
- * The same across a whole party, in turn.
+ * Everything one hero could take from the pool, with what it would be worth.
  *
- * Sequential rather than jointly optimal: the first hero takes the best sword
- * and the second takes the next one. Solving it properly is an assignment
- * problem, and the honest reason not to is that the answer would be within a
- * percent of this one and impossible for a player to predict or overrule.
+ * Only the seven slots outside the hands: those are solved as a pair, before
+ * any of this, because they are one decision rather than two.
+ */
+function offers(hero, equipment, pool, claimed, upgrades) {
+  const current = scoreOf(hero, equipment, upgrades);
+  const out = [];
+  for (const item of pool) {
+    if (claimed.has(item.uid)) continue;
+    for (const slot of slotsForItem(hero, item)) {
+      if (slot === 'weapon' || slot === 'offhand') continue;
+      if (equipment[slot] === item) continue;
+      const next = withEquipped(hero, equipment, item, slot);
+      if (!next) continue;
+      const gain = (scoreOf(hero, next, upgrades) - current) / Math.max(1e-9, current);
+      if (gain > MIN_GAIN) out.push({ hero, item, slot, gain });
+    }
+  }
+  return out;
+}
+
+/** What each unclaimed off-hand item would add to this hero, as it stands. */
+function offhandOffers(hero, equipment, pool, claimed, upgrades) {
+  const current = scoreOf(hero, equipment, upgrades);
+  const out = [];
+  for (const item of pool) {
+    if (claimed.has(item.uid)) continue;
+    if (equipment.offhand === item) continue;
+    if (!slotsForItem(hero, item).includes('offhand')) continue;
+    const next = withEquipped(hero, equipment, item, 'offhand');
+    if (!next) continue;
+    const gain = (scoreOf(hero, next, upgrades) - current) / Math.max(1e-9, current);
+    if (gain > MIN_GAIN) out.push({ hero, item, gain });
+  }
+  return out;
+}
+
+/**
+ * Kits out a whole party from one pool.
  *
- * @returns {{heroes: number, slots: number}}
+ * Emphatically *not* hero by hero, which is how this started and what made it
+ * unusable: the first hero took the best of everything and the fifth got what
+ * was left, so a party geared this way came out lopsided and half of it had to
+ * be undone by hand.
+ *
+ * Every hero bids for every item instead, and the largest improvement wins,
+ * repeatedly. Three things fall out of that without being asked for:
+ *
+ *   Empty and badly outdated slots are filled first, because a bare slot is
+ *   where the largest gain always is. That is a better rule than "lowest item
+ *   level" — a level 40 helmet on a Wizard can matter less than a level 60 one
+ *   carrying the resistance they are short of.
+ *
+ *   The party comes up together. Once a hero has taken a few pieces their next
+ *   bid is worth less than one from somebody still in rags, so it moves on.
+ *
+ *   A unique lands on whoever it helps most, for free. It is simply the bid
+ *   with the largest number behind it.
+ *
+ * The hands are dealt first, hungriest hero first, since a pair cannot be bid
+ * on one item at a time.
+ *
+ * @returns {{itemUid: string, slot: string, heroUid: string}[]}
+ */
+export function planParty(heroes, pool, upgrades = {}) {
+  const claimed = new Set();
+  const moves = [];
+  const kit = new Map();                     // heroUid -> simulated equipment
+  const shut = new Set();                    // heroes whose off hand is spoken for
+  for (const hero of heroes) {
+    kit.set(hero.uid, { ...hero.equipment });
+    if (isTwoHanded(hero.equipment.weapon)) shut.add(hero.uid);
+  }
+
+  // --- Main hands ------------------------------------------------------
+  //
+  // Chosen with the whole pair in view but claiming only the weapon, which is
+  // the compromise the hands need. Deciding the pair outright and claiming
+  // both let a bare Wizard — whose relative gain from being armed at all is
+  // enormous — walk off with the party's only shield, because nothing else
+  // could go in its off hand. Deciding the main hand alone would be worse the
+  // other way: a two-hander beats a one-hander on its own almost every time,
+  // so a tank would take the greatsword and never be offered the shield.
+  const handsLeft = new Set(heroes.map((h) => h.uid));
+  while (handsLeft.size) {
+    let pick = null;
+    for (const hero of heroes) {
+      if (!handsLeft.has(hero.uid)) continue;
+      const equipment = kit.get(hero.uid);
+      const free = pool.filter((i) => !claimed.has(i.uid));
+      const weapons = free.filter((i) => slotsForItem(hero, i).includes('weapon'));
+      const offhands = free.filter((i) => slotsForItem(hero, i).includes('offhand'));
+      const before = scoreOf(hero, equipment, upgrades);
+      const best = bestHands(hero, equipment, weapons, offhands, upgrades);
+      const gain = (best.score - before) / Math.max(1e-9, before);
+      if (gain > MIN_GAIN && (!pick || gain > pick.gain)) pick = { hero, best, gain };
+    }
+    if (!pick) break;
+    handsLeft.delete(pick.hero.uid);
+    const { hero, best } = pick;
+    // A two-hander settles both hands at once; anything else leaves the off
+    // hand open to the bidding below.
+    const twoHanded = isTwoHanded(best.weapon);
+    kit.set(hero.uid, {
+      ...kit.get(hero.uid),
+      weapon: best.weapon,
+      offhand: twoHanded ? null : kit.get(hero.uid).offhand ?? null,
+    });
+    if (best.weapon && !claimed.has(best.weapon.uid) && pool.includes(best.weapon)) {
+      claimed.add(best.weapon.uid);
+      moves.push({ itemUid: best.weapon.uid, slot: 'weapon', heroUid: hero.uid });
+    }
+    if (twoHanded) shut.add(hero.uid);
+  }
+
+  // --- Off hands, by what the shield is worth to each of them -----------
+  //
+  // A separate round, and the point of it: the marginal value of a shield to a
+  // Guardian is very large and to a Wizard very small, which only shows once
+  // both are holding a weapon and the comparison is about the shield alone.
+  let offBids = heroes.filter((h) => !shut.has(h.uid))
+    .flatMap((h) => offhandOffers(h, kit.get(h.uid), pool, claimed, upgrades));
+  while (offBids.length) {
+    offBids.sort((a, b) => b.gain - a.gain);
+    const top = offBids[0];
+    if (top.gain <= MIN_GAIN) break;
+    claimed.add(top.item.uid);
+    kit.set(top.hero.uid, { ...kit.get(top.hero.uid), offhand: top.item });
+    moves.push({ itemUid: top.item.uid, slot: 'offhand', heroUid: top.hero.uid });
+    offBids = offBids.filter((b) => b.hero.uid !== top.hero.uid && !claimed.has(b.item.uid));
+  }
+
+  // --- Everything else, to whoever gains most ---------------------------
+  let bids = heroes.flatMap((h) => offers(h, kit.get(h.uid), pool, claimed, upgrades));
+  let guard = 0;
+  while (bids.length && guard++ < 300) {
+    bids.sort((a, b) => b.gain - a.gain);
+    const top = bids[0];
+    if (top.gain <= MIN_GAIN) break;
+
+    claimed.add(top.item.uid);
+    kit.set(top.hero.uid, withEquipped(top.hero, kit.get(top.hero.uid), top.item, top.slot));
+    moves.push({ itemUid: top.item.uid, slot: top.slot, heroUid: top.hero.uid });
+
+    // Only the hero who just took something needs re-pricing; everyone else's
+    // bids are still true, minus whatever has been claimed.
+    bids = bids.filter((b) => b.hero.uid !== top.hero.uid && !claimed.has(b.item.uid));
+    bids.push(...offers(top.hero, kit.get(top.hero.uid), pool, claimed, upgrades));
+  }
+  return moves;
+}
+
+/** Party damage and effective life, for saying what a re-equip actually did. */
+function partyTotals(heroes, upgrades) {
+  let dps = 0; let life = 0;
+  for (const hero of heroes) {
+    const sheet = heroStats(hero, upgrades);
+    dps += sheet.dps;
+    life += sheet.life + sheet.es;
+  }
+  return { dps, life };
+}
+
+/** A multiplier as the change it represents: 1.18 becomes "+18%". */
+export function pct(mult) {
+  const n = Math.round((mult - 1) * 100);
+  return n === 0 ? 'no change' : `${n > 0 ? '+' : ''}${n}%`;
+}
+
+/**
+ * The same across a whole party, allocated rather than handed out in order.
+ *
+ * @returns {{heroes: number, slots: number, dps: number, life: number}}
+ *   dps and life are the party's totals afterwards as a multiple of before.
  */
 export function gearUpParty(partyId) {
   const s = G.state;
   const party = s.parties.find((p) => p.id === partyId);
-  if (!party) return { heroes: 0, slots: 0 };
+  if (!party) return { heroes: 0, slots: 0, dps: 1, life: 1 };
 
-  let heroes = 0; let slots = 0;
-  for (const hero of partyMembers(party)) {
-    const n = gearUpHero(hero.uid, { quiet: true });
-    if (n) { heroes++; slots += n; }
+  const members = partyMembers(party).filter((h) => !isDeployed(h));
+  const before = partyTotals(members, s.upgrades);
+
+  const moves = planParty(members, poolFrom(s), s.upgrades);
+  const touched = new Set();
+  let slots = 0;
+  for (const move of moves) {
+    if (!equipOnHero(move.heroUid, move.itemUid, move.slot)) continue;
+    slots++;
+    touched.add(move.heroUid);
   }
+
+  const after = partyTotals(members, s.upgrades);
+  const out = {
+    heroes: touched.size,
+    slots,
+    dps: before.dps > 0 ? after.dps / before.dps : 1,
+    life: before.life > 0 ? after.life / before.life : 1,
+  };
   if (slots) {
-    log(`${party.name} re-equips: ${slots} slot${slots === 1 ? '' : 's'} improved across `
-      + `${heroes} hero${heroes === 1 ? '' : 'es'}.`, 'loot');
+    log(`${party.name} re-equips: ${slots} slot${slots === 1 ? '' : 's'} across `
+      + `${out.heroes} hero${out.heroes === 1 ? '' : 'es'} — party damage ${pct(out.dps)}, `
+      + `party life ${pct(out.life)}.`, 'loot');
   } else {
     log(`${party.name} is already carrying the best the vault holds.`, 'sys');
   }
   emit('roster');
-  return { heroes, slots };
+  return out;
 }
 
 /**

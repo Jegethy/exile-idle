@@ -4,30 +4,41 @@ import { MATERIAL_BY_ID } from '../data/materials.js';
 import { UNIQUES } from '../data/uniques.js';
 import { UPGRADES, guildEffects, upgradeCost } from '../data/upgrades.js';
 import { buyUpgrade, hasMaterials } from '../inventory.js';
+import { EQUIP_SLOTS } from '../data/bases.js';
+import { RAIDS } from '../data/dungeons.js';
+import { PRIVILEGES } from '../data/charter.js';
+import { hasPrivilege, upcoming } from '../charter.js';
+import { score } from '../achievements.js';
 import { G, partySlots } from '../state.js';
-import { escapeHtml, fmt, fmtInt, qs } from '../util.js';
+import { escapeHtml, fmt, fmtInt, fmtTime, qs } from '../util.js';
 import { setStatus } from './shell.js';
 
 // ===========================================================================
 // Guild Hall
 // ===========================================================================
 
-export function renderHall() {
+/**
+ * The banner above the sub-tabs: the guild at a glance, on every hall page.
+ *
+ * It used to carry the whole hall's summary and sat above a wall of fourteen
+ * upgrade cards, fourteen charter rungs and the collection, all on one
+ * scrolling page. Splitting those into sub-tabs left this as the only thing
+ * shared between them, so it stays outside the tab strip.
+ */
+function renderHallBanner() {
   const s = G.state;
-  const host = qs('#upgradeList');
+  const host = qs('#hallSummary');
   if (!host || !s) return;
   const gu = guildEffects(s.upgrades);
   const ranks = Object.values(s.upgrades ?? {}).reduce((a, b) => a + b, 0);
 
-  qs('#hallSummary').innerHTML = `
+  host.innerHTML = `
     <div class="map-banner">
       <div class="map-banner-top">
         <span class="map-title">${escapeHtml(s.name)}</span>
-        <span class="map-meta">${ranks} upgrade rank${ranks === 1 ? '' : 's'} ·
+        <span class="map-meta">Guild Level ${s.guild.level} ·
           <b class="c-gold">${fmt(s.guild.gold)}</b> gold</span>
       </div>
-      <p class="hint" style="margin-top:6px">Upgrades are permanent. A low tier you clear in seconds
-        is often the fastest way to fund them — that is what the Deepmines are for.</p>
       <div class="hideout-stats">
         <span>Gold <b>+${gu.gold}%</b></span>
         <span>Rarity <b>+${gu.rarity}%</b></span>
@@ -35,8 +46,119 @@ export function renderHall() {
         <span>Materials <b>+${gu.materials}%</b></span>
         <span>Experience <b>+${gu.xp}%</b></span>
         <span>Charters <b>${1 + gu.partySlots}</b></span>
+        <span>Upgrade ranks <b>${ranks}</b></span>
       </div>
     </div>`;
+}
+
+/** One figure in the ledger. */
+function stat(label, value, hint = '') {
+  return `<div class="ledger-cell" ${hint ? `title="${escapeHtml(hint)}"` : ''}>
+    <span class="lc-value">${value}</span>
+    <span class="lc-label">${escapeHtml(label)}</span>
+  </div>`;
+}
+
+function ledgerGroup(title, cells) {
+  return `<div class="ledger-group">
+    <div class="ledger-head">${escapeHtml(title)}</div>
+    <div class="ledger-grid">${cells.join('')}</div>
+  </div>`;
+}
+
+/**
+ * The overview: what this guild has actually done.
+ *
+ * The hall opened on a banner and then a wall of purchases, which answered
+ * "what can I buy" and nothing else. Everything here is already in the save —
+ * the achievement system needs it — and none of it had anywhere to be read.
+ */
+export function renderHallOverview() {
+  const s = G.state;
+  const host = qs('#hallOverview');
+  if (!host || !s) return;
+
+  const st = s.stats ?? {};
+  const runs = st.runs ?? 0;
+  const failed = st.runsFailed ?? 0;
+  const attempts = runs + failed;
+  const clearRate = attempts ? Math.round((runs / attempts) * 100) : 0;
+  const deepest = s.progress?.highestTier ?? 0;
+  const raidKills = Object.values(s.progress?.raidKills ?? {}).reduce((a, b) => a + b, 0);
+  const raidsBeaten = Object.keys(s.progress?.raidKills ?? {}).length;
+  const collected = Object.keys(s.collection ?? {}).length;
+  const perHour = s.playtime > 60 ? (st.goldEarned ?? 0) / (s.playtime / 3600) : 0;
+  const held = PRIVILEGES.filter((x) => hasPrivilege(x.id)).length;
+  const next = upcoming();
+
+  const roster = s.heroes ?? [];
+  const levels = roster.map((h) => h.level ?? 1);
+  const avgLevel = levels.length ? Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) : 0;
+  const worn = roster.flatMap((h) => EQUIP_SLOTS.map((slot) => h.equipment?.[slot]))
+    .filter(Boolean);
+  const avgIlvl = worn.length
+    ? Math.round(worn.reduce((a, i) => a + (i.ilvl ?? 0), 0) / worn.length) : 0;
+  const emptySlots = roster.length * EQUIP_SLOTS.length - worn.length;
+
+  host.innerHTML = `
+    ${ledgerGroup('In the field', [
+    stat('Expeditions cleared', fmtInt(runs)),
+    stat('Wipes', fmtInt(failed), 'Runs where the whole party went down and the haul was lost.'),
+    stat('Clear rate', `${clearRate}%`, 'Of every expedition ever dispatched.'),
+    stat('Deepest tier', deepest || '—', 'The hardest expedition this guild has finished.'),
+    stat('Enemies killed', fmtInt(st.kills ?? 0)),
+    stat('Guardians slain', fmtInt(st.bossKills ?? 0), 'The boss at the end of an expedition.'),
+  ])}
+
+    ${ledgerGroup('The roster', [
+    stat('Heroes', fmtInt(roster.length)),
+    stat('Average level', avgLevel || '—'),
+    stat('Average item level', avgIlvl || '—', 'Across every piece of equipment anyone is wearing.'),
+    stat('Empty slots', fmtInt(Math.max(0, emptySlots)),
+      'Equipment slots nobody has filled. Gear Up on the Parties tab fills them.'),
+    stat('Heroes lost in the field', fmtInt(st.heroDeaths ?? 0),
+      'Downed during an expedition. Nobody is ever lost permanently.'),
+    stat('Hired', fmtInt(st.recruited ?? 0)),
+  ])}
+
+    ${ledgerGroup('The vault', [
+    stat('Items found', fmtInt(st.gearFound ?? 0)),
+    stat('Uniques found', fmtInt(st.uniquesFound ?? 0)),
+    stat('Collection', `${collected}/${UNIQUES.length}`, 'Distinct uniques recorded.'),
+    stat('Salvaged', fmtInt(st.salvaged ?? 0)),
+    stat('Items worked', fmtInt(st.crafted ?? 0), 'Bench recipes applied.'),
+    stat('Flasks brewed', fmtInt(st.flasksBrewed ?? 0)),
+  ])}
+
+    ${ledgerGroup('Gold and deeper things', [
+    stat('Gold earned', fmtInt(st.goldEarned ?? 0)),
+    stat('Gold an hour', perHour ? fmtInt(Math.round(perHour)) : '—',
+      'Averaged over this guild\'s whole playtime, including the time you were away.'),
+    stat('Most gold held', fmtInt(st.peakGold ?? 0)),
+    stat('Raid bosses killed', fmtInt(raidKills), `${raidsBeaten} of ${RAIDS.length} ever beaten.`),
+    stat('Contracts run', fmtInt(st.contractsRun ?? 0)),
+    stat('Blank bases found', fmtInt(st.blanksFound ?? 0),
+      'Unworked item level 120 bases, from the deep raids.'),
+  ])}
+
+    ${ledgerGroup('The guild itself', [
+    stat('Guild level', s.guild.level),
+    stat('Charter privileges', `${held}/${PRIVILEGES.length}`),
+    stat('Next privilege', next ? `Lv ${next.def.level}` : 'complete',
+      next ? next.def.name : 'Every privilege has been granted.'),
+    stat('Achievement score', fmtInt(score())),
+    stat('Playtime', fmtTime(s.playtime ?? 0)),
+    stat('Reward bonus', `+${Math.round(s.progress?.bonusMult ?? 0)}%`,
+      'From first kills on raid bosses. Applies to everything an expedition pays.'),
+  ])}`;
+}
+
+export function renderHall() {
+  const s = G.state;
+  const host = qs('#upgradeList');
+  if (!host || !s) return;
+  renderHallBanner();
+  renderHallOverview();
 
   host.innerHTML = UPGRADES.map((u) => {
     const rank = s.upgrades[u.id] ?? 0;
