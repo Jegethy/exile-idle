@@ -28,7 +28,7 @@ import { wireModals, openModal, closeModals, renderSlots, renderSettings } from 
 import { renderRoster, updateStaminaBars, renderRecruitBoard } from './ui/roster.js';
 import { renderParties } from './ui/parties.js';
 import {
-  renderRuns, updateRunBars, renderDispatch, updateReportTimers,
+  renderRuns, updateRunBars, renderDispatch, updateReportTimers, updateDispatchButtons,
 } from './ui/expeditions.js';
 import { renderRaids } from './ui/raids.js';
 import { renderHall, renderCollection } from './ui/hall.js';
@@ -47,7 +47,6 @@ export { setStatus };
 export function initUI() {
   wireTabs();
   wireTopBar({
-    saves: () => { renderSlots(); openModal('modalSaves'); },
     settings: () => { recordFeat('settings'); renderSettings(); openModal('modalSettings'); },
     guide: () => { recordFeat('guide'); openGuide(); },
     achievements: () => openAchievements(),
@@ -119,6 +118,7 @@ export function renderAll() {
 export function tick() {
   updateRunBars();
   updateReportTimers();
+  updateDispatchButtons();
   pumpAchievementToasts();
   pumpCharterToasts();
   pumpToasts();

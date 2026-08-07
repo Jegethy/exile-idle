@@ -2,10 +2,10 @@
 
 import { FAMILIES } from '../data/materials.js';
 import { UNIQUE_BY_ID } from '../data/uniques.js';
-import { heroById, heroInfo } from '../heroes.js';
+import { heroById, heroInfo, isDeployed } from '../heroes.js';
 import { itemBaseStats, itemDescriptor, itemMods } from '../items.js';
 import { G } from '../state.js';
-import { heroStats } from '../stats.js';
+import { heroStats, upgradeFor } from '../stats.js';
 import { escapeHtml, fmt, fmtInt, qs, signed } from '../util.js';
 import { R, ui } from './state.js';
 
@@ -71,11 +71,43 @@ function itemTooltipHtml(item, compare, hint) {
   }
   if (item.corrupted) parts.push('<div class="tt-corrupt">Corrupted</div>');
   if (compare && ui.equipTarget) parts.push(compareHtml(item));
+  else parts.push(upgradeHtml(item));
   if (hint) parts.push(`<div class="tt-hint">${escapeHtml(hint)}</div>`);
   return parts.join('');
 }
 
 /** Diffs the gearing hero's sheet with this item equipped. */
+/**
+ * Who this item would improve, and by how much.
+ *
+ * The vault already marks upgrades with a green tick, but the mark alone was
+ * unanswerable: an upgrade *for whom*? With twenty heroes and nine slots that
+ * is the only question worth asking about a drop, and the answer was two
+ * clicks and a memory test away.
+ *
+ * Deployed heroes are included and said to be out, because "this would be a
+ * big upgrade for someone currently underground" is still the answer.
+ */
+function upgradeHtml(item) {
+  const s = G.state;
+  if (!s?.heroes?.length) return '';
+  const ranked = s.heroes
+    .map((hero) => ({ hero, delta: upgradeFor(hero, item, s.upgrades).delta }))
+    .filter((x) => x.delta > 0.001)
+    .sort((a, b) => b.delta - a.delta);
+
+  if (!ranked.length) return '<div class="tt-compare"><div class="tt-kind">Improves nobody on the roster</div></div>';
+
+  const rows = ranked.slice(0, 3).map(({ hero, delta }) => `<div class="tt-row">
+      <span>${escapeHtml(hero.name)}${isDeployed(hero) ? ' <i class="tt-out">(out)</i>' : ''}</span>
+      <span class="tt-good">+${(delta * 100).toFixed(0)}%</span>
+    </div>`).join('');
+  const more = ranked.length > 3
+    ? `<div class="tt-more">and ${ranked.length - 3} other${ranked.length - 3 === 1 ? '' : 's'}</div>`
+    : '';
+  return `<div class="tt-compare"><div class="tt-kind">An upgrade for</div>${rows}${more}</div>`;
+}
+
 function compareHtml(item) {
   const hero = heroById(ui.equipTarget);
   if (!hero) return '';

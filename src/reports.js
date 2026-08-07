@@ -34,6 +34,14 @@ export const reports = [];
  * @param {boolean} auto  whether this party will redeploy on its own
  */
 export function addReport(run, success, auto) {
+  // Summaries can be switched off entirely. A party that redeploys on its own
+  // still files a *silent* report, because the five-second gap between runs is
+  // what the report's timer provides — turning the summary off should stop the
+  // reading, not turn auto-redeploy into a machine gun. A party waiting to be
+  // sent by hand has nothing to gate, so it files nothing at all.
+  const silent = !!G.state?.settings?.hideReports;
+  if (silent && !auto) return;
+
   const heroes = run.combatants.map((c) => ({
     uid: c.uid,
     name: c.name,
@@ -61,6 +69,7 @@ export function addReport(run, success, auto) {
     rewards: { ...run.rewards },
     heroes,
     auto,
+    silent,
     remaining: auto ? AUTO_DISMISS_SECONDS : null,
   });
   emit('reports');
@@ -77,6 +86,25 @@ export function dismissReport(id) {
   reports.splice(i, 1);
   emit('reports');
   return true;
+}
+
+/**
+ * Drops whatever a party was still showing.
+ *
+ * Sending a party somewhere new answers the summary: the run it describes is
+ * two runs ago and the panel below is already showing the new one. Without
+ * this they pile up down the screen, since only a click or the auto timer ever
+ * removed one.
+ */
+export function dismissReportsFor(partyId) {
+  let changed = false;
+  for (let i = reports.length - 1; i >= 0; i--) {
+    if (reports[i].partyId !== partyId) continue;
+    reports.splice(i, 1);
+    changed = true;
+  }
+  if (changed) emit('reports');
+  return changed;
 }
 
 export function clearReports() {

@@ -11,7 +11,7 @@ import { skillPoolFor, SKILL_CHOICES, SKILL_BY_ID } from './data/skills.js';
 import { EQUIP_SLOTS, BASE_BY_ID } from './data/bases.js';
 import { addToVault } from './inventory.js';
 import { refreshSheets } from './sheets.js';
-import { createItem } from './items.js';
+import { createItem, itemScore } from './items.js';
 import { guildEffects } from './data/upgrades.js';
 import { recordFeat } from './achievements.js';
 import { recruitBoardSize } from './charter.js';
@@ -316,11 +316,15 @@ export function canDispatch(party, cost) {
 /** Concrete slot an item should occupy on a hero, preferring an empty ring. */
 export function targetSlot(hero, item) {
   if (item.slot === 'ring') return !hero.equipment.ring1 ? 'ring1' : (!hero.equipment.ring2 ? 'ring2' : 'ring1');
-  // A dual wielder with a hand free takes a second one-handed weapon there
-  // rather than displacing the one it is already holding.
-  if (item.slot === 'weapon' && canDualWield(hero) && isOneHanded(item)
-      && hero.equipment.weapon && !hero.equipment.offhand) {
-    return 'offhand';
+  if (item.slot === 'weapon' && canDualWield(hero) && isOneHanded(item)) {
+    // A hand free takes the second weapon rather than displacing the first.
+    if (!hero.equipment.offhand) return hero.equipment.weapon ? 'offhand' : 'weapon';
+    if (!hero.equipment.weapon) return 'weapon';
+    // Both hands full: displace the weaker of the two. Always replacing the
+    // main hand meant a Rogue could only be upgraded by unequipping both
+    // weapons first and putting them back in the right order.
+    return itemScore(hero.equipment.offhand) < itemScore(hero.equipment.weapon)
+      ? 'offhand' : 'weapon';
   }
   return item.slot;
 }
@@ -335,15 +339,50 @@ function isOneHanded(item) {
   return base?.slot === 'weapon' && base.hands !== 2;
 }
 
+function isTwoHanded(item) {
+  const base = BASE_BY_ID[item?.baseId];
+  return base?.slot === 'weapon' && base.hands === 2;
+}
+
+/**
+ * Can this hero hold this item in that hand at all?
+ *
+ * `dualWield` is now a whole fighting style rather than a permission: a class
+ * that has it fights with a one-handed weapon in each hand and cannot do
+ * anything else. No shield, no quiver, no two-hander. Letting a Rogue pick up
+ * a greatsword made the class's one distinguishing feature optional, and an
+ * offhand slot that accepts both a second dagger and a tower shield cannot be
+ * automatically filled without guessing which build the player wanted.
+ *
+ * @returns {{ok: boolean, msg: string}}
+ */
+export function canHold(hero, item, slot) {
+  if (!hero || !item) return { ok: false, msg: 'Nothing to equip.' };
+  const dual = canDualWield(hero);
+  const cls = CLASS_BY_ID[hero.classId]?.name ?? 'This hero';
+
+  if (dual && isTwoHanded(item)) {
+    return { ok: false, msg: `A ${cls} fights with a weapon in each hand and cannot hold a two-handed weapon.` };
+  }
+  if (slot === 'offhand') {
+    if (dual) {
+      return isOneHanded(item)
+        ? { ok: true, msg: '' }
+        : { ok: false, msg: `A ${cls} carries a second weapon in that hand, not ${item.name}.` };
+    }
+    return BASE_BY_ID[item.baseId]?.slot === 'offhand'
+      ? { ok: true, msg: '' }
+      : { ok: false, msg: `${hero.name} cannot hold that in their off hand.` };
+  }
+  return { ok: true, msg: '' };
+}
+
 /**
  * Can this item go in this hero's offhand at all?
  * @returns {boolean}
  */
 export function offhandAccepts(hero, item) {
-  if (!item) return false;
-  const base = BASE_BY_ID[item.baseId];
-  if (base?.slot === 'offhand') return true;
-  return canDualWield(hero) && isOneHanded(item);
+  return canHold(hero, item, 'offhand').ok;
 }
 
 /** Moves an item from the vault onto a hero. Anything replaced returns to the vault. */
@@ -359,10 +398,10 @@ export function equipOnHero(heroUid, itemUid, forcedSlot = null) {
   const base = BASE_BY_ID[item.baseId];
   const twoHanded = base?.slot === 'weapon' && base.hands === 2;
 
-  // A two-handed weapon occupies both hands, so nothing may sit beside it.
-  if (slot === 'offhand' && !offhandAccepts(hero, item)) {
+  const allowed = canHold(hero, item, slot);
+  if (!allowed.ok) {
     s.vault.splice(idx, 0, item);
-    log(`${hero.name} cannot hold that in their off hand.`, 'danger');
+    log(allowed.msg, 'danger');
     return false;
   }
 

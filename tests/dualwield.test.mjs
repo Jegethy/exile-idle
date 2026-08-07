@@ -54,21 +54,25 @@ export default async function run(browser) {
       const { createItem } = await import('./src/items.js');
       const { addToVault } = await import('./src/inventory.js');
       const { equipOnHero, rollHero } = await import('./src/heroes.js');
-      const hero = rollHero({ classId: 'rogue', rarity: 'common' });
+      // A Warrior: the Rogue can no longer pick up a two-hander at all, which
+      // would make this pass for the wrong reason.
+      const hero = rollHero({ classId: 'warrior', rarity: 'common' });
       G.state.heroes.push(hero);
       const twoHander = createItem({ baseId: 'sword2h', ilvl: 30, rarity: 'normal' });
       addToVault(twoHander, { noAutoSalvage: true });
-      equipOnHero(hero.uid, twoHander.uid);
-      const dagger = createItem({ baseId: 'dagger', ilvl: 30, rarity: 'normal' });
-      addToVault(dagger, { noAutoSalvage: true });
-      equipOnHero(hero.uid, dagger.uid, 'offhand');
+      const held = equipOnHero(hero.uid, twoHander.uid);
+      const shield = createItem({ baseId: 'shield_str', ilvl: 30, rarity: 'normal' });
+      addToVault(shield, { noAutoSalvage: true });
+      equipOnHero(hero.uid, shield.uid, 'offhand');
       return {
+        held,
         offhand: hero.equipment.offhand?.baseId ?? null,
         weapon: hero.equipment.weapon?.baseId ?? null,
         backInVault: G.state.vault.some((i) => i.uid === twoHander.uid),
       };
     });
-    eq(r.offhand, 'dagger', 'the dagger should be in the offhand');
+    ok(r.held, 'the two-handed weapon was never equipped, so nothing was displaced');
+    eq(r.offhand, 'shield_str', 'the shield should be in the offhand');
     eq(r.weapon, null, 'the two-handed weapon should have been put down');
     ok(r.backInVault, 'the displaced weapon should return to the vault, not vanish');
     return 'two-hander displaced to the vault';
@@ -102,8 +106,9 @@ export default async function run(browser) {
       const { addToVault } = await import('./src/inventory.js');
       const { equipOnHero, rollHero } = await import('./src/heroes.js');
       const { openHeroModal } = await import('./src/ui/roster.js');
-      // A fresh Rogue holding a two-hander and nothing else.
-      const hero = rollHero({ classId: 'rogue', rarity: 'common' });
+      // A Warrior, because a Rogue may no longer hold a two-hander at all --
+      // see the case below.
+      const hero = rollHero({ classId: 'warrior', rarity: 'common' });
       G.state.heroes.push(hero);
       const twoHander = createItem({ baseId: 'axe2h', ilvl: 30, rarity: 'normal' });
       addToVault(twoHander, { noAutoSalvage: true });
@@ -119,6 +124,70 @@ export default async function run(browser) {
     eq(shown.holding, 'axe2h', 'the hero should be holding the two-hander');
     ok(shown.blocked, 'the offhand should be marked blocked while a two-hander is held');
     return `shown as "${shown.label}"`;
+  });
+
+  await test('a Rogue is refused a two-hander and a shield', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { createItem } = await import('./src/items.js');
+      const { addToVault } = await import('./src/inventory.js');
+      const { equipOnHero, rollHero, canHold } = await import('./src/heroes.js');
+      const hero = rollHero({ classId: 'rogue', rarity: 'common' });
+      G.state.heroes.push(hero);
+
+      const twoHander = createItem({ baseId: 'sword2h', ilvl: 30, rarity: 'normal' });
+      const shield = createItem({ baseId: 'shield_dex', ilvl: 30, rarity: 'normal' });
+      const dagger = createItem({ baseId: 'dagger', ilvl: 30, rarity: 'normal' });
+      const second = createItem({ baseId: 'dagger', ilvl: 30, rarity: 'normal' });
+      for (const it of [twoHander, shield, dagger, second]) addToVault(it, { noAutoSalvage: true });
+
+      const tookTwoHander = equipOnHero(hero.uid, twoHander.uid);
+      const tookShield = equipOnHero(hero.uid, shield.uid, 'offhand');
+      equipOnHero(hero.uid, dagger.uid);
+      equipOnHero(hero.uid, second.uid);
+      return {
+        tookTwoHander,
+        tookShield,
+        weapon: hero.equipment.weapon?.baseId ?? null,
+        offhand: hero.equipment.offhand?.baseId ?? null,
+        twoHanderSays: canHold(hero, twoHander, 'weapon').msg,
+      };
+    });
+    ok(!r.tookTwoHander, 'a Rogue equipped a two-handed weapon');
+    ok(!r.tookShield, 'a Rogue equipped a shield');
+    eq(r.weapon, 'dagger', `main hand holds ${r.weapon}`);
+    eq(r.offhand, 'dagger', `off hand holds ${r.offhand}`);
+    ok(r.twoHanderSays.length > 0, 'the refusal gives no reason');
+    return 'two-hander and shield refused, two daggers accepted';
+  });
+
+  await test('a better weapon replaces the weaker hand, not always the first', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { createItem } = await import('./src/items.js');
+      const { addToVault } = await import('./src/inventory.js');
+      const { equipOnHero, rollHero } = await import('./src/heroes.js');
+      const hero = rollHero({ classId: 'rogue', rarity: 'common' });
+      G.state.heroes.push(hero);
+
+      const strong = createItem({ baseId: 'dagger', ilvl: 60, rarity: 'rare' });
+      const weak = createItem({ baseId: 'dagger', ilvl: 5, rarity: 'normal' });
+      const better = createItem({ baseId: 'dagger', ilvl: 80, rarity: 'rare' });
+      for (const it of [strong, weak, better]) addToVault(it, { noAutoSalvage: true });
+      equipOnHero(hero.uid, strong.uid);     // main hand
+      equipOnHero(hero.uid, weak.uid);       // off hand
+      equipOnHero(hero.uid, better.uid);     // should displace the weak one
+      return {
+        weapon: hero.equipment.weapon?.uid,
+        offhand: hero.equipment.offhand?.uid,
+        strong: strong.uid, weak: weak.uid, better: better.uid,
+        weakBack: G.state.vault.some((i) => i.uid === weak.uid),
+      };
+    });
+    eq(r.weapon, r.strong, 'the good main-hand weapon was thrown away');
+    eq(r.offhand, r.better, 'the new weapon did not take the weaker hand');
+    ok(r.weakBack, 'the displaced weapon did not return to the vault');
+    return 'the weaker hand gave way, the better one was left alone';
   });
 
   await test('no page errors', () => clean(errors));

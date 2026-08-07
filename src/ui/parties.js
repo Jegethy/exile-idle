@@ -55,7 +55,8 @@ export function renderParties() {
     return `<div class="party-card ${running ? 'running' : ''} ${target ? 'target' : ''}"
       data-party-card="${p.id}">
       <div class="party-top">
-        <span class="party-name">${escapeHtml(p.name)}</span>
+        <span class="party-name">${escapeHtml(p.name)}</span>${target
+    ? '<span class="party-adding">adding here</span>' : ''}
         <span class="hint">${members.length}/${MAX_MEMBERS}${full ? ' · full' : ''}</span>
       </div>
       <div class="party-stats">
@@ -79,10 +80,12 @@ export function renderParties() {
       </span>`).join('')}</div>
       ${flaskPicker(p)}
       <div class="row">
-        ${autoUnlocked ? `<label class="party-auto" title="Re-run this party's last expedition without being told.
+        ${autoUnlocked ? `<button class="toggle ${p.autoRedeploy ? 'on' : ''}" data-partyauto="${p.id}"
+          role="switch" aria-checked="${!!p.autoRedeploy}"
+          title="Re-run this party's last expedition without being told.
 Each party decides for itself, so one can farm while another waits for you.">
-          <input type="checkbox" data-partyauto="${p.id}" ${p.autoRedeploy !== false ? 'checked' : ''}>
-          <span>Auto-redeploy</span></label>` : ''}
+          <span class="toggle-track"><span class="toggle-knob"></span></span>
+          <span class="toggle-label">Auto-redeploy</span></button>` : ''}
         ${!running && hasPrivilege('gearParty') ? `<button class="btn tiny" data-gearparty="${p.id}"
           title="Give every member the best the vault holds. Locked items are left alone.">Gear Up</button>` : ''}
         ${running ? '<span class="tag out">On expedition</span>'
@@ -90,14 +93,24 @@ Each party decides for itself, so one can farm while another waits for you.">
     </div>`;
   }).join('');
 
-  host.onchange = (e) => {
-    const auto = e.target.closest('[data-partyauto]');
-    if (!auto) return;
-    const party = partyById(auto.dataset.partyauto);
-    if (party) party.autoRedeploy = auto.checked;
-  };
-
   host.onclick = (e) => {
+    // First, and its own branch, because the catch-all at the bottom of this
+    // handler re-renders the card. As a checkbox this toggle never worked:
+    // `click` bubbles before `change` fires, so the re-render detached the
+    // input and the change event was lost on an element no longer in the tree.
+    const auto = e.target.closest('[data-partyauto]');
+    if (auto) {
+      const party = partyById(auto.dataset.partyauto);
+      if (party) {
+        party.autoRedeploy = !party.autoRedeploy;
+        setStatus(party.autoRedeploy
+          ? `${party.name} will re-run its last expedition on its own.`
+          : `${party.name} will wait to be sent.`);
+      }
+      renderParties();
+      return;
+    }
+
     const del = e.target.closest('[data-delparty]');
     if (del) {
       confirmAction('Disband this party?', 'Its members become unassigned. No heroes are lost.',

@@ -263,6 +263,70 @@ export default async function run(browser) {
     return `scored without the shield it displaces (${r.withShield.toFixed(0)} vs ${r.noShield.toFixed(0)})`;
   });
 
+  await test('Best Gear never leaves a hero holding a shield and no weapon', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { createItem } = await import('./src/items.js');
+      const { gearUpHero } = await import('./src/outfit.js');
+      const { EQUIP_SLOTS } = await import('./src/data/bases.js');
+      const { refreshSheets } = await import('./src/sheets.js');
+
+      // The reported case: a tank holding a two-hander, a very good shield in
+      // the vault, and a weapon it could have taken instead. Planning the hands
+      // one slot at a time put the shield on, which emptied the main hand, and
+      // nothing put a weapon back.
+      const hero = G.state.heroes.find((h) => h.classId === 'warrior')
+        ?? G.state.heroes[0];
+      for (const slot of EQUIP_SLOTS) hero.equipment[slot] = null;
+      hero.equipment.weapon = createItem({ baseId: 'sword2h', ilvl: 20, rarity: 'normal' });
+      G.state.vault.length = 0;
+      G.state.vault.push(createItem({ baseId: 'shield_str', ilvl: 80, rarity: 'rare' }));
+      G.state.vault.push(createItem({ baseId: 'sword1h', ilvl: 80, rarity: 'rare' }));
+      refreshSheets();
+
+      gearUpHero(hero.uid, { quiet: true });
+      return {
+        weapon: hero.equipment.weapon?.baseId ?? null,
+        offhand: hero.equipment.offhand?.baseId ?? null,
+      };
+    });
+    ok(r.weapon, `the hero ended up with no weapon at all (off hand: ${r.offhand})`);
+    return `ended up with ${r.weapon} and ${r.offhand ?? 'nothing'} in the off hand`;
+  });
+
+  await test('a Rogue is geared with two weapons and no shield', async () => {
+    const r = await page.evaluate(async () => {
+      const { G } = await import('./src/state.js');
+      const { createItem } = await import('./src/items.js');
+      const { gearUpHero } = await import('./src/outfit.js');
+      const { EQUIP_SLOTS } = await import('./src/data/bases.js');
+      const { rollHero } = await import('./src/heroes.js');
+      const { refreshSheets } = await import('./src/sheets.js');
+
+      const hero = rollHero({ classId: 'rogue', rarity: 'common' });
+      hero.level = 30;
+      G.state.heroes.push(hero);
+      for (const slot of EQUIP_SLOTS) hero.equipment[slot] = null;
+      G.state.vault.length = 0;
+      // A shield and a two-hander that are, on raw numbers, far better than the
+      // daggers. Neither may be worn, so neither may be chosen.
+      G.state.vault.push(createItem({ baseId: 'shield_dex', ilvl: 100, rarity: 'rare' }));
+      G.state.vault.push(createItem({ baseId: 'sword2h', ilvl: 100, rarity: 'rare' }));
+      G.state.vault.push(createItem({ baseId: 'dagger', ilvl: 30, rarity: 'rare' }));
+      G.state.vault.push(createItem({ baseId: 'dagger', ilvl: 30, rarity: 'rare' }));
+      refreshSheets();
+
+      gearUpHero(hero.uid, { quiet: true });
+      return {
+        weapon: hero.equipment.weapon?.baseId ?? null,
+        offhand: hero.equipment.offhand?.baseId ?? null,
+      };
+    });
+    eq(r.weapon, 'dagger', `main hand holds ${r.weapon}`);
+    eq(r.offhand, 'dagger', `off hand holds ${r.offhand}`);
+    return 'two daggers, and the better shield and two-hander left alone';
+  });
+
   // -------------------------------------------------------------------------
   // Automations
   // -------------------------------------------------------------------------

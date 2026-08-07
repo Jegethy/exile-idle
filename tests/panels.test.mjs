@@ -130,8 +130,12 @@ export default async function run(browser) {
 
   await test('the saves modal exports a save', async () => {
     const r = await page.evaluate(() => {
+      // Reached from Settings now, not from a button in the top bar: there is
+      // almost never a reason to save by hand, so it does not deserve the
+      // permanent space.
       document.querySelector('.modal-close')?.click();
-      document.querySelector('#btnSaves').click();
+      document.querySelector('#btnSettings').click();
+      document.querySelector('#btnOpenSaves').click();
       document.querySelector('#btnExport').click();
       const box = document.querySelector('#saveText');
       return { open: !document.querySelector('#modalSaves').classList.contains('hidden'),

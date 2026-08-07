@@ -3,7 +3,6 @@
 import { G, emit, guildXpToNext, on, partySlots } from '../state.js';
 import { upcoming } from '../charter.js';
 import { clamp, fmt, fmtInt, fmtTime, qs, qsa } from '../util.js';
-import * as Save from '../save.js';
 
 // ===========================================================================
 // Chrome
@@ -38,8 +37,6 @@ export function gotoTab(tabId) {
  *   orchestrator, so the top bar does not have to import the modals it opens.
  */
 export function wireTopBar(handlers) {
-  qs('#btnSave').onclick = () => Save.saveToSlot(G.slot);
-  qs('#btnSaves').onclick = handlers.saves;
   qs('#btnSettings').onclick = handlers.settings;
   qs('#btnGuide').onclick = handlers.guide;
   qs('#btnAchievements').onclick = handlers.achievements;

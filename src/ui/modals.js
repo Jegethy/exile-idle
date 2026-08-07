@@ -4,8 +4,11 @@ import { returnToTitle } from '../splash.js';
 import { G, createState, log, on } from '../state.js';
 import { escapeHtml, fmtTime, qs, qsa } from '../util.js';
 import * as Save from '../save.js';
+const { AUTOSAVE_SECONDS } = Save;
 import { setStatus } from './shell.js';
 import { ui } from './state.js';
+import { AUTO_DISMISS_SECONDS } from '../reports.js';
+
 
 // ===========================================================================
 // Modals
@@ -139,6 +142,9 @@ export function renderSettings() {
     ${toggleRow('autoSalvageRare', 'Auto-salvage Rare drops', 'Rare items are broken down for materials. Uniques are never auto-salvaged.')}
     ${toggleRow('hideCompWarnings', 'Hide party composition warnings',
     'Stops the no-tank and no-healer notices. Party makeup is never enforced.')}
+    ${toggleRow('hideReports', 'Hide expedition summaries',
+    'Runs finish without the after-action card. Parties on auto-redeploy still pause '
+    + `${AUTO_DISMISS_SECONDS} seconds between expeditions, so nothing changes about how fast they go.`)}
     <div class="setting-row">
       <div><div class="sl">Simulation speed</div><div class="sh">Higher is faster but coarser.</div></div>
       <select class="text-input" style="width:auto" id="setSpeed">
@@ -151,8 +157,28 @@ export function renderSettings() {
         ${[100, 200, 500, 1000].map((v) => `<option value="${v}" ${s.settings.logLimit === v ? 'selected' : ''}>${v}</option>`).join('')}
       </select>
     </div>
+    <div class="section-head"><span>Saving</span></div>
+    <div class="setting-row">
+      <div><div class="sl">This guild is saved automatically</div>
+        <div class="sh">Every ${AUTOSAVE_SECONDS} seconds, when the tab loses focus, and when you close it.
+          Saving by hand is almost never necessary — the button is here for the moment before you
+          try something you might regret.</div></div>
+      <button class="btn" id="btnSaveNow">Save Now</button>
+    </div>
+    <div class="setting-row">
+      <div><div class="sl">Guild slots</div>
+        <div class="sh">Three slots, plus export and import. Switch guilds, back one up, or start
+          another without losing this one.</div></div>
+      <button class="btn" id="btnOpenSaves">Manage Saves</button>
+    </div>
     <div class="section-head"><span>Danger Zone</span></div>
     <div class="row"><button class="btn danger" id="btnWipe">Delete This Guild</button></div>`;
+
+  qs('#btnSaveNow').onclick = () => {
+    Save.saveToSlot(G.slot);
+    setStatus('Saved.');
+  };
+  qs('#btnOpenSaves').onclick = () => { renderSlots(); openModal('modalSaves'); };
 
   host.onchange = (e) => {
     const t = e.target;

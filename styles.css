@@ -1229,11 +1229,6 @@ body.splash-open { overflow:hidden; }
 .mix-label.casters  { color:#9a7fd0; }
 
 /* Each party opts in to running itself. */
-.party-auto {
-  display:inline-flex; align-items:center; gap:5px; margin-right:auto;
-  font-size:10px; color:var(--ink-dim); cursor:pointer;
-}
-.party-auto input { accent-color:var(--gold-dim); }
 
 /* An offhand shut by a two-handed weapon: visibly unavailable, not inviting. */
 .slot.blocked {
@@ -1290,7 +1285,7 @@ body.splash-open { overflow:hidden; }
 .skill.active {
   border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
-.skill.active b::after { content: ' ¹3'; color: var(--accent); }
+.skill.active b::after { content: ' (equipped)'; color: var(--accent); font-size:10px; }
 
 /* --- Guild Handbook -----------------------------------------------------
    Wider than other modals because most of its content is tabular, and the
@@ -1441,8 +1436,8 @@ body.splash-open { overflow:hidden; }
 .party-card { cursor:pointer; }
 .party-card.running { cursor:default; }
 .party-card.target { border-color:var(--gold-dim); background:rgba(200,170,110,.05); }
-.party-card.target .party-name::after {
-  content:' 90 adding here'; font-size:10px; letter-spacing:.5px;
+.party-adding {
+  margin-left:6px; font-size:10px; letter-spacing:.5px;
   color:var(--gold-dim); text-transform:uppercase; font-weight:400;
 }
 .pm { display:inline-flex; align-items:center; gap:5px; }
@@ -1496,7 +1491,7 @@ body.splash-open { overflow:hidden; }
   font-size:9px; letter-spacing:2.4px; text-transform:uppercase;
   color:var(--ink-faint); margin-top:3px;
 }
-.score-side { flex:1 1 auto; min-width:0; }
+.score-side { flex:1 1 auto; min-width:0; text-align:center; }
 .score-of { font-size:12px; color:var(--ink-faint); margin-bottom:7px; }
 
 .ach-bar {
@@ -1522,10 +1517,14 @@ body.splash-open { overflow:hidden; }
 }
 .ach.earned .ach-icon { color:var(--gold); border-color:var(--gold-dim); }
 .ach-body { flex:1 1 auto; min-width:0; }
-.ach-top { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.ach-top { display:flex; align-items:baseline; gap:10px; }
+.ach-meta {
+  flex:0 0 auto; display:grid; gap:3px; justify-items:center; align-content:center;
+  min-width:56px;
+}
 .ach-name { font-size:13px; color:var(--ink); }
 .ach.earned .ach-name { color:var(--gold); }
-.ach-date, .ach-frac { font-size:11px; color:var(--ink-faint); white-space:nowrap; }
+.ach-date, .ach-frac { font-size:10px; color:var(--ink-faint); white-space:nowrap; text-align:center; }
 .ach-desc { font-size:11.5px; color:var(--ink-faint); line-height:1.45; margin-top:1px; }
 .ach .ach-bar { margin-top:5px; }
 .ach-points {
@@ -1637,11 +1636,7 @@ body.splash-open { overflow:hidden; }
   border:1px solid var(--line-2); background:var(--bg-3,#101016);
 }
 .charter.held .charter-level { color:var(--gold); border-color:var(--gold-dim); }
-.charter-switch {
-  display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer;
-  color:var(--ink-faint);
-}
-.charter-switch input { cursor:pointer; }
+
 
 /* A charter toast is the same shape as an achievement's, without the points
    badge -- a privilege is not worth a number, and putting one there would
@@ -1650,3 +1645,38 @@ body.splash-open { overflow:hidden; }
 
 .repeat-row { align-items:center; gap:9px; margin-top:8px; }
 .repeat-row .hint { flex:1 1 0; min-width:0; }
+
+/* --- Toggles -----------------------------------------------------------
+   A real switch rather than a browser checkbox. The native control renders
+   as a bright white box on a dark panel and reads as a form field in the
+   middle of a game; this reads as a setting that is on or off. */
+.toggle {
+  display:inline-flex; align-items:center; gap:7px;
+  border:0; background:none; padding:2px 0; cursor:pointer;
+  color:var(--ink-dim); font:inherit; font-size:11px;
+}
+.toggle:hover { color:var(--ink); }
+.toggle-track {
+  position:relative; flex:0 0 auto; width:30px; height:16px; border-radius:9px;
+  border:1px solid var(--line-2); background:var(--bg-3,#101016);
+  transition:background .18s ease, border-color .18s ease;
+}
+.toggle-knob {
+  position:absolute; top:2px; left:2px; width:10px; height:10px; border-radius:50%;
+  background:var(--ink-faint); transition:left .18s ease, background .18s ease;
+}
+.toggle.on { color:var(--gold); }
+.toggle.on .toggle-track { border-color:var(--gold-dim); background:rgba(200,170,110,.22); }
+.toggle.on .toggle-knob { left:16px; background:var(--gold); }
+.toggle:focus-visible .toggle-track { outline:1px solid var(--gold-dim); outline-offset:2px; }
+/* Pushes the Disband button to the far end of the party card's action row. */
+.party-card .row .toggle { margin-right:auto; }
+@media (prefers-reduced-motion: reduce) {
+  .toggle-track, .toggle-knob { transition:none; }
+}
+
+/* Who a drop would improve, listed under the item's own stats. The green tick
+   in the vault says an item is an upgrade; this says for whom, which is the
+   only question worth asking about a drop once the roster is large. */
+.tt-out { color:var(--ink-faint); font-style:normal; font-size:10px; }
+.tt-more { color:var(--ink-faint); font-size:10px; margin-top:3px; }

@@ -233,7 +233,8 @@ export function openHeroModal(heroUid) {
     // rather than merely empty — an empty slot reads as "put something here".
     if (!item && slotId === 'offhand' && twoHanded) {
       return `<div class="slot blocked" style="grid-area:${slotId}" data-slot="${slotId}"
-        data-label="Both hands" title="A two-handed weapon leaves no hand free."></div>`;
+        data-label="Held in both hands"
+        title="${escapeHtml(hero.equipment.weapon?.name ?? 'A two-handed weapon')} is two-handed, so this hand is full. Equip a one-handed weapon to free it."></div>`;
     }
     if (!item) return `<div class="slot empty" style="grid-area:${slotId}" data-slot="${slotId}" data-label="${label}"></div>`;
     const bs = itemBaseStats(item);

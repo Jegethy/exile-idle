@@ -24,12 +24,18 @@ import { G, emit, log } from './state.js';
 import { EQUIP_SLOTS, BASE_BY_ID } from './data/bases.js';
 import { CLASS_BY_ID } from './data/heroclasses.js';
 import { heroStats, sheetScore } from './stats.js';
-import { equipOnHero, heroById, isDeployed, partyMembers } from './heroes.js';
+import { equipOnHero, heroById, isDeployed, partyMembers, canHold } from './heroes.js';
 
 /** Ignore differences below this — a 0.2% change is noise, not an upgrade. */
 const MIN_GAIN = 0.002;
 
-/** Sweeps over the slot list. Enough for a two-hander to lose to a pair. */
+/**
+ * Sweeps over the remaining slots.
+ *
+ * The hands are solved exactly and separately, so these passes only exist for
+ * the mild interactions left — a resistance affix on a ring changing what the
+ * best boots are worth.
+ */
 const PASSES = 3;
 
 function isOneHanded(item) {
@@ -61,17 +67,62 @@ function slotsForItem(hero, item) {
  * cannot hold one.
  */
 function withEquipped(hero, equipment, item, slot) {
-  const dual = !!CLASS_BY_ID[hero?.classId]?.dualWield;
-  if (slot === 'offhand') {
-    const base = BASE_BY_ID[item.baseId];
-    const accepts = base?.slot === 'offhand' || (dual && isOneHanded(item));
-    if (!accepts) return null;
-  }
+  if (!canHold(hero, item, slot).ok) return null;
   const next = { ...equipment, [slot]: item };
   // A two-handed weapon occupies both hands; nothing may sit beside it.
   if (slot === 'weapon' && isTwoHanded(item)) next.offhand = null;
   if (slot === 'offhand' && isTwoHanded(equipment.weapon)) next.weapon = null;
   return next;
+}
+
+/**
+ * Chooses both hands at once.
+ *
+ * The hands are one decision, not two, and treating them as two is what
+ * produced the worst bug this feature has had: a greedy sweep put a shield in
+ * the off hand of a warrior holding a two-hander, which emptied the main hand,
+ * and the sweep then found nothing better to put back — leaving a tank in a
+ * shield and no weapon at all.
+ *
+ * Enumerating the pairs removes the failure mode rather than patching it. It
+ * is also the only way a sword and shield can genuinely be compared against a
+ * greatsword, which is the whole reason the outfitter scores outfits instead
+ * of items.
+ *
+ * @returns {{weapon: object|null, offhand: object|null, score: number}}
+ */
+function bestHands(hero, equipment, weapons, offhands, upgrades) {
+  const oneHanders = weapons.filter(isOneHanded);
+  const twoHanders = weapons.filter(isTwoHanded);
+  const dual = !!CLASS_BY_ID[hero?.classId]?.dualWield;
+
+  // Staying as you are is a candidate, so a hero already well armed is left
+  // alone rather than shuffled for a rounding error.
+  let best = {
+    weapon: equipment.weapon ?? null,
+    offhand: equipment.offhand ?? null,
+    score: scoreOf(hero, equipment, upgrades),
+  };
+  const consider = (weapon, offhand) => {
+    const next = { ...equipment, weapon: weapon ?? null, offhand: offhand ?? null };
+    const score = scoreOf(hero, next, upgrades);
+    if (score > best.score) best = { weapon: weapon ?? null, offhand: offhand ?? null, score };
+  };
+
+  // A two-hander fills both hands, so it is scored against the pair it costs.
+  if (!dual) for (const w of twoHanders) consider(w, null);
+
+  // A dual wielder's off hand takes a second weapon; everyone else's takes a
+  // shield or a quiver. Either way the main hand must be one-handed.
+  const seconds = dual ? oneHanders : offhands;
+  for (const w of oneHanders) {
+    consider(w, null);
+    for (const o of seconds) {
+      if (o === w) continue;                       // one item, not two
+      if (canHold(hero, o, 'offhand').ok) consider(w, o);
+    }
+  }
+  return best;
 }
 
 function scoreOf(hero, equipment, upgrades) {
@@ -98,13 +149,35 @@ export function planOutfit(hero, pool, upgrades = {}) {
   }
 
   let equipment = { ...hero.equipment };
-  let current = scoreOf(hero, equipment, upgrades);
   const taken = new Set();
   const moves = [];
 
+  // Hands first and together, then everything else one slot at a time. Only
+  // the hands interact; a helmet has never had anything to say about a ring.
+  const before = scoreOf(hero, equipment, upgrades);
+  const hands = bestHands(hero, equipment, bySlot.weapon, bySlot.offhand, upgrades);
+  const handsWorthIt = hands.score > before * (1 + MIN_GAIN);
+  if (handsWorthIt
+    && (hands.weapon !== (equipment.weapon ?? null) || hands.offhand !== (equipment.offhand ?? null))) {
+    equipment = { ...equipment, weapon: hands.weapon, offhand: hands.offhand };
+    // Main hand first: equipOnHero clears the off hand when a two-hander goes
+    // in, so doing it the other way round would undo the move just made.
+    if (hands.weapon && !taken.has(hands.weapon.uid) && pool.includes(hands.weapon)) {
+      moves.push({ itemUid: hands.weapon.uid, slot: 'weapon' });
+      taken.add(hands.weapon.uid);
+    }
+    if (hands.offhand && !taken.has(hands.offhand.uid) && pool.includes(hands.offhand)) {
+      moves.push({ itemUid: hands.offhand.uid, slot: 'offhand' });
+      taken.add(hands.offhand.uid);
+    }
+  }
+
+  let current = scoreOf(hero, equipment, upgrades);
+  const rest = EQUIP_SLOTS.filter((x) => x !== 'weapon' && x !== 'offhand');
+
   for (let pass = 0; pass < PASSES; pass++) {
     let improved = false;
-    for (const slot of EQUIP_SLOTS) {
+    for (const slot of rest) {
       let best = null;
       for (const item of bySlot[slot]) {
         if (taken.has(item.uid)) continue;

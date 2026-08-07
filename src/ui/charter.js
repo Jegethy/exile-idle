@@ -30,10 +30,11 @@ function card(def) {
   const held = hasPrivilege(def.id);
   const on = def.switchable ? !!s.settings?.[def.id] : false;
   const toggle = held && def.switchable
-    ? `<label class="charter-switch">
-        <input type="checkbox" data-charter-set="${def.id}" ${on ? 'checked' : ''}>
-        <span>${on ? 'On' : 'Off'}</span>
-      </label>`
+    ? `<button class="toggle ${on ? 'on' : ''}" data-charter-set="${def.id}"
+        role="switch" aria-checked="${on}">
+        <span class="toggle-track"><span class="toggle-knob"></span></span>
+        <span class="toggle-label">${on ? 'On' : 'Off'}</span>
+      </button>`
     : '';
 
   return `<div class="charter ${held ? 'held' : 'locked'}" data-priv="${def.id}">
@@ -84,8 +85,9 @@ export function renderCharter() {
     <div class="charter-list">${PRIVILEGES.map(card).join('')}</div>`;
 
   host.querySelectorAll('[data-charter-set]').forEach((el) => {
-    el.onchange = () => {
-      s.settings[el.dataset.charterSet] = el.checked;
+    el.onclick = () => {
+      const key = el.dataset.charterSet;
+      s.settings[key] = !s.settings[key];
       renderCharter();
     };
   });

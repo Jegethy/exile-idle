@@ -18,7 +18,7 @@ import {
 import { barredMembers } from '../data/modifiers.js';
 import { CLASS_BY_ID } from '../data/heroclasses.js';
 import { ui } from './state.js';
-import { reports, dismissReport, peakOf } from '../reports.js';
+import { reports, dismissReport, dismissReportsFor, peakOf } from '../reports.js';
 
 // ===========================================================================
 // Expeditions
@@ -29,9 +29,9 @@ export function renderRuns() {
   const host = qs('#activeRuns');
   if (!host || !s) return;
 
-  const summaries = reports.map(reportCard).join('');
+  const summaries = reports.filter((r) => !r.silent).map(reportCard).join('');
 
-  if (!s.expeditions.length && !reports.length) {
+  if (!s.expeditions.length && !reports.some((r) => !r.silent)) {
     host.innerHTML = `<div class="map-banner"><div class="idle-state">
       <h3>No expeditions in the field</h3>
       <p>Pick a dungeon below and dispatch a party.</p></div></div>`;
@@ -211,6 +211,7 @@ export function renderDispatch() {
       if (!b || b.disabled) return;
       const res = dispatch(b.dataset.party, null, null, b.dataset.contract);
       setStatus(res.msg);
+      if (res.ok) dismissReportsFor(b.dataset.party);
       // A contract fixes its own dungeon and tier, so there is no last-run to
       // remember: auto-redeploy would have nothing to repeat.
       renderDispatch();
@@ -232,6 +233,7 @@ export function renderDispatch() {
     const res = dispatch(b.dataset.send, b.dataset.dg, ui.dispatchTier);
     setStatus(res.msg);
     if (res.ok) {
+      dismissReportsFor(b.dataset.send);
       const party = partyById(b.dataset.send);
       if (party) party.lastRun = { dungeonId: b.dataset.dg, tier: ui.dispatchTier };
     }
@@ -413,6 +415,38 @@ function reportCard(report) {
            ${Math.ceil(report.remaining)}s…</span>`}
     </div>
   </div>`;
+}
+
+/**
+ * Re-checks the Send buttons against live stamina.
+ *
+ * They used to be decided once, when the panel was drawn, and nothing redrew
+ * it as stamina came back. After a wipe — which drops the whole party to ten
+ * stamina — every button read "too tired" and stayed that way indefinitely,
+ * long after the party had recovered. Nudging the tier redrew the panel and
+ * the party could go, which made it look as though changing tier bypassed the
+ * check rather than merely refreshing it.
+ *
+ * Attributes only: rebuilding the panel ten times a second would fight the
+ * player's scroll position and their pointer.
+ */
+export function updateDispatchButtons() {
+  const s = G.state;
+  if (!s) return;
+  const cost = staminaCost(ui.dispatchTier);
+  const free = partySlots() - s.expeditions.length;
+  for (const btn of document.querySelectorAll('#dispatchPanel [data-send]')) {
+    const party = partyById(btn.dataset.send);
+    if (!party) continue;
+    const check = canDispatch(party, cost);
+    const blocked = free <= 0 || !check.ok;
+    if (btn.disabled !== blocked) {
+      btn.disabled = blocked;
+      btn.classList.toggle('primary', !blocked);
+    }
+    const why = free <= 0 ? 'No charters free' : check.ok ? `Send ${party.name}` : check.msg;
+    if (btn.title !== why) btn.title = why;
+  }
 }
 
 /** Re-times the countdown without rebuilding the card. */

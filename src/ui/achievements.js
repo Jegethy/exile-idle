@@ -42,19 +42,22 @@ function plaque(entry) {
   const { def } = entry;
   const pct = Math.round(entry.fraction * 100);
   const showBar = def.goal > 1 && !entry.unlocked;
+  // The date and the points share a centred column on the right rather than
+  // the date floating at the top of the name row, where it left a ragged gap
+  // above the badge it belongs beside.
   return `<div class="ach ${entry.unlocked ? 'earned' : 'locked'}" data-ach="${def.id}">
     <div class="ach-icon">${icon(def.icon)}</div>
     <div class="ach-body">
-      <div class="ach-top">
-        <span class="ach-name">${esc(def.name)}</span>
-        ${entry.unlocked
-    ? `<span class="ach-date">${earnedOn(entry.at)}</span>`
-    : `<span class="ach-frac">${fmtInt(entry.progress)} / ${fmtInt(def.goal)}</span>`}
-      </div>
+      <div class="ach-top"><span class="ach-name">${esc(def.name)}</span></div>
       <div class="ach-desc">${esc(def.desc)}</div>
       ${showBar ? `<div class="ach-bar"><i style="width:${pct}%"></i></div>` : ''}
     </div>
-    <div class="ach-points" title="${def.points} points">${def.points}</div>
+    <div class="ach-meta">
+      <div class="ach-points" title="${def.points} points">${def.points}</div>
+      ${entry.unlocked
+    ? `<div class="ach-date">${earnedOn(entry.at)}</div>`
+    : `<div class="ach-frac">${fmtInt(entry.progress)} / ${fmtInt(def.goal)}</div>`}
+    </div>
   </div>`;
 }
 
@@ -127,6 +130,7 @@ export function renderAchievements() {
 
   const tabs = [{ id: 'summary', name: 'Summary', icon: 'star' }, ...CATEGORIES];
 
+  const earned = achievementList().filter((x) => x.unlocked).length;
   host.innerHTML = `
     <div class="ach-score">
       <div class="score-emblem">
@@ -134,7 +138,8 @@ export function renderAchievements() {
         <span class="score-label">Score</span>
       </div>
       <div class="score-side">
-        <div class="score-of">of ${fmtInt(TOTAL_POINTS)} possible</div>
+        <div class="score-of">${fmtInt(pts)} of ${fmtInt(TOTAL_POINTS)} points ·
+          ${earned} of ${ACHIEVEMENTS.length} earned</div>
         <div class="ach-bar wide"><i style="width:${(pts / TOTAL_POINTS) * 100}%"></i></div>
       </div>
     </div>

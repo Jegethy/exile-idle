@@ -50,6 +50,14 @@ export function serialize(state = G.state) {
  * Rebuilds live state from a payload, filling in anything a newer version
  * added so old saves keep working.
  */
+/**
+ * How often the guild is written to its slot, in seconds.
+ *
+ * Lives here rather than in game.js, which drives the timer, because settings
+ * quotes the number to the player and a second copy of it would drift.
+ */
+export const AUTOSAVE_SECONDS = 30;
+
 export function deserialize(payload) {
   if (!payload || typeof payload !== 'object') throw new Error('Save data is not an object.');
   const data = payload.state ?? payload;

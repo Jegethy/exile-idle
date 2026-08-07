@@ -19,7 +19,7 @@ import { initUI, renderAll, tick as uiTick } from './ui.js';
 import { startTutorial, shouldRunTutorial, isTutorialActive } from './tutorial.js';
 import { initSplash, showSplash, hideSplash } from './splash.js';
 
-const AUTOSAVE_INTERVAL = 30;    // seconds
+const AUTOSAVE_INTERVAL = Save.AUTOSAVE_SECONDS;
 const UI_INTERVAL = 0.1;
 const REDEPLOY_DELAY = 1.5;
 
