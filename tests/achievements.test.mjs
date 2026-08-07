@@ -154,11 +154,26 @@ export default async function run(browser) {
       const {
         checkAchievements, takePending, recordFeat, unlockedCount, tickAchievements,
       } = await import('./src/achievements.js');
-      const { stopTutorial } = await import('./src/tutorial.js');
+      const { stopTutorial, startTutorial } = await import('./src/tutorial.js');
+      // The overlay itself is not what is under test, and leaving it up would
+      // cover the rest of the suite.
+      const stopOverlay = () => document.querySelector('#tutorial')?.classList.add('hidden');
 
-      // Back into the tour, with a guild that has plainly done things: the
-      // demonstration expedition is a real expedition and raises real counters.
-      G.state.tutorial = { step: 4, done: false, skipped: false };
+      // Back into the tour. startTutorial takes the snapshot the restore reads,
+      // exactly as it does for a real guild opening its doors.
+      G.state.tutorial = { step: 0, done: false, skipped: false };
+      // A clean guild, because earlier cases in this suite leave counters set
+      // and the snapshot would faithfully preserve them -- which is correct
+      // behaviour and useless as a starting point for this one.
+      for (const k of Object.keys(G.state.stats)) G.state.stats[k] = 0;
+      G.state.progress = {
+        highestTier: 0, cleared: {}, firstClears: {}, raidKills: {}, bonusMult: 0,
+      };
+      startTutorial(0);
+      stopOverlay();
+
+      // Now the demonstration expedition happens: a real expedition raising
+      // real counters.
       G.state.achievements = { unlocked: {} };
       G.state.feats = {};
       takePending();
@@ -174,11 +189,19 @@ export default async function run(browser) {
         featStored: !!G.state.feats.guide,
       };
 
-      // Finishing credits what the tour did, silently.
+      // Finishing puts the counters back, so there is nothing left to credit.
       stopTutorial(false);
-      const after = { held: unlockedCount(), pending: takePending().length };
+      const after = {
+        held: unlockedCount(),
+        pending: takePending().length,
+        swept: checkAchievements(),
+        runs: G.state.stats.runs,
+        kills: G.state.stats.kills,
+        tier: G.state.progress.highestTier,
+      };
 
-      // And the game is live again from here.
+      // And the game is live again from here: a real action earns a real
+      // achievement, loudly.
       G.state.stats.crafted = 1;
       const live = checkAchievements().length;
       return { during, after, live, announced: takePending().length };
@@ -188,11 +211,15 @@ export default async function run(browser) {
     eq(r.during.pending, 0, 'a toast was queued during the tutorial');
     ok(!r.during.feat, 'a Feat of Strength was recorded during the tutorial');
     ok(!r.during.featStored, 'the tutorial wrote a feat into the save');
-    ok(r.after.held > 0, 'finishing the tutorial credited nothing at all');
+    eq(r.after.runs, 0, `the tour left ${r.after.runs} expeditions on the counter`);
+    eq(r.after.kills, 0, `the tour left ${r.after.kills} kills on the counter`);
+    eq(r.after.tier, 0, `the tour left Tier ${r.after.tier} recorded as cleared`);
+    eq(r.after.held, 0, `${r.after.held} achievements were credited for the tutorial`);
+    eq(r.after.swept.length, 0, `the first sweep after the tutorial unlocked: ${r.after.swept.join(', ')}`);
     eq(r.after.pending, 0, `${r.after.pending} toasts burst out as the tutorial ended`);
     ok(r.live > 0, 'achievements stayed suspended after the tutorial finished');
     ok(r.announced > 0, 'the first real unlock was not announced');
-    return `nothing during, ${r.after.held} credited silently, live again afterwards`;
+    return 'nothing during, nothing credited after, live again from the first real action';
   });
 
   await test('a broken definition cannot take the game down', async () => {

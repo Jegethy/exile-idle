@@ -15,7 +15,6 @@
 // which meant a fast expedition skipped the text out from under the player.
 
 import { G, log, emit } from './state.js';
-import { backfill } from './achievements.js';
 import { qs, qsa } from './util.js';
 
 let active = false;
@@ -233,7 +232,7 @@ export const STEPS = [
     id: 'charter',
     tab: 'hall', target: '#charterPanel',
     title: 'The Guild Charter',
-    body: 'Above the upgrades is the other half of the guild, and it costs nothing.'
+    body: 'Below the upgrades is the other half of the guild, and it costs nothing.'
       + '<br><br>The bar at the very top of the screen is your <b>Guild Level</b>. It fills as '
       + 'your parties come home, and at certain levels the charter grants a <b>privilege</b>.'
       + '<br><br>None of them make your heroes stronger. What they do is save you work — filling '
@@ -284,9 +283,33 @@ export function shouldRunTutorial(state) {
   return !!t && !t.done;
 }
 
+/**
+ * The counters achievements read, copied so the tour can be undone.
+ *
+ * Kept on the save rather than in a module variable so a tab closed halfway
+ * through and reopened still knows where the guild stood when the tour began.
+ *
+ * The line this draws is between *things done* and *things owned*. Counters of
+ * things done — expeditions run, kills, gold earned, the deepest tier cleared
+ * — are the tutorial's to give back, because the demonstration run is a
+ * demonstration: scripted, dispatched under instruction, run at triple speed
+ * and impossible to lose. Things owned are not touched, because you still own
+ * them: the gold and the gear the run brought home stay, and so does a Guild
+ * Hall rank bought during the tour.
+ */
+function snapshotCounters(s) {
+  return {
+    stats: { ...s.stats },
+    progress: JSON.parse(JSON.stringify(s.progress ?? {})),
+  };
+}
+
 export function startTutorial(fromStep = null) {
   const s = G.state;
   if (!s || s.tutorial?.done) return;
+  // Taken once. Resuming a tour must not re-snapshot, or everything before the
+  // point the tab was closed would become permanent.
+  if (s.tutorial && !s.tutorial.counters) s.tutorial.counters = snapshotCounters(s);
   active = true;
   index = fromStep ?? s.tutorial?.step ?? 0;
   if (index >= STEPS.length) index = 0;
@@ -308,19 +331,28 @@ export function stopTutorial(skipped = false) {
   }
   log(skipped ? 'Tutorial skipped.' : 'Tutorial complete. Good luck, guildmaster.', 'sys');
 
-  // Nothing is earned during the tour: achievements.js suspends itself while
-  // `tutorial.done` is false. Now that it is true, whatever the demonstration
-  // expedition happened to satisfy is credited *silently* rather than arriving
-  // as a burst of six toasts a second after the overlay clears.
+  // The tour leaves no trace in anything an achievement counts. achievements.js
+  // stands down for as long as `tutorial.done` is false; putting the counters
+  // back before it wakes up is what stops the sweep immediately unlocking what
+  // the demonstration expedition happened to satisfy.
   //
-  // Silent rather than simply left uncounted, because there is no third
-  // option. Achievement progress is derived from the save, and the tutorial
-  // run legitimately raises the highest tier cleared -- which is what unlocks
-  // Tier 2. Refusing to record it would mean either lying about the guild's
-  // progression or announcing the tutorial's own expedition as an achievement.
-  // Both are worse than a quiet line in the log.
-  backfill();
+  // This includes the deepest tier cleared, which is also what opens Tier 2 —
+  // so the first Tier 1 expedition a player sends themselves is the one that
+  // opens it, and the one that earns The First Descent. That is the intended
+  // reading of a tutorial: it teaches the mechanic, it does not play it for
+  // you.
+  restoreCounters(s);
   emit('tutorial');
+}
+
+/** Puts back what the tour moved. See snapshotCounters. */
+function restoreCounters(s) {
+  const snap = s?.tutorial?.counters;
+  if (!snap) return;
+  if (snap.stats) s.stats = { ...s.stats, ...snap.stats };
+  if (snap.progress) s.progress = snap.progress;
+  delete s.tutorial.counters;
+  emit('guild'); emit('expeditions');
 }
 
 /** Called from the UI tick: keeps the cut-out aligned and polls wait conditions. */
@@ -427,6 +459,7 @@ function openStep(i) {
 
   // The DOM may have just re-rendered from the tab switch.
   requestAnimationFrame(() => {
+    scrollTargetIntoView(step);
     reposition();
     if (step.advance === 'click') attachClick(step);
   });
@@ -467,6 +500,42 @@ function resolveTarget(step) {
 }
 
 /**
+ * Brings the step's target on screen before the cut-out is measured.
+ *
+ * Every panel scrolls independently, so a target can sit perfectly happily
+ * below the fold of its own tab. reposition() then measures a rectangle
+ * hundreds of pixels past the bottom of the window, clamps it to nothing, and
+ * draws a hole nobody can see — the step reads as broken while being, in every
+ * other respect, correct.
+ *
+ * That is exactly what happened when the Guild Charter was added above the
+ * Guild Hall's upgrade list and pushed it off the bottom of the tab. The
+ * charter moved below the upgrades afterwards, but the underlying fault was
+ * that a step's target had only ever been visible by luck.
+ *
+ * `block: 'nearest'` scrolls the least it can, so a step whose target is
+ * already comfortably in view does not jump the panel around underneath the
+ * player between one press and the next.
+ */
+function scrollTargetIntoView(step) {
+  const target = resolveTarget(step);
+  if (!target?.scrollIntoView) return;
+  try {
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+  } catch {
+    // Older engines reject the options object; the boolean form is fine.
+    target.scrollIntoView(false);
+  }
+}
+
+/** Is any usable part of this rectangle actually on screen? */
+function onScreen(r) {
+  return r.width > 0 && r.height > 0
+    && r.bottom > 0 && r.right > 0
+    && r.top < window.innerHeight && r.left < window.innerWidth;
+}
+
+/**
  * The element the current step is pointing at, or null. Exported so a test can
  * drive a 'click' step the way a player would, without hard-coding each step's
  * selector into the suite.
@@ -494,7 +563,12 @@ function reposition() {
   const W = window.innerWidth;
   const H = window.innerHeight;
 
-  if (!target) {
+  // A target that cannot be brought on screen is treated as no target at all:
+  // a darkened screen and a centred panel is a step that reads as deliberate,
+  // where a hole measuring nothing reads as a bug.
+  const usable = target && onScreen(target.getBoundingClientRect()) ? target : null;
+
+  if (!usable) {
     // No target: darken everything and centre the popup.
     ring.classList.add('hidden');
     panels.top.style.cssText = 'top:0;left:0;right:0;bottom:0';
@@ -506,7 +580,7 @@ function reposition() {
     return;
   }
 
-  const r = target.getBoundingClientRect();
+  const r = usable.getBoundingClientRect();
   const x = Math.max(0, r.left - PAD);
   const y = Math.max(0, r.top - PAD);
   const w = Math.min(W - x, r.width + PAD * 2);

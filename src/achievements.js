@@ -44,16 +44,21 @@ function stamp() {
 /**
  * Whether the guild is still being shown the ropes.
  *
- * Nothing is earned during the tutorial. Two reasons, and the second is the
- * one that made this a bug rather than a preference:
+ * Nothing is earned during the tutorial, and nothing is earned *because* of it
+ * either. Two reasons, and the second is the one that made this a bug rather
+ * than a preference:
  *
- *   The demonstration expedition is scripted, dispatched under instruction and
- *   run at triple speed. Handing out "your first expedition" for it awards the
- *   tutorial rather than the player.
+ *   The demonstration expedition is scripted, dispatched under instruction,
+ *   run at triple speed and impossible to lose. Handing out "your first
+ *   expedition" for it awards the tutorial rather than the player.
  *
  *   The tutorial's own rule is that *nothing on screen changes between one
  *   press and the next*, so reading is never racing the game. A toast sliding
  *   in mid-step breaks exactly that.
+ *
+ * Standing down is only half of it: progress is derived from the save, so the
+ * sweep would unlock everything the moment the tour ended. tutorial.js puts
+ * the counters back before that happens — see snapshotCounters there.
  *
  * Read from the save rather than from a flag tutorial.js sets, which matters
  * in three places a flag would miss: the four hundred milliseconds between a
@@ -106,10 +111,7 @@ export function fractionOf(def) {
 export function checkAchievements(quiet = false) {
   const s = G.state;
   if (!s) return [];
-  // Nothing is earned during the tour -- see inTutorial(). Whatever the
-  // demonstration run happened to satisfy is credited silently the moment the
-  // tutorial ends, the same treatment a save older than the achievement
-  // system gets.
+  // Nothing is earned during the tour -- see inTutorial().
   if (inTutorial()) return [];
   const unlocked = store().unlocked;
   const got = [];
@@ -181,11 +183,9 @@ export function tickAchievements(dt) {
 /**
  * Credits a save for everything it has already done, without ceremony.
  *
- * Called on load, and again the moment the tutorial ends. A guild that has been
- * running for forty hours should not be greeted by twenty pop-ups for things it
- * did last week, and a guild that has just finished the tour should not be
- * greeted by six for a scripted expedition it was told to send. Both unlock
- * silently.
+ * Called on load. A guild that has been running for forty hours should not be
+ * greeted by twenty pop-ups for things it did last week, so this unlocks
+ * silently and pays nothing.
  */
 export function backfill() {
   const before = unlockedCount();

@@ -27,6 +27,9 @@ const act = (page) => page.evaluate(async () => {
 export default async function run(browser) {
   suite('tutorial');
 
+  /** What each step looked like as the walkthrough passed through it. */
+  const seen = [];
+
   {
     const { page, errors } = await openGame(browser, { name: 'Tut', tutorial: true });
 
@@ -42,7 +45,31 @@ export default async function run(browser) {
     await test('walks to the end without getting stuck', async () => {
       let guard = 0;
       let last = '';
+      seen.length = 0;
       while (guard++ < 140) {
+        // Recorded on the way past, for the highlight test below. A step that
+        // names a target must actually cut a hole around it -- the Guild Hall
+        // step once pointed at an element that had been pushed below the fold
+        // of its own tab, so the screen darkened and nothing lit up.
+        const sample = await page.evaluate(async () => {
+          const { STEPS } = await import('./src/tutorial.js');
+          const label = document.querySelector('#tutStep')?.textContent ?? '';
+          const i = (Number(label.match(/Step (\d+)/)?.[1]) || 0) - 1;
+          const step = STEPS[i];
+          const ring = document.querySelector('#tutRing');
+          const r = ring?.getBoundingClientRect();
+          return {
+            id: step?.id ?? `#${i}`,
+            wants: step?.target ?? null,
+            resolves: step?.target ? !!document.querySelector(step.target) : true,
+            lit: !!ring && !ring.classList.contains('hidden')
+              && (r?.width ?? 0) > 1 && (r?.height ?? 0) > 1,
+          };
+        });
+        // Once per step, as it opens. Sampling every pass through the loop
+        // also catches steps mid-transition -- the dispatch step's target is
+        // the Send button, which the click that advances the step disables.
+        if (sample.id !== seen[seen.length - 1]?.id) seen.push(sample);
         const done = await page.evaluate(async () =>
           (await import('./src/tutorial.js')).isTutorialActive() === false);
         if (done) break;
@@ -64,12 +91,56 @@ export default async function run(browser) {
       }
       const state = await page.evaluate(async () => {
         const { G } = await import('./src/state.js');
-        return { done: G.state.tutorial.done, skipped: G.state.tutorial.skipped, runs: G.state.stats.runs };
+        return {
+          done: G.state.tutorial.done,
+          skipped: G.state.tutorial.skipped,
+          // stats.runs is put back to zero when the tour ends, so completion
+          // is read from the report the run filed instead.
+          cleared: G.state.log.some((l) => / gold · /.test(l.msg)),
+        };
       });
       ok(state.done, `tutorial never finished (stuck on "${last}")`);
       eq(state.skipped, false, 'skipped flag');
-      ok(state.runs > 0, 'the demo expedition never completed');
-      return `finished, ${state.runs} run(s) completed`;
+      ok(state.cleared, 'the demo expedition never completed');
+      return `finished ${seen.length} steps, demo expedition ran`;
+    });
+
+    await test('every step that names a target highlights it', async () => {
+      const targeted = seen.filter((x) => x.wants);
+      const missing = targeted.filter((x) => !x.resolves).map((x) => `${x.id} (${x.wants})`);
+      const dark = targeted.filter((x) => x.resolves && !x.lit).map((x) => x.id);
+      ok(targeted.length > 10, `only ${targeted.length} steps pointed at anything`);
+      eq(missing.length, 0, `steps whose target does not exist: ${missing.join(', ')}`);
+      eq(dark.length, 0, `steps that cut no hole: ${dark.join(', ')}`);
+      return `${targeted.length} targeted steps, every one lit`;
+    });
+
+    await test('the tour leaves no trace in what achievements count', async () => {
+      const r = await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { unlockedCount } = await import('./src/achievements.js');
+        return {
+          runs: G.state.stats.runs,
+          kills: G.state.stats.kills,
+          gearFound: G.state.stats.gearFound,
+          tier: G.state.progress.highestTier,
+          cleared: Object.keys(G.state.progress.cleared ?? {}).length,
+          unlocked: unlockedCount(),
+          // Possessions are not counters: the run's takings are the player's.
+          gold: G.state.guild.gold,
+          held: G.state.vault.length,
+          snapshotGone: G.state.tutorial.counters === undefined,
+        };
+      });
+      eq(r.runs, 0, `${r.runs} expeditions left on the counter`);
+      eq(r.kills, 0, `${r.kills} kills left on the counter`);
+      eq(r.gearFound, 0, `${r.gearFound} items left on the counter`);
+      eq(r.tier, 0, `Tier ${r.tier} left recorded as cleared`);
+      eq(r.cleared, 0, `${r.cleared} dungeon clears left recorded`);
+      eq(r.unlocked, 0, `${r.unlocked} achievements earned by the tutorial`);
+      ok(r.gold > 0, 'the demonstration run took the gold away with it');
+      ok(r.snapshotGone, 'the snapshot was left behind in the save');
+      return `counters back to zero, ${r.gold} gold and ${r.held} items kept`;
     });
 
     await test('no page errors', () => clean(errors));

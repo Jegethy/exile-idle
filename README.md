@@ -90,19 +90,27 @@ tab mid-tutorial picks up where you left off.
 **Skip Tutorial** is always available. It warns that finishing is advised and
 that it cannot be restarted, and only then takes the choice.
 
-**No achievement is earned during it.** The demonstration expedition is
-scripted, dispatched under instruction and run at triple speed, so awarding
-"your first expedition" for it awards the tutorial rather than the player — and
-a toast sliding in mid-step breaks the tour's own rule that nothing on screen
-changes between one press and the next. Whatever the run happened to satisfy is
-credited *silently* the moment the tutorial ends, exactly as a save older than
-the achievement system is.
+**The tour leaves no trace in anything an achievement counts.** The
+demonstration expedition is scripted, dispatched under instruction, run at
+triple speed and impossible to lose, so awarding "your first expedition" for it
+awards the tutorial rather than the player — and a toast sliding in mid-step
+breaks the tour's own rule that nothing on screen changes between one press and
+the next.
 
-Silently rather than simply left uncounted, because there is no third option:
-achievement progress is derived from the save, and the tutorial's expedition
-legitimately raises the highest tier cleared — which is what unlocks Tier 2.
-Refusing to record it would mean either lying about the guild's progression or
-announcing the tutorial's own expedition as an achievement.
+Standing the sweep down is only half of it, because achievement progress is
+*derived from the save*: the moment the tutorial ended, the sweep would unlock
+everything it had done. So the counters are snapshotted when the tour starts
+and put back when it finishes.
+
+The line that draws is between **things done** and **things owned**. Counters
+of things done — expeditions run, kills, gold earned, the deepest tier cleared
+— go back. Things owned do not, because you still own them: the gold and the
+gear the run brought home stay in the vault, and a Guild Hall rank bought
+during the tour stays bought.
+
+One consequence worth stating, because it is deliberate: the demonstration
+clear no longer opens Tier 2. The first Tier 1 expedition you send yourself
+does, and that is the one that earns *The First Descent*.
 
 ## Why the two axes matter
 
