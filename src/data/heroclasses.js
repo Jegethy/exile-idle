@@ -34,7 +34,12 @@ export const HERO_CLASSES = [
     blurb: 'A wall against anything holding a weapon. Steel turns steel, and does much less against a curse.',
     mult: { life: 1.90, armour: 2.15, evasion: 0.42, damage: 0.60, aps: 0.90, heal: 0, threat: 6.0 },
     block: { melee: 15, spell: 0 },
-    resist: { melee: 24, spell: -22 },
+    // Widened from 24/-22. See tankFor() in data/dungeons.js: the Guardian's
+    // Second Wind is unconditional while Bulwark Stance and Consecrate both
+    // need a block of the right school, so on the resistance arithmetic alone
+    // the generalist won four of the seven dungeons. A specialist has to be
+    // decisively better inside its own band to be worth bringing at all.
+    resist: { melee: 36, spell: -32 },
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Bulwark Stance',
@@ -53,7 +58,7 @@ export const HERO_CLASSES = [
     blurb: 'Faith turns aside what armour cannot. Softer to a blade than a Warrior, far harder to burn.',
     mult: { life: 1.90, armour: 2.15, evasion: 0.42, damage: 0.65, aps: 0.90, heal: 0, threat: 6.0 },
     block: { melee: 0, spell: 15 },
-    resist: { melee: -16, spell: 28 },
+    resist: { melee: -24, spell: 36 },
     prefers: ['mace1h', 'sword1h', 'shield_int'],
     ability: {
       name: 'Consecrate',

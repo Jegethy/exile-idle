@@ -18,6 +18,7 @@ import { HERO_CLASSES, HERO_RARITIES, ROLES } from '../data/heroclasses.js';
 import { TRAITS } from '../data/traits.js';
 import { SKILLS, skillPoolFor, SKILL_CHOICES } from '../data/skills.js';
 import { SPECS, AXES, SPEC_LEVELS, specPoolFor } from '../data/specs.js';
+import { tankFor } from '../readiness.js';
 import { RESOURCES, CLASS_RESOURCE } from '../data/resources.js';
 import { DUNGEONS, RAIDS, DEEP_ILVL } from '../data/dungeons.js';
 import { MODIFIERS } from '../data/modifiers.js';
@@ -376,21 +377,32 @@ function pageItems() {
 
 function pageExpeditions() {
   return section('Dungeons',
-    p('Each dungeon pays in something different and is defended differently. The middle column is',
-      'the one to read before you send anyone.'),
-    table(['Dungeon', 'Pays in', 'What you are up against', 'Waves'],
+    p('Every dungeon runs the same number of waves and is about as hard as every other at the',
+      'same tier. What changes is what they pay and how they fight you — so you go back to an',
+      'old tier because of what it gives you, never because it is where you can survive.'),
+    table(['Dungeon', 'Pays in', 'What you are up against'],
       DUNGEONS.map((d) => [
-        `<b>${esc(d.name)}</b>`, esc(d.focus), esc(d.counter), String(d.waves ?? '—'),
+        `<b>${esc(d.name)}</b>`, esc(d.focus), esc(d.counter),
       ])),
-    section('Weapons and spells',
+    section('Weapons and spells — and which Tank to bring',
       p('Every dungeon has some enemies who fight up close and some who cast spells, in different',
         'amounts. This is why no single Tank is always the right answer.'),
-      table(['Dungeon', 'Fight up close', 'Cast spells'],
-        DUNGEONS.map((d) => [
-          esc(d.name),
-          `${d.attackMix?.melee ?? 40}%`,
-          `${d.attackMix?.spell ?? 60}%`,
-        ]))),
+      p('The last two columns are worked out from the Tanks’ own resistances rather than',
+        'written down, so they are always the true answer and never a rule of thumb that has',
+        'drifted away from the numbers.'),
+      table(['Dungeon', 'Fight up close', 'Cast spells', 'Best Tank', 'Compared to the worst'],
+        DUNGEONS.map((d) => {
+          const t = tankFor(d.attackMix);
+          const worst = t.ranked[t.ranked.length - 1];
+          const saved = Math.round(((worst.exposure - t.ranked[0].exposure) / worst.exposure) * 100);
+          return [
+            esc(d.name),
+            `${d.attackMix?.melee ?? 40}%`,
+            `${d.attackMix?.spell ?? 60}%`,
+            `<b>${esc(t.cls.name)}</b>`,
+            `takes ${saved}% less damage than a ${esc(worst.cls.name)}`,
+          ];
+        }))),
     section('Gear keeps getting better all the way down',
       p('Items dropped by harder content have a higher <b>item level</b>, which lets them roll',
         'bigger bonuses. That does not stop at Tier 20 — new tiers of every bonus unlock at',

@@ -131,6 +131,10 @@ So a Tier 4 Deepmines run you finish in twenty seconds can out-earn gold from a
 Tier 12 you barely survive. Cleared content stays useful, which was the single
 biggest thing missing from the previous design.
 
+The independence is real rather than asserted — see *A tier is a tier, whichever
+dungeon you take it in* below, where it was measured, found to be false by 67
+points of clear rate, and fixed.
+
 ## Systems
 
 **Heroes** — Twelve classes across four roles, each with a passive ability
@@ -1118,6 +1122,106 @@ and the highlighted card agree without anyone having clicked a party; and a
 party in the field offers neither control, because editing a party that is
 currently underground is not a thing that can be made to mean anything.
 
+## A tier is a tier, whichever dungeon you take it in
+
+This README has always said the following, and it was not true:
+
+> Tier and dungeon are deliberately independent. Tier is *how hard*; dungeon is
+> *what for*.
+
+Measured at Tier 20 with one level-matched party and only the destination
+changing:
+
+| | Clear rate, before |
+|---|---|
+| Silkmoth Hollow | 67% |
+| The Deepmines | 54% |
+| The Dark Forest | 38% |
+| The Arcane Vault | 21% |
+| The Wild Marches | 17% |
+| The Proving Arena | 4% |
+| The Sunken Crypt | **0%** |
+
+**A 67-point spread, with one dungeon nobody could finish.** Every dungeon
+carries its own monster multipliers and nobody had ever multiplied them out. The
+Proving Arena stacked 1.35 damage against 1.30 attack speed over ten waves; the
+Hollow put 0.85 damage on 70% life over nine. So the answer to "which dungeon?"
+was never "whatever I'm short of" — it was "whichever one I can survive", which
+is the opposite of the design, and it is a large part of why the middle of the
+game had no decisions in it.
+
+### Waves were a hidden multiplier on both sides
+
+Rewards accrue **per kill**, so a ten-wave dungeon was 25% harder *and* 25%
+richer than an eight-wave one with identical reward rates — and the dispatch
+card, which draws a bar per rate, had no way to say so. Every dungeon now runs
+eight waves and the payout difference lives entirely in the rates, where it is
+visible. The rates were scaled by the waves each dungeon lost, so nothing pays
+less than it did.
+
+### Where it landed
+
+Tier 20, level-matched, 48 runs each, every dungeon answered with the tank its
+blend calls for:
+
+| Dungeon | Blend | Tank | Clear |
+|---|---|---|---|
+| The Deepmines | 62/38 | Warrior | 73% |
+| The Sunken Crypt | 35/65 | Paladin | 58% |
+| The Dark Forest | 50/50 | Guardian | 52% |
+| The Proving Arena | 55/45 | Guardian | 46% |
+| The Wild Marches | 70/30 | Warrior | 46% |
+| The Arcane Vault | 20/80 | Paladin | 44% |
+| Silkmoth Hollow | 26/74 | Paladin | 44% |
+
+Six of the seven sit in a 14-point band, which is flat within the sampling error
+at this size. **The Deepmines is deliberately left alone at 73%**, and that is a
+constraint rather than an oversight: it is the substrate the entire class
+balance suite stands on — every damage comparison, the healer viability check
+and the deep-tier reachability curve all run there — so moving it moves every
+one of those claims at once. It is the fixed point and the other six are tuned
+to match it. Two attempts to "improve" it broke four balance tests between them.
+
+### Measure difficulty with the right tank, or don't bother
+
+Once the tanks were made to matter, measuring every dungeon with the same fixed
+Warrior stopped being honest: it measures how well a Warrior suits the blend,
+not how hard the place is. The promise is that a tier is a tier *when answered
+correctly*; bringing the wrong tank is supposed to hurt, and that is a separate
+measurement.
+
+### The advice the board gave was wrong in four of seven
+
+The dispatch tooltip asserted that "a Warrior answers brawlers, a Paladin
+answers casters, a Guardian handles either". Measured, the Guardian was the
+right pick in four of the seven, the Paladin was poor everywhere except one, and
+a player *following the game's own advice did worse than one ignoring it*.
+
+The cause was arithmetic. At the old 24/−22 and −16/+28 splits, a Warrior and a
+Paladin took near-identical damage at a 55/45 blend, while the Guardian's even
+9/9 beat both — and the Guardian's Second Wind is unconditional where Bulwark
+Stance and Consecrate each need a block of the right school. A specialist has to
+be *decisively* better inside its band to be worth bringing at all, so the splits
+widened to 36/−32 and −24/+36.
+
+Crucially, **the recommendation is now computed from the classes' own resistance
+numbers** (`tankFor` in `readiness.js`) rather than written in a tooltip. Change
+a resistance or a blend and the advice moves with it; it cannot drift again. It
+is what the dispatch card, the handbook and `tests/dungeons.test.mjs` all read.
+
+Right tank against worst tank is now worth between 6% and 36% less damage taken,
+and each of the three answers at least one dungeon — two Warrior, two Guardian,
+three Paladin.
+
+### What is tested, and what is measured
+
+The statistical question needs several hundred expeditions per dungeon and lives
+in `tests/dungeonbalance.mjs`, run by hand. `tests/dungeons.test.mjs` pins the
+structural half, each of which was individually load-bearing in the original
+bug: uniform wave counts, a recommendation that agrees with the arithmetic,
+every tank answering something, no blend where the tank is worth under 5%, no
+dungeon unclearable by a party built for it, and comparable total payouts.
+
 ## Stamina is a pool with a floor, not a cooldown
 
 It used to be a cooldown by accident, and the accident hollowed out an upgrade.
@@ -1386,6 +1490,7 @@ src/
 tests/              headless browser suites (npm test)
   sim.mjs           the real engine, driven headlessly for balance figures
   specbalance.mjs   what each specialisation is worth (run by hand, not in CI)
+  dungeonbalance.mjs  is a tier a tier, whichever dungeon (run by hand)
 ```
 
 A panel never imports another panel to redraw it — it emits, and `ui.js` decides

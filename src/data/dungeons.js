@@ -18,6 +18,12 @@ export const DUNGEONS = [
     counter: 'Enemies are heavily armoured — physical weapons struggle here.',
     rewards: { gold: 2.40, gear: 0.55, xp: 0.75, mats: 1.10 },
     materials: { metal: 6, stone: 3, bone: 1 },
+    // Left exactly as it was, on purpose. The Deepmines is the substrate the
+    // whole class-balance suite stands on — every damage comparison, the
+    // healer viability check and the deep-tier reachability curve all run
+    // here — so moving it moves every one of those claims at once. It is the
+    // fixed point; the other six are tuned to match it, not the reverse.
+    // Its difficulty comes from the armour, which is its whole character.
     monsters: { armour: 2.6, evasion: 0.5, life: 1.0, damage: 0.95, res: 0 },
     attackMix: { melee: 62, spell: 38 },   // pit brutes and golems in the dark
     waves: 8,
@@ -26,21 +32,21 @@ export const DUNGEONS = [
     id: 'crypt', name: 'The Sunken Crypt', focus: 'Equipment', category: 'gear', icon: 'skull',
     blurb: 'Flooded burial vaults. Whatever was interred here was buried with its wealth.',
     counter: 'The dead hit hard and endure — bring sustain.',
-    rewards: { gold: 0.60, gear: 2.20, xp: 0.85, mats: 0.90 },
+    rewards: { gold: 0.68, gear: 2.48, xp: 0.96, mats: 1.01 },
     materials: { bone: 6, cloth: 3, essence: 1 },
-    monsters: { armour: 1.0, evasion: 0.7, life: 1.45, damage: 1.15, res: 0 },
+    monsters: { armour: 1.0, evasion: 0.7, life: 1.15, damage: 0.92, res: 0 },
     attackMix: { melee: 35, spell: 65 },   // the restless dead, and what raised them
-    waves: 9,
+    waves: 8,
   },
   {
     id: 'arena', name: 'The Proving Arena', focus: 'Experience', category: 'xp', icon: 'banner',
     blurb: 'A sanctioned blood sport. The crowd pays poorly; the lessons are worth more.',
     counter: 'Opponents are fast and aggressive — a Tank earns their keep.',
-    rewards: { gold: 0.70, gear: 0.70, xp: 2.40, mats: 0.70 },
+    rewards: { gold: 0.88, gear: 0.88, xp: 3.00, mats: 0.88 },
     materials: { leather: 5, bone: 3, metal: 2 },
-    monsters: { armour: 0.8, evasion: 1.2, life: 0.85, damage: 1.35, aps: 1.30, res: 0 },
+    monsters: { armour: 0.8, evasion: 1.2, life: 0.85, damage: 0.98, aps: 1.30, res: 0 },
     attackMix: { melee: 55, spell: 45 },   // a blood sport, mostly fought by hand
-    waves: 10,
+    waves: 8,
   },
   {
     id: 'vault', name: 'The Arcane Vault', focus: 'Essence', category: 'materials', icon: 'orb',
@@ -48,7 +54,7 @@ export const DUNGEONS = [
     counter: 'Wardens carry heavy elemental resistance — physical damage cuts deeper.',
     rewards: { gold: 0.85, gear: 0.80, xp: 0.70, mats: 2.10 },
     materials: { essence: 7, stone: 3 },
-    monsters: { armour: 0.9, evasion: 0.9, life: 1.1, damage: 1.05, res: 45 },
+    monsters: { armour: 0.9, evasion: 0.9, life: 1.20, damage: 1.05, res: 45 },
     attackMix: { melee: 20, spell: 80 },   // wardens and sentinels — the caster house
     waves: 8,
   },
@@ -60,8 +66,8 @@ export const DUNGEONS = [
     counter: 'Fast, evasive quarry — accuracy matters more than armour here.',
     rewards: { gold: 0.55, gear: 0.45, xp: 0.80, mats: 2.60 },
     materials: { wood: 6, herb: 4 },
-    monsters: { armour: 0.5, evasion: 1.8, life: 0.85, damage: 1.0, aps: 1.15, res: 0 },
-    attackMix: { melee: 45, spell: 55 },   // beasts and druids in equal measure
+    monsters: { armour: 0.5, evasion: 1.8, life: 0.90, damage: 0.92, aps: 1.15, res: 0 },
+    attackMix: { melee: 50, spell: 50 },   // beasts and druids in equal measure
     waves: 8,
   },
   {
@@ -70,7 +76,7 @@ export const DUNGEONS = [
     counter: 'Heavy brutes that hit hard but slowly — a Tank holds them easily.',
     rewards: { gold: 0.60, gear: 0.50, xp: 0.85, mats: 2.50 },
     materials: { leather: 6, bone: 4 },
-    monsters: { armour: 1.1, evasion: 0.6, life: 1.55, damage: 1.30, aps: 0.70, res: 0 },
+    monsters: { armour: 1.1, evasion: 0.6, life: 0.95, damage: 1.30, aps: 0.70, res: 0 },
     attackMix: { melee: 70, spell: 30 },   // brutes, almost to a one
     waves: 8,
   },
@@ -78,11 +84,11 @@ export const DUNGEONS = [
     id: 'hollow', name: 'Silkmoth Hollow', focus: 'Cloth & Herbs', category: 'materials', icon: 'silk',
     blurb: 'A gorge hung with cocoons the size of carts. The weaving never stops.',
     counter: 'Swarming attackers with weak individual hits — sustain beats armour.',
-    rewards: { gold: 0.55, gear: 0.50, xp: 0.75, mats: 2.55 },
+    rewards: { gold: 0.62, gear: 0.56, xp: 0.84, mats: 2.87 },
     materials: { cloth: 6, herb: 3, essence: 1 },
-    monsters: { armour: 0.4, evasion: 1.2, life: 0.70, damage: 0.85, aps: 1.45, res: 0 },
+    monsters: { armour: 0.4, evasion: 1.2, life: 0.90, damage: 0.95, aps: 1.45, res: 0 },
     attackMix: { melee: 26, spell: 74 },   // swarms of chittering casters
-    waves: 9,
+    waves: 8,
   },
 ];
 

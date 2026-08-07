@@ -13,7 +13,7 @@ import { clamp, escapeHtml, fmt, fmtTime, qs } from '../util.js';
 import { setStatus, gotoTab } from './shell.js';
 import { ui } from './state.js';
 import { reports, dismissReport, dismissReportsFor, peakOf } from '../reports.js';
-import { readiness, readinessLine } from '../readiness.js';
+import { readiness, readinessLine, tankFor, tankAdvice } from '../readiness.js';
 import { FLASK_BY_ID } from '../data/recipes.js';
 
 // ===========================================================================
@@ -165,10 +165,14 @@ function mixBar(mix) {
   const m = mix?.melee ?? 50;
   const s = mix?.spell ?? 50;
   const lean = m >= 60 ? 'brawlers' : m <= 35 ? 'casters' : 'mixed';
-  return `<div class="dg-mix" title="${m}% melee, ${s}% spellcasters — a Warrior answers `
-    + `brawlers, a Paladin answers casters, a Guardian handles either">
+  // The recommendation is computed from the tanks' own resistance numbers
+  // rather than written here. The sentence that used to live in this tooltip
+  // was wrong for four of the seven dungeons. See tankFor().
+  const best = tankFor(mix);
+  return `<div class="dg-mix" title="${m}% melee, ${s}% spellcasters. ${escapeHtml(tankAdvice(mix))}">
     <span class="mix-bar"><i style="width:${m}%"></i></span>
     <span class="mix-label ${lean}">${m}% melee · ${s}% spell</span>
+    <span class="mix-tank" title="${escapeHtml(tankAdvice(mix))}">${escapeHtml(best.cls.name)}</span>
   </div>`;
 }
 

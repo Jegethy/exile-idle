@@ -73,6 +73,11 @@ export function renderRecruitBoard() {
   const costs = boardCosts();
   const reroll = rerollCost(s.heroes.length, board.rerolls);
 
+  // The board grows with the Charter — three, then four, then five. Both the
+  // grid and the modal are sized from it so the candidates always sit on one
+  // row; a hard-coded three columns wrapped the fourth onto a line by itself.
+  qs('#modalRecruit')?.style.setProperty('--cols', String(board.candidates.length));
+
   qs('#recruitBody').innerHTML = `
     <p class="hint">Candidates are priced by their quality. Lock anyone you want
       to keep on the board through a reroll — the reroll price climbs until you

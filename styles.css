@@ -215,6 +215,9 @@ button, input, textarea, select { font-family:inherit; font-size:inherit; color:
 .asc-panel { flex:0 0 auto; margin-top:6px; }
 /* ---- Class picker ------------------------------------------------------ */
 .modal.wide { width:min(720px,94vw); }
+/* Sized to its own contents: three candidates should not open a modal built
+   for five, and five should not be crushed into a modal built for three. */
+#modalRecruit { width:min(calc(var(--cols,3) * 248px + 46px), 96vw); }
 .ca.str { color:#c95c4a; }
 .ca.dex { color:#6fbf5f; }
 .ca.int { color:#5f8fd0; }
@@ -1192,7 +1195,12 @@ body.splash-open { overflow:hidden; }
 .tt-ability b { color:var(--gold); }
 
 /* ---- Hiring hall ------------------------------------------------------- */
-.recruit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+/* One row, whatever the board size.
+   The count was hard-coded at three, so the fourth candidate that Word of
+   Mouth grants always wrapped onto a line of its own and Open Doors' fifth
+   made it worse. Both the column count and the modal width now come from the
+   board itself — see renderRecruitBoard. */
+.recruit-grid { display:grid; grid-template-columns:repeat(var(--cols,3),1fr); gap:8px; }
 .recruit-card {
   display:flex; flex-direction:column; gap:5px;
   padding:9px 10px; border:1px solid var(--line); border-left-width:3px;
@@ -1215,7 +1223,9 @@ body.splash-open { overflow:hidden; }
 }
 .trait-chip.t2 { color:#7fb0e0; border-color:rgba(127,176,224,.35); }
 .trait-chip.t3 { color:var(--gold); border-color:rgba(200,170,110,.35); }
-@media (max-width:900px) { .recruit-grid { grid-template-columns:1fr; } }
+/* Below this there is no honest way to fit them side by side, so stop trying. */
+@media (max-width:1000px) { .recruit-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:640px) { .recruit-grid { grid-template-columns:1fr; } }
 
 /* What a dungeon fights with — the reason one tank beats another. */
 .dg-mix { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
@@ -1900,3 +1910,11 @@ body.splash-open { overflow:hidden; }
 .stam-track.resting .stam-fill { background:linear-gradient(90deg,#4a3374,var(--xp)); }
 .ready.ready-resting { border-color:rgba(138,95,208,.45); background:rgba(138,95,208,.08); }
 .ready.ready-resting .ready-band { color:var(--xp); }
+
+/* The tank a dungeon's blend actually wants, computed from the class
+   resistances rather than asserted in prose. See tankFor(). */
+.mix-tank {
+  margin-left:6px; padding:0 5px; border-radius:8px; font-size:9.5px;
+  border:1px solid var(--line-2); color:var(--ink-dim); background:var(--bg-2);
+  white-space:nowrap;
+}

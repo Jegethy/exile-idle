@@ -20,6 +20,7 @@ import { G } from './state.js';
 import { EQUIP_SLOTS } from './data/bases.js';
 import { CLASS_BY_ID } from './data/heroclasses.js';
 import { tierToLevel, tierToIlvl } from './data/dungeons.js';
+import { HERO_CLASSES } from './data/heroclasses.js';
 import { GAP_CLIFF } from './expedition/balance.js';
 import { partyMembers } from './heroes.js';
 
@@ -122,4 +123,58 @@ export function readinessLine(r) {
   if (!r.size) return 'Empty party.';
   const under = r.gap > 0 ? `${r.gap} level${r.gap === 1 ? '' : 's'} under` : 'at level';
   return `Level ${r.level} vs ${r.content} — ${under}`;
+}
+
+// ---------------------------------------------------------------------------
+// Which tank a dungeon wants
+// ---------------------------------------------------------------------------
+
+/**
+ * The share of a blow this class would take from a given melee/spell blend.
+ *
+ * Straight out of the class's own `resist` numbers, which is the entire point.
+ * The dispatch board used to assert in a tooltip that "a Warrior answers
+ * brawlers, a Paladin answers casters, a Guardian handles either" — and
+ * measured against the real dungeons, that advice was wrong in four of seven.
+ * A player following it did worse than one ignoring it, which is worse than
+ * saying nothing at all.
+ *
+ * Deriving it means the advice cannot drift from the numbers again: change a
+ * resistance or an attack blend and the recommendation moves with it.
+ */
+export function schoolExposure(cls, mix) {
+  const melee = (mix?.melee ?? 50) / 100;
+  const spell = 1 - melee;
+  const r = cls?.resist ?? {};
+  return melee * (1 - (r.melee ?? 0) / 100) + spell * (1 - (r.spell ?? 0) / 100);
+}
+
+/**
+ * The tank best suited to this blend, and by how much over the next best.
+ *
+ * @returns {{cls: object, margin: number, ranked: Array}}
+ */
+export function tankFor(mix) {
+  const ranked = HERO_CLASSES
+    .filter((c) => c.role === 'Tank')
+    .map((cls) => ({ cls, exposure: schoolExposure(cls, mix) }))
+    .sort((a, b) => a.exposure - b.exposure);
+  const [best, next] = ranked;
+  return {
+    cls: best.cls,
+    // How much less damage the best takes than the runner-up, as a percentage.
+    margin: next ? ((next.exposure - best.exposure) / next.exposure) * 100 : 0,
+    ranked,
+  };
+}
+
+/** One line of advice for a dungeon's blend, derived rather than written down. */
+export function tankAdvice(mix) {
+  const { cls, margin, ranked } = tankFor(mix);
+  const worst = ranked[ranked.length - 1];
+  // Under a couple of percent is not a recommendation, it is a rounding error.
+  if (margin < 2) return `${cls.name}s edge it here, but any tank holds this blend.`;
+  return `${cls.name}s take ${Math.round(margin)}% less punishment here than the next best, `
+    + `and ${Math.round(((worst.exposure - ranked[0].exposure) / worst.exposure) * 100)}% `
+    + `less than a ${worst.cls.name}.`;
 }
