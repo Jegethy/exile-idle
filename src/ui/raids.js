@@ -5,6 +5,9 @@ import { dispatchRaid } from '../expedition.js';
 import { G } from '../state.js';
 import { escapeHtml, qs } from '../util.js';
 import { gotoTab, setStatus } from './shell.js';
+// An action, not a redraw — the same footing as the party board opening a hero
+// sheet. expeditions.js does not import this module, so nothing cycles.
+import { revealActiveRuns } from './expeditions.js';
 
 // ===========================================================================
 // Raids
@@ -69,6 +72,9 @@ export function renderRaids() {
     if (!b) return;
     const res = dispatchRaid(b.dataset.party, b.dataset.raid);
     setStatus(res.msg);
-    if (res.ok) gotoTab('expeditions');
+    // Sending a raid switches tabs to show it, so it has to make sure there is
+    // something to see: the expeditions panel keeps whatever scroll position it
+    // was left at, which may be well below the run cards.
+    if (res.ok) { gotoTab('expeditions'); revealActiveRuns(); }
   };
 }

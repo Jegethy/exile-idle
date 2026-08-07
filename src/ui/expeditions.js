@@ -20,6 +20,40 @@ import { FLASK_BY_ID } from '../data/recipes.js';
 // Expeditions
 // ===========================================================================
 
+/**
+ * Brings the active runs back into view after starting one.
+ *
+ * The run cards live at the top of `.exped-top`, above a dispatch board tall
+ * enough to need scrolling at any ordinary window size. Reaching the lower
+ * dungeons means scrolling down — and a card inserted *above* the scroll
+ * position does not push the view with it. Browsers anchor the scroll to what
+ * you were already looking at, which is exactly the wrong instinct here: the
+ * expedition you just started appears entirely off the top of the panel and
+ * stays there.
+ *
+ * So this is called from the Send handler rather than from the render. Being
+ * shown the run you just asked for is right; being yanked back to the top
+ * because a party on auto-redeploy went out again while you were reading the
+ * dungeon list is not, and auto-redeploy never comes through here.
+ */
+export function revealActiveRuns() {
+  requestAnimationFrame(() => {
+    const scroller = document.querySelector('.exped-top');
+    const cards = document.querySelectorAll('#activeRuns .run-card');
+    const card = cards[cards.length - 1];
+    if (!scroller || !card) return;
+    const box = scroller.getBoundingClientRect();
+    const seen = card.getBoundingClientRect();
+    // Already wholly in view: leave the scroll exactly where the player put it.
+    if (seen.top >= box.top && seen.bottom <= box.bottom) return;
+    try {
+      card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    } catch {
+      card.scrollIntoView(false);
+    }
+  });
+}
+
 export function renderRuns() {
   const s = G.state;
   const host = qs('#activeRuns');
@@ -251,6 +285,7 @@ export function renderDispatch() {
       dismissReportsFor(b.dataset.send);
       const party = partyById(b.dataset.send);
       if (party) party.lastRun = { dungeonId: b.dataset.dg, tier: ui.dispatchTier };
+      revealActiveRuns();
     }
   };
 }

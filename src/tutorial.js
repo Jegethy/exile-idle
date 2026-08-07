@@ -116,7 +116,12 @@ export const STEPS = [
   },
   {
     id: 'watching',
-    tab: 'expeditions', target: '#centerPanel',
+    // The run card, not the whole centre column. Pointing at #centerPanel lit
+    // up everything and therefore nothing, and — because scrollIntoView has
+    // nothing useful to do with an element taller than the screen — left the
+    // panel wherever the previous step's scroll had put it, which was at the
+    // bottom, with the thing this step describes off the top of the panel.
+    tab: 'expeditions', target: '#activeRuns',
     title: 'The Expedition',
     body: 'Combat resolves on its own. Your party is on the left, the current enemies on the '
       + 'right, and the guild log below narrates it.'
@@ -524,11 +529,20 @@ function resolveTarget(step) {
 function scrollTargetIntoView(step) {
   const target = resolveTarget(step);
   if (!target?.scrollIntoView) return;
+  // 'nearest' scrolls by the least it can, which is what you want for a button
+  // just off the fold. But an element taller than the screen can never be made
+  // to fit, so 'nearest' decides the least it can do is nothing at all — and a
+  // step pointing at a whole panel silently keeps the previous step's scroll
+  // position. Align those to their top instead, which at least guarantees the
+  // beginning of the thing being described is on screen.
+  const tall = target.getBoundingClientRect().height > window.innerHeight * 0.9;
   try {
-    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    target.scrollIntoView({
+      block: tall ? 'start' : 'nearest', inline: 'nearest', behavior: 'instant',
+    });
   } catch {
     // Older engines reject the options object; the boolean form is fine.
-    target.scrollIntoView(false);
+    target.scrollIntoView(!tall);
   }
 }
 

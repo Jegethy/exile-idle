@@ -217,6 +217,72 @@ export default async function run(browser) {
     return `${r.cells} figures across ${r.groups} groups, behind ${r.tabs} sub-tabs`;
   });
 
+  /**
+   * You are shown the expedition you just started.
+   *
+   * The run cards sit at the top of a scrolling column, above a dispatch board
+   * tall enough to need scrolling at any ordinary window size — so reaching the
+   * lower dungeons means scrolling down, and a card inserted *above* the scroll
+   * position does not bring the view with it. Browsers deliberately anchor the
+   * scroll to whatever you were already looking at, which here means the run
+   * you asked for appears entirely off the top of the panel and stays there.
+   *
+   * This was reported as a tutorial bug and is not one: it hit anybody who
+   * scrolled the dispatch board, at every window size where the board scrolls
+   * at all, including 1920x1080.
+   */
+  await test('dispatching from a scrolled board still shows the run', async () => {
+    const sizes = [[1920, 1080], [1440, 900], [1280, 800]];
+    const out = [];
+    for (const [width, height] of sizes) {
+      await page.setViewportSize({ width, height });
+      await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { assignToParty } = await import('./src/heroes.js');
+        const { gotoTab } = await import('./src/ui/shell.js');
+        const { renderAll } = await import('./src/ui.js');
+        G.state.progress.highestTier = 12;
+        while (G.state.expeditions.length) G.state.expeditions.pop();
+        for (const h of G.state.heroes) {
+          h.stamina = 100;
+          assignToParty(h.uid, G.state.parties[0].id);
+        }
+        gotoTab('expeditions');
+        renderAll();
+      });
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => {
+        const scroller = document.querySelector('.exped-top');
+        // All the way down, as a player reaching the last dungeon card would.
+        scroller.scrollTop = scroller.scrollHeight;
+        const scrolled = scroller.scrollTop;
+        const btns = [...document.querySelectorAll('#dispatchPanel [data-send]:not([disabled])')];
+        btns[btns.length - 1]?.click();
+        return { scrolled, sent: btns.length > 0 };
+      });
+      ok(r.sent, `${width}x${height}: no dungeon could be dispatched`);
+      // The reveal waits a frame for layout, so give it one.
+      await page.waitForTimeout(250);
+      const seen = await page.evaluate(() => {
+        const scroller = document.querySelector('.exped-top');
+        const cards = document.querySelectorAll('#activeRuns .run-card');
+        const card = cards[cards.length - 1];
+        if (!card) return { visible: 0, missing: true };
+        const box = scroller.getBoundingClientRect();
+        const rect = card.getBoundingClientRect();
+        const overlap = Math.max(0, Math.min(rect.bottom, box.bottom) - Math.max(rect.top, box.top));
+        return { visible: Math.round((overlap / rect.height) * 100), missing: false };
+      });
+      ok(!seen.missing, `${width}x${height}: no run card was rendered at all`);
+      ok(seen.visible >= 90,
+        `${width}x${height}: the run card is ${seen.visible}% visible after dispatching `
+        + `from a board scrolled to ${r.scrolled}px`);
+      out.push(`${width}x${height} ${seen.visible}%`);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    return out.join(', ');
+  });
+
   await test('no page errors', () => clean(errors));
   await page.close();
 }

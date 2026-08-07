@@ -1118,6 +1118,36 @@ and the highlighted card agree without anyone having clicked a party; and a
 party in the field offers neither control, because editing a party that is
 currently underground is not a thing that can be made to mean anything.
 
+## You are shown the run you asked for
+
+Reported as a tutorial bug and it was not one.
+
+The run cards sit at the top of a scrolling column, above a dispatch board tall
+enough to need scrolling at any ordinary window size — so reaching the lower
+dungeons means scrolling down. A card inserted *above* the scroll position does
+not bring the view with it: browsers deliberately anchor the scroll to whatever
+you were already looking at, and adjust `scrollTop` to keep it still. The
+expedition you just started therefore appeared entirely off the top of the panel
+and stayed there.
+
+Measured, the run card was **0% visible at 1920×1080** as well as at every
+smaller size where the board scrolls at all. It only looked like a small-screen
+problem because a window large enough that the board does not scroll never hits
+it.
+
+The reveal is called from the **Send handler**, not from the render. Being shown
+the run you just asked for is right; being yanked back to the top because a
+party on auto-redeploy went out again while you were reading the dungeon list is
+not, and auto-redeploy never comes through that handler. It also leaves the
+scroll alone when the card is already wholly in view.
+
+Two tutorial faults sat on top of it. Step 10 pointed at `#centerPanel` — the
+whole column — which lit up everything and therefore nothing; it now points at
+the run card its own text describes. And `scrollIntoView({block: 'nearest'})`
+scrolls by the least it can, which for an element taller than the screen is
+*nothing at all*, so the step silently inherited the previous step's scroll
+position. Targets taller than the viewport now align to their top instead.
+
 ## The after-action summary
 
 Combat resolves on its own, which means the interesting part is over before you

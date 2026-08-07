@@ -188,17 +188,25 @@ export default async function run(browser) {
       const has = c.effects?.some((e) => e.id === 'secondwind');
       c.life = c.maxLife * 0.5;
       const before = c.life;
-      // Clear the field first. Otherwise this races the enemy: regeneration is
-      // steady but incoming damage is not, and on an unlucky roll the Guardian
-      // is losing life faster than Second Wind restores it. The claim under
-      // test is that it regenerates at all, not that it out-heals a fight.
-      run_.enemies.length = 0;
+      // Disarm the field rather than clear it.
+      //
+      // Emptying run_.enemies does not stop the fight — the tick reads it as
+      // "wave cleared", counts down WAVE_GAP and spawns the next one, and the
+      // Guardian is back to racing incoming damage. That is precisely the race
+      // this was written to avoid, so it stayed flaky: five runs in a row pass
+      // and the sixth loses more life to an unlucky roll than Second Wind puts
+      // back. Regeneration also only ticks while enemies are present, so the
+      // field cannot simply be left empty either.
+      //
+      // Toothless enemies with more life than the run can chew through hold the
+      // tick in its combat path with nothing to measure against.
+      for (const e of run_.enemies) { e.dmg = 0; e.life = 1e9; e.maxLife = 1e9; }
       for (let i = 0; i < 40; i++) tickAll(0.1);
-      return { has, healed: c.life > before };
+      return { has, healed: c.life > before, gained: Math.round(c.life - before) };
     });
     ok(r.has, 'Second Wind never applied');
     ok(r.healed, 'the Guardian did not regenerate');
-    return 'Second Wind applied and ticking';
+    return `Second Wind applied and ticking — ${r.gained} life back over 4s`;
   });
 
   await test('Warrior and Paladin resist opposite schools', async () => {
