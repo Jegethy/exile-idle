@@ -16,6 +16,7 @@ import {
   selfBuff, dotFromHit, partyHot, announce, all, healWounded,
 } from '../expedition/reactions.js';
 import { applyEffect } from '../expedition/effects.js';
+import { BASE_BY_ID } from './bases.js';
 
 /**
  * `mult` scales the level-derived base curve in stats.js.
@@ -25,6 +26,17 @@ import { applyEffect } from '../expedition/effects.js';
  *   threat              — share of incoming attacks drawn (tanks are high)
  * `block` is granted by the class itself, on top of any shield carried.
  * `resist` is a percentage change to damage taken from one kind of attack.
+ *
+ * Two fields decide what a hero may carry, and they answer deliberately
+ * different questions:
+ *
+ *   wields   the weapon families this class was trained in. Not a permission
+ *            — anybody may pick up anything, and it still swings. An untrained
+ *            weapon simply lands softer, so a Wizard holding a greataxe is a
+ *            worse Wizard rather than an illegal one.
+ *   offhand  what the free hand is *for*, and this one is a permission,
+ *            because a hand is either holding a thing or it is not. A shield
+ *            on an Archer is not a weak choice, it is a wrong picture.
  */
 export const HERO_CLASSES = [
   // ---- Tanks --------------------------------------------------------------
@@ -40,6 +52,7 @@ export const HERO_CLASSES = [
     // the generalist won four of the seven dungeons. A specialist has to be
     // decisively better inside its own band to be worth bringing at all.
     resist: { melee: 36, spell: -32 },
+    wields: ['sword', 'axe', 'mace'], offhand: 'shield',
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Bulwark Stance',
@@ -59,6 +72,7 @@ export const HERO_CLASSES = [
     mult: { life: 1.90, armour: 2.15, evasion: 0.42, damage: 0.65, aps: 0.90, heal: 0, threat: 6.0 },
     block: { melee: 0, spell: 15 },
     resist: { melee: -24, spell: 36 },
+    wields: ['sword', 'mace'], offhand: 'shield',
     prefers: ['mace1h', 'sword1h', 'shield_int'],
     ability: {
       name: 'Consecrate',
@@ -105,6 +119,7 @@ export const HERO_CLASSES = [
     // Even-handed rather than simply unbuffed: a small bonus to both is what
     // makes the middle of the range its home instead of nobody's.
     resist: { melee: 9, spell: 9 },
+    wields: ['sword', 'axe', 'mace'], offhand: 'shield',
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Second Wind',
@@ -122,6 +137,9 @@ export const HERO_CLASSES = [
     row: 'back', reach: 'ranged', school: 'spell',
     blurb: 'Big heals, one at a time. Copes when a single ally is being hammered; struggles when everyone is.',
     mult: { life: 1.05, armour: 0.90, evasion: 0.60, damage: 0.50, aps: 0.95, heal: 1.30, threat: 0.7 },
+    // The mace is the old warrior-priest compromise, and it is a real one
+    // here: it is the only weapon a Cleric knows that rolls attack modifiers.
+    wields: ['mace', 'staff', 'wand'], offhand: 'shield',
     prefers: ['mace1h', 'staff', 'shield_int'],
     ability: {
       name: 'Intercession',
@@ -140,6 +158,7 @@ export const HERO_CLASSES = [
       + 'The healer to bring when damage is spread across everyone, or when there '
       + 'is no tank to soak it — and the wrong one when a single ally is being hammered.',
     mult: { life: 1.00, armour: 0.75, evasion: 0.70, damage: 0.50, aps: 0.90, heal: 1.00, threat: 0.7 },
+    wields: ['staff', 'wand'], offhand: 'shield',
     prefers: ['staff', 'wand', 'shield_dex'],
     ability: {
       name: 'Rejuvenation',
@@ -165,6 +184,10 @@ export const HERO_CLASSES = [
     row: 'front', reach: 'melee', school: 'melee',
     blurb: 'Heals by fighting, and cannot heal any other way. Hits harder than any other healer, and has to stand where it hurts.',
     mult: { life: 1.30, armour: 1.20, evasion: 0.55, damage: 1.15, aps: 1.05, heal: 0, threat: 1.6 },
+    // No staff, deliberately. A Templar heals out of the damage it deals, so
+    // a two-hander would be strictly better for it than a shield — and this is
+    // already the healer with the least trouble staying alive.
+    wields: ['sword', 'mace'], offhand: 'shield',
     prefers: ['mace1h', 'sword1h', 'shield_str'],
     ability: {
       name: 'Radiance',
@@ -195,6 +218,7 @@ export const HERO_CLASSES = [
       + 'everyone else — a party with one keeps going long after a party '
       + 'without one has run dry.',
     mult: { life: 1.00, armour: 0.60, evasion: 0.85, damage: 0.55, aps: 0.95, heal: 0, threat: 0.8 },
+    wields: ['wand', 'dagger'], offhand: 'shield',
     prefers: ['wand', 'dagger', 'shield_dex'],
     ability: {
       name: 'Marching Song',
@@ -223,12 +247,13 @@ export const HERO_CLASSES = [
   {
     id: 'rogue', name: 'Rogue', role: 'DPS', icon: 'dagger',
     row: 'front', reach: 'melee', school: 'melee',
-    // The only class that fights with a weapon in each hand. The offhand
-    // adds a share of its own damage rather than all of it, so two daggers
-    // beat one but do not simply double the Rogue.
-    dualWield: true,
     blurb: 'Opens a fight far ahead of anyone else and fades as it drags on. Wants short, decisive waves.',
     mult: { life: 0.95, armour: 0.65, evasion: 1.30, damage: 1.25, aps: 1.20, heal: 0, threat: 1.1 },
+    // The only class whose off hand takes a second weapon. That share adds a
+    // fraction of its own damage rather than all of it, so two daggers beat
+    // one but do not simply double the Rogue — and it is why a Rogue cannot
+    // hold a two-hander: the second hand is already spoken for.
+    wields: ['dagger', 'sword', 'axe'], offhand: 'weapon',
     prefers: ['dagger', 'sword1h', 'axe1h'],
     perk: { rarity: 20, gold: 15 },
     // A big bonus at a price energy cannot sustain: four or five ferocious
@@ -250,6 +275,10 @@ export const HERO_CLASSES = [
     row: 'back', reach: 'ranged', school: 'melee',
     blurb: 'Steady damage from out of reach. Nothing spectacular in a burst, and untouchable while the front line holds.',
     mult: { life: 0.85, armour: 0.45, evasion: 1.60, damage: 1.20, aps: 1.30, heal: 0, threat: 0.9 },
+    // Both hands are on the bow, so the off hand carries arrows. An Archer
+    // behind a shield was the clearest thing wrong with the old rules: it was
+    // legal, the outfitter did it, and it is not a picture of an archer.
+    wields: ['bow', 'dagger'], offhand: 'quiver',
     prefers: ['bow', 'quiver'],
     // A small bonus at a price energy comfortably sustains, so an Archer has
     // it up almost permanently and opens no stronger than it finishes.
@@ -270,6 +299,7 @@ export const HERO_CLASSES = [
     row: 'back', reach: 'ranged', school: 'spell',
     blurb: 'The highest damage in the guild and the lowest life in it. Needs something else standing between it and everything.',
     mult: { life: 0.62, armour: 0.30, evasion: 0.65, damage: 1.70, aps: 0.85, heal: 0, threat: 1.0 },
+    wields: ['staff', 'wand'], offhand: 'shield',
     prefers: ['staff', 'wand', 'shield_int'],
     ability: {
       name: 'Overload',
@@ -287,6 +317,7 @@ export const HERO_CLASSES = [
     row: 'back', reach: 'ranged', school: 'spell',
     blurb: 'Withers everything at once. The weakest single target in the guild, and the only one who does not care how many enemies there are.',
     mult: { life: 0.80, armour: 0.40, evasion: 0.75, damage: 1.12, aps: 0.95, heal: 0, threat: 1.0 },
+    wields: ['wand', 'staff', 'dagger'], offhand: 'shield',
     prefers: ['wand', 'staff', 'shield_int'],
     ability: {
       name: 'Contagion',
@@ -323,6 +354,9 @@ export const HERO_CLASSES = [
     support: true,
     blurb: 'Blade and incantation together, excelling at neither. Armoured for a damage class, and the party fights better with one present.',
     mult: { life: 1.25, armour: 1.15, evasion: 0.80, damage: 1.00, aps: 1.00, heal: 0, threat: 1.3 },
+    // Blade and incantation, but the incantation is the class ability rather
+    // than the weapon: an Inquisitor fights sword-and-board and casts anyway.
+    wields: ['sword', 'mace'], offhand: 'shield',
     prefers: ['sword1h', 'mace1h', 'shield_str'],
     ability: {
       name: 'Zealotry',
@@ -344,6 +378,57 @@ export const HERO_CLASSES = [
 ];
 
 export const CLASS_BY_ID = Object.fromEntries(HERO_CLASSES.map((c) => [c.id, c]));
+
+// ---------------------------------------------------------------------------
+// Weapon training
+// ---------------------------------------------------------------------------
+
+/**
+ * What an untrained weapon is worth in the hand, as a multiplier on the
+ * weapon's own damage.
+ *
+ * Half, and the number is doing real work rather than decorating a rule. The
+ * two-handed axe is the sharpest case: it out-damages a wand by two and a half
+ * times on the raw bases, so anything much gentler than a half leaves a Wizard
+ * still better off swinging one — which is the exact absurdity this exists to
+ * end. Half puts every trained weapon ahead of every untrained one across the
+ * whole ladder, without ever making a weapon unusable: a hero handed the wrong
+ * thing still fights, still contributes, and is visibly worse at it.
+ *
+ * Only the damage is touched. Speed, crit and the item's other modifiers all
+ * land in full, because the claim being made is "they are clumsy with it", not
+ * "the item stops working".
+ */
+export const UNTRAINED = 0.5;
+
+/**
+ * How much of a weapon this class actually gets out of it: 1 when trained,
+ * UNTRAINED otherwise. Anything that is not a weapon is 1 — a helmet has no
+ * opinion about who is wearing it.
+ */
+export function weaponProficiency(cls, item) {
+  const base = BASE_BY_ID[item?.baseId];
+  if (!base || base.slot !== 'weapon') return 1;
+  return (cls?.wields ?? []).includes(base.family) ? 1 : UNTRAINED;
+}
+
+/** What this class's free hand is for: 'shield', 'quiver' or 'weapon'. */
+export function offhandStyle(cls) {
+  return cls?.offhand ?? 'shield';
+}
+
+/** Whether this class fights with a weapon in each hand. */
+export function fightsDualWielding(cls) {
+  return offhandStyle(cls) === 'weapon';
+}
+
+/** The families a class trains with, written out for a player to read. */
+export function wieldsLabel(cls) {
+  const names = { sword: 'swords', axe: 'axes', mace: 'maces', dagger: 'daggers', bow: 'bows', wand: 'wands', staff: 'staves' };
+  const list = (cls?.wields ?? []).map((f) => names[f] ?? f);
+  if (list.length <= 1) return list[0] ?? 'nothing';
+  return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
 
 /**
  * Classes retired in the rework, mapped to their nearest survivor. An existing

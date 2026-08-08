@@ -95,7 +95,10 @@ export const UNIQUES = [
     id: 'lifesprig', name: 'Lifesprig', base: 'wand', lvl: 18, weight: 85,
     flavour: 'A twig of the world tree, still green.',
     mods: [
-      m([20, 30], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      // Named for the weapon it is on. A wand's damage line is Spell Damage;
+      // localIncPhys is the engine's name for "scales this weapon", not a claim
+      // about what kind of damage comes out of it.
+      m([20, 30], (v) => `${v}% increased Spell Damage`, (b, v) => { b.localIncPhys += v; }),
       m([25, 40], (v) => `+${v} to maximum Life`, (b, v) => { b.flatLife += v; }),
       m([3, 6], (v) => `Regenerate ${v} Life per second`, (b, v) => { b.lifeRegenFlat += v; }, 1),
     ],
@@ -318,6 +321,37 @@ export const UNIQUES = [
       run: selfBuff('quickening', 'Quickened', { incAtkSpeed: 25 }, 5),
     }],
   },
+  /**
+   * The only unique quiver, and it exists because the off-hand rules created
+   * a hole where there had not been one. An Archer's off hand takes a quiver
+   * and nothing else now — which is right — but there has never been a unique
+   * bow either, so the class went from borrowing a unique shield to having no
+   * unique it could hold in either hand. Every other class has one.
+   *
+   * Built around the fact that an Archer opens no stronger than it finishes:
+   * Steady Aim ramps, so a quiver that pays for the ramp is the piece that
+   * suits the class rather than a stat stick that would suit anyone.
+   */
+  {
+    id: 'lastarrow', name: 'The Last Arrow', base: 'quiver', lvl: 30, weight: 45,
+    power: 1.20,
+    flavour: 'Kept for the shot that matters. Every shot matters.',
+    mods: [
+      m([25, 40], (v) => `${v}% increased Critical Strike Chance`, (b, v) => { b.incCrit += v; }),
+      m([120, 200], (v) => `+${v} to Accuracy Rating`, (b, v) => { b.accuracy += v; }),
+      says('Every third hit strikes for 40% more'),
+    ],
+    reactions: [{
+      // Counted rather than rolled: a ramping class wants a rhythm it can
+      // rely on, and a chance-based version of this would just be more damage.
+      trigger: 'hit', key: 'lastarrow',
+      run: (ctx) => {
+        ctx.self.__lastArrow = (ctx.self.__lastArrow ?? 0) + 1;
+        if (ctx.self.__lastArrow % 3) return;
+        selfBuff('lastarrow', 'The Last Arrow', { incDamage: 40 }, 1.2)(ctx);
+      },
+    }],
+  },
   {
     id: 'wardstone', name: 'Wardstone', base: 'shield_str', lvl: 34, weight: 45,
     power: 1.20,
@@ -375,7 +409,11 @@ export const UNIQUES = [
     flavour: 'It came down burning, and it has not finished falling.',
     power: 1.35,
     mods: [
-      m([60, 80], (v) => `${v}% increased Spell Damage`, (b, v) => { b.incSpellDmg += v; }),
+      // `incSpellDmg` was not a key the stat bag declares, so this line added a
+      // NaN to a property nothing reads: the headline modifier on the deepest
+      // caster unique in the game did exactly nothing. incDamage is what
+      // "increased Spell Damage" has always meant here.
+      m([60, 80], (v) => `${v}% increased Spell Damage`, (b, v) => { b.incDamage += v; }),
       m([40, 55], (v) => `${v}% increased Elemental Damage`, (b, v) => { b.incEle += v; }),
       m([25, 35], (v) => `${v}% reduced maximum Life`, (b, v) => { b.incLife -= v; }),
       says('Every ninth spell strikes for 400% damage'),

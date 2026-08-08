@@ -3,7 +3,7 @@
 import { rng } from './rng.js';
 import { uid, clamp } from './util.js';
 import {
-  BASE_BY_ID, BASES, baseNameFor, baseStatsFor, slotAccepts, baseDescriptor,
+  BASE_BY_ID, BASES, baseNameFor, baseStatsFor, slotAccepts, baseDescriptor, isCasterWeapon,
 } from './data/bases.js';
 import { AFFIX_BY_ID, eligibleAffixes, availableTiers, tierNumber } from './data/affixes.js';
 import { UNIQUE_BY_ID, uniquesFor } from './data/uniques.js';
@@ -30,8 +30,12 @@ export const IMPLICITS = [
   { id: 'imp_res_cold', req: ['ring'], r: [15, 30], text: (v) => `+${v}% to Cold Resistance`, apply: (b, v) => { b.resCold += v; } },
   { id: 'imp_res_light', req: ['ring'], r: [15, 30], text: (v) => `+${v}% to Lightning Resistance`, apply: (b, v) => { b.resLight += v; } },
   { id: 'imp_crit', req: ['weapon'], r: [15, 30], text: (v) => `${v}% increased Critical Strike Chance`, apply: (b, v) => { b.incCrit += v; } },
-  { id: 'imp_acc', req: ['weapon'], r: [50, 150], text: (v) => `+${v} to Accuracy Rating`, apply: (b, v) => { b.accuracy += v; } },
   { id: 'imp_aspd', req: ['weapon'], r: [4, 9], text: (v) => `${v}% increased Attack Speed`, apply: (b, v) => { b.incAtkSpeed += v; } },
+  // Split by who the weapon is for: a bow comes with the aim already in it, a
+  // wand comes with the power. Both keep crit and speed, which every hero uses.
+  { id: 'imp_acc', req: ['attack'], r: [50, 150], text: (v) => `+${v} to Accuracy Rating`, apply: (b, v) => { b.accuracy += v; } },
+  { id: 'imp_spell_dmg', req: ['caster'], r: [10, 20], text: (v) => `${v}% increased Damage`, apply: (b, v) => { b.incDamage += v; } },
+  { id: 'imp_heal', req: ['caster'], r: [8, 16], text: (v) => `${v}% increased Healing`, apply: (b, v) => { b.incHeal += v; } },
   { id: 'imp_block', req: ['shield'], r: [4, 8], text: (v) => `+${v}% Chance to Block`, apply: (b, v) => { b.block += v; } },
   { id: 'imp_shield_res', req: ['shield'], r: [10, 20], text: (v) => `+${v}% to all Elemental Resistances`, apply: (b, v) => { b.resFire += v; b.resCold += v; b.resLight += v; } },
   { id: 'imp_quiver_phys', req: ['quiver'], r: [6, 14], text: (v) => `Adds ${Math.round(v * 0.5)} to ${v} Physical Damage`, apply: (b, v) => { b.addPhysMin += Math.round(v * 0.5); b.addPhysMax += v; } },
@@ -272,7 +276,10 @@ export function itemBaseStats(item) {
   for (const a of item.affixes) {
     const def = AFFIX_BY_ID[a.defId];
     if (!def) continue;
-    if (def.id === 'inc_phys') local.phys += a.values[0];
+    // The physical and spell percentages are the same mechanic under two
+    // names, split so that a wand and a sword roll their own. Both scale the
+    // weapon's damage line locally.
+    if (def.id === 'inc_phys' || def.id === 'inc_spell') local.phys += a.values[0];
     if (def.id === 'inc_armour') local.armour += a.values[0];
     if (def.id === 'inc_evasion') local.evasion += a.values[0];
     if (def.id === 'inc_es_local') local.es += a.values[0];
@@ -295,10 +302,13 @@ export function itemBaseStats(item) {
 
   const out = {};
   if (base.slot === 'weapon') {
-    // Flat added phys from affixes is local to the weapon and scales with inc phys.
+    // Flat added damage from affixes is local to the weapon and scales with
+    // the local percentage. A fighter's weapon adds physical, a caster's adds
+    // spell; they are the same number in the end, which is why the pool lets
+    // each roll only its own.
     let addMin = 0; let addMax = 0;
     for (const a of item.affixes) {
-      if (a.defId === 'flat_phys') { addMin += a.values[0]; addMax += a.values[1]; }
+      if (a.defId === 'flat_phys' || a.defId === 'flat_spell') { addMin += a.values[0]; addMax += a.values[1]; }
     }
     const mult = (1 + (local.phys + (item.quality ?? 0)) / 100);
     out.physMin = Math.round((s.physMin + addMin) * mult);
@@ -306,6 +316,9 @@ export function itemBaseStats(item) {
     out.aps = s.aps;
     out.crit = s.crit;
     out.hands = s.hands;
+    // What to call that damage. The engine has one bucket; the label is what
+    // tells a player whether they are holding a caster's weapon.
+    out.caster = isCasterWeapon(base);
     out.dps = Math.round(((out.physMin + out.physMax) / 2) * s.aps);
   } else if (!bare) {
     if (s.armour) out.armour = Math.round(s.armour * q * (1 + local.armour / 100));
@@ -347,7 +360,8 @@ export function itemMods(item) {
  * Folds every non-local modifier on `item` into the stat bag.
  * Local weapon/armour mods are skipped — they already shaped itemBaseStats().
  */
-const LOCAL_IDS = new Set(['inc_phys', 'inc_armour', 'inc_evasion', 'inc_es_local', 'flat_phys']);
+const LOCAL_IDS = new Set(['inc_phys', 'inc_armour', 'inc_evasion', 'inc_es_local', 'flat_phys',
+  'inc_spell', 'flat_spell']);
 
 export function applyItemMods(item, bag) {
   if (item.implicit) {

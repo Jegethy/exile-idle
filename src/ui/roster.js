@@ -1,7 +1,7 @@
 // roster — The roster list and the hero sheet behind it.
 
 import { BASE_BY_ID, EQUIP_SLOTS, SLOTS } from '../data/bases.js';
-import { RARITY_BY_ID } from '../data/heroclasses.js';
+import { RARITY_BY_ID, offhandStyle, weaponProficiency, wieldsLabel } from '../data/heroclasses.js';
 import {
   BASE_STAMINA, assignToParty, boardCosts, dismiss, heroById, heroInfo, isDeployed,
   partyById, recruit, recruitBoard, rerollCost, rerollRecruits, removeFromParty,
@@ -360,7 +360,9 @@ export function openHeroModal(heroUid) {
   const out = isDeployed(hero);
 
   const mainBase = hero.equipment.weapon ? BASE_BY_ID[hero.equipment.weapon.baseId] : null;
-  const twoHanded = mainBase?.hands === 2;
+  // A bow is two-handed but leaves the quiver slot open, so the off hand is
+  // only shown shut for classes that would be holding something in it.
+  const twoHanded = mainBase?.hands === 2 && offhandStyle(info.cls) !== 'quiver';
 
   qs('#heroModalTitle').textContent = hero.name;
   qs('#heroModalBody').innerHTML = `
@@ -426,8 +428,16 @@ export function openHeroModal(heroUid) {
     const sub = bs.dps ? `${fmt(bs.dps)} dps`
       : [bs.armour && `${fmt(bs.armour)} ar`, bs.evasion && `${fmt(bs.evasion)} ev`, bs.es && `${fmt(bs.es)} es`]
         .filter(Boolean).join(' · ') || `ilvl ${item.ilvl}`;
-    return `<div class="slot ${R(item.rarity)}" style="grid-area:${slotId}" data-slot="${slotId}" data-uid="${item.uid}">
-        <div class="slot-name">${escapeHtml(item.name)}</div><div class="slot-sub">${sub}</div></div>`;
+    // A weapon this class was never trained with still swings, at half damage.
+    // Marked on the doll rather than only in the tooltip: a hero can end up
+    // holding one through a unique drop or a hand-equip, and a penalty nobody
+    // can see is a bug report waiting to happen.
+    const untrained = weaponProficiency(info.cls, item) < 1;
+    return `<div class="slot ${R(item.rarity)}${untrained ? ' untrained' : ''}" style="grid-area:${slotId}"
+        data-slot="${slotId}" data-uid="${item.uid}"
+        ${untrained ? `title="${escapeHtml(info.cls.name)}s are trained with ${escapeHtml(wieldsLabel(info.cls))}. This one deals half damage."` : ''}>
+        <div class="slot-name">${escapeHtml(item.name)}</div>
+        <div class="slot-sub">${sub}${untrained ? ' <b class="untrained-tag">untrained</b>' : ''}</div></div>`;
   }).join('')}</div>
 
     <div class="section-head"><span>Party</span></div>

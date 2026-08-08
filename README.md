@@ -156,12 +156,53 @@ are cooldowns and triggers on the combat effects layer.
 | **Inquisitor** | DPS | Mediocre at everything, and makes the whole party better. |
 | **Bard** | Support | Fights barely harder than the tank. Keeps everyone else going. |
 
-**Dual wielding is a fighting style, not a permission.** The Rogue holds a
-one-handed weapon in each hand and cannot take a shield or a two-hander at all.
-Letting it pick up a greatsword made the class's one distinguishing feature
-optional, and an off-hand that accepts both a second dagger and a tower shield
-cannot be filled automatically without guessing which build was wanted. A
-second weapon also displaces the *weaker* hand rather than always the main one.
+### Weapons belong to somebody
+
+Two rules, deliberately different in kind, because the two questions are
+different questions.
+
+**Training is soft.** Each class declares the weapon families it `wields`.
+Anybody may carry anything, and a weapon outside those families still swings —
+at half its damage. So a Wizard holding a greataxe is a worse Wizard rather than
+an illegal one, and no hero is ever left with a slot they cannot fill. Half is
+measured rather than chosen: the two-handed axe out-damages a wand by two and a
+half times on the raw bases, so anything gentler leaves a caster still better off
+swinging one, which is the absurdity the rule exists to end.
+
+The outfitter is never told about any of this. It scores whole stat sheets, so a
+halved weapon simply stops winning — a rule the planner has to be taught
+separately is a rule that drifts away from the engine.
+
+**The off hand is hard**, because a hand is either holding a thing or it is not;
+there is no carrying a shield badly. Each class says what that hand is *for*:
+
+| Style | Who | What it means |
+|---|---|---|
+| `shield` | ten classes | The ordinary case. |
+| `weapon` | Rogue | A fighting style rather than an option — and the reason a Rogue cannot hold a two-hander at all, since the hand a greatsword wants is already busy. The second weapon displaces the *weaker* hand rather than always the main one. |
+| `quiver` | Archer | Both hands are on the bow. An Archer behind a tower shield was legal under the old rules, and the outfitter did it. |
+
+A quiver rides on the belt rather than filling a hand (`fillsOffHand`). Without
+that exception the rule eats itself: every bow is two-handed, so the one class
+whose off hand is a quiver could never wear one and the base type would be dead
+content.
+
+**Weapons also split by who they are for.** `attack` and `caster` partition the
+bases. Swords, axes, maces, daggers and bows roll flat physical damage, a local
+physical percentage, and life leech; wands and staves roll the spell-damage
+equivalents and the only *increased Healing* in the game — the first modifier
+in the pool that is dead weight on nine classes in twelve, and routed to the
+healer it is for by `sheetScore` without anyone having to notice.
+
+Both pools are the same size and the same weight, and getting there took two
+corrections. Energy shield and life regeneration read beautifully on a staff and
+were removed: they are dead to the Wizard and Warlock who carry one, and every
+point of weight spent on them is a roll that could have been damage. The global
+damage percentage came off caster weapons for the same reason in reverse — it
+sat *on top of* the flat and local pair and gave staves a third damage prefix
+swords had no answer to. Attack speed, accuracy and crit stay shared, because in
+this engine every hero swings on a timer and every hero can miss; restricting
+those would not be flavour, it would be a nerf to casters dressed up as one.
 
 Five rarities from Common to Legendary set stat multipliers and how many
 **traits** a hero rolls — 28 traits across three tiers, from `Sturdy` to

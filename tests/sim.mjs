@@ -12,7 +12,7 @@ import { dispatch, tickAll } from '../src/expedition.js';
 import { createItem } from '../src/items.js';
 import { EQUIP_SLOTS, BASE_BY_ID } from '../src/data/bases.js';
 import { tierToLevel, tierToIlvl } from '../src/data/dungeons.js';
-import { CLASS_BY_ID } from '../src/data/heroclasses.js';
+import { CLASS_BY_ID, fightsDualWielding } from '../src/data/heroclasses.js';
 
 const DT = 0.1;
 const MAX_TICKS = 20000;          // ~33 simulated minutes; a wall, not a budget
@@ -39,12 +39,13 @@ function equipFor(hero, ilvl) {
   const offhand = prefers.find((id) => BASE_BY_ID[id]?.slot === 'offhand');
 
   hero.equipment.weapon = createItem({ baseId: weapon, ilvl, rarity: 'rare' });
-  if (BASE_BY_ID[weapon]?.hands !== 2) {
-    // A dual wielder takes a second weapon rather than a shield, which is how
-    // the class is actually played — measuring it with an empty offhand would
-    // understate it.
-    const second = cls.dualWield ? weapon : offhand;
-    if (second) hero.equipment.offhand = createItem({ baseId: second, ilvl, rarity: 'rare' });
+  // A dual wielder takes a second weapon rather than a shield, which is how the
+  // class is actually played — measuring it with an empty offhand would
+  // understate it. A quiver takes no hand, so an Archer keeps one behind a bow.
+  const second = fightsDualWielding(cls) ? weapon : offhand;
+  const roomInHand = BASE_BY_ID[weapon]?.hands !== 2 || BASE_BY_ID[second]?.id === 'quiver';
+  if (second && roomInHand) {
+    hero.equipment.offhand = createItem({ baseId: second, ilvl, rarity: 'rare' });
   }
   const armour = {
     helmet: 'helm_ar', body: 'body_arev', gloves: 'glove_ar', boots: 'boot_ev',

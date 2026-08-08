@@ -4,7 +4,7 @@ import { G, SAVE_VERSION, createState, log, emit, vaultCapacity } from './state.
 import { rng } from './rng.js';
 import { uidCounter, setUidFloor, defaults } from './util.js';
 import { CLASS_BY_ID, RETIRED_CLASSES } from './data/heroclasses.js';
-import { grantMissingSkills } from './heroes.js';
+import { grantMissingSkills, canHold } from './heroes.js';
 import { migrateSpecs, nagging } from './specs.js';
 
 export const SLOT_COUNT = 3;
@@ -90,6 +90,7 @@ function migrate(state) {
   const notes = [];
 
   const reclassed = {};
+  const unhanded = [];
   let taughtSkills = 0;
   for (const hero of state.heroes ?? []) {
     // The class rework retired three archetypes. Move those heroes to the
@@ -112,6 +113,23 @@ function migrate(state) {
     // unspecialised state and needs nothing; a retired id has to be cleared, or
     // it sits in the slot forever blocking a choice it can no longer make.
     migrateSpecs(hero);
+    // Off-hand rules arrived after these heroes did, so a save can hold an
+    // Archer behind a tower shield. Left alone it is not merely wrong-looking:
+    // the item is now unequippable, so it can never be swapped out and the
+    // slot is frozen for the life of the hero. Send it back to the vault, where
+    // somebody who may carry it will be offered it.
+    if (hero.equipment?.offhand && !canHold(hero, hero.equipment.offhand, 'offhand').ok) {
+      unhanded.push(`${hero.name} put down ${hero.equipment.offhand.name}`);
+      if (!Array.isArray(state.vault)) state.vault = [];
+      state.vault.push(hero.equipment.offhand);
+      hero.equipment.offhand = null;
+    }
+  }
+  if (unhanded.length) {
+    const one = unhanded.length === 1;
+    notes.push(`${unhanded.length} hero${one ? '' : 'es'} ${one ? 'was' : 'were'} carrying something `
+      + `their class no longer takes in the off hand. ${one ? 'It is' : 'They are'} back in the `
+      + `vault: ${unhanded.join('; ')}.`);
   }
   const owed = (state.heroes ?? []).filter(nagging).length;
   if (owed) {

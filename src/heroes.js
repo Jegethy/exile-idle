@@ -5,10 +5,11 @@ import { fmtTime, uid } from './util.js';
 import { G, log, emit, xpToNext, recruitCost, spendGold } from './state.js';
 import {
   HERO_CLASSES, CLASS_BY_ID, HERO_RARITIES, RARITY_BY_ID, FIRST_NAMES, EPITHETS,
+  offhandStyle, fightsDualWielding,
 } from './data/heroclasses.js';
 import { traitPoolFor, traitPerks, TRAIT_BY_ID } from './data/traits.js';
 import { skillPoolFor, SKILL_CHOICES, SKILL_BY_ID } from './data/skills.js';
-import { EQUIP_SLOTS, BASE_BY_ID } from './data/bases.js';
+import { EQUIP_SLOTS, BASE_BY_ID, fillsOffHand } from './data/bases.js';
 import { addToVault } from './inventory.js';
 import { refreshSheets } from './sheets.js';
 import { createItem, itemScore } from './items.js';
@@ -420,7 +421,7 @@ export function targetSlot(hero, item) {
 
 /** Whether this hero's class fights with a weapon in each hand. */
 export function canDualWield(hero) {
-  return !!CLASS_BY_ID[hero?.classId]?.dualWield;
+  return fightsDualWielding(CLASS_BY_ID[hero?.classId]);
 }
 
 function isOneHanded(item) {
@@ -436,34 +437,51 @@ function isTwoHanded(item) {
 /**
  * Can this hero hold this item in that hand at all?
  *
- * `dualWield` is now a whole fighting style rather than a permission: a class
- * that has it fights with a one-handed weapon in each hand and cannot do
- * anything else. No shield, no quiver, no two-hander. Letting a Rogue pick up
- * a greatsword made the class's one distinguishing feature optional, and an
- * offhand slot that accepts both a second dagger and a tower shield cannot be
- * automatically filled without guessing which build the player wanted.
+ * The main hand is deliberately unrestricted: anybody may carry any weapon,
+ * and being untrained with it costs damage rather than permission (see
+ * weaponProficiency). The off hand is the opposite, and has to be, because a
+ * hand is either holding a thing or it is not — there is no such thing as
+ * carrying a shield badly.
+ *
+ * So each class says what its free hand is *for*, and nothing else goes there:
+ *
+ *   shield   the common case. Ten of the twelve classes.
+ *   weapon   a whole fighting style rather than an option. A Rogue holds a
+ *            second one-hander and therefore cannot hold a two-hander at all,
+ *            because the hand a greatsword wants is already busy.
+ *   quiver   both hands are on the bow. This is what stops the outfitter
+ *            putting a tower shield on an Archer, which it used to do.
  *
  * @returns {{ok: boolean, msg: string}}
  */
 export function canHold(hero, item, slot) {
   if (!hero || !item) return { ok: false, msg: 'Nothing to equip.' };
-  const dual = canDualWield(hero);
-  const cls = CLASS_BY_ID[hero.classId]?.name ?? 'This hero';
+  const cls = CLASS_BY_ID[hero.classId];
+  const name = cls?.name ?? 'This hero';
+  const style = offhandStyle(cls);
 
-  if (dual && isTwoHanded(item)) {
-    return { ok: false, msg: `A ${cls} fights with a weapon in each hand and cannot hold a two-handed weapon.` };
+  // Plural throughout, because "a Archer" and "a Inquisitor" are what the
+  // article costs, and the rule is about the class rather than this hero.
+  if (style === 'weapon' && isTwoHanded(item)) {
+    return { ok: false, msg: `${name}s fight with a weapon in each hand and cannot hold a two-handed weapon.` };
   }
-  if (slot === 'offhand') {
-    if (dual) {
-      return isOneHanded(item)
-        ? { ok: true, msg: '' }
-        : { ok: false, msg: `A ${cls} carries a second weapon in that hand, not ${item.name}.` };
-    }
-    return BASE_BY_ID[item.baseId]?.slot === 'offhand'
+  if (slot !== 'offhand') return { ok: true, msg: '' };
+
+  const base = BASE_BY_ID[item.baseId];
+  if (style === 'weapon') {
+    return isOneHanded(item)
       ? { ok: true, msg: '' }
-      : { ok: false, msg: `${hero.name} cannot hold that in their off hand.` };
+      : { ok: false, msg: `${name}s carry a second weapon in that hand, not ${item.name}.` };
   }
-  return { ok: true, msg: '' };
+  if (style === 'quiver') {
+    return base?.id === 'quiver'
+      ? { ok: true, msg: '' }
+      : { ok: false, msg: `${name}s keep a hand on the bow and arrows in the other, so ${item.name} goes nowhere.` };
+  }
+  if (base?.slot !== 'offhand') return { ok: false, msg: `${hero.name} cannot hold that in their off hand.` };
+  return base.id === 'quiver'
+    ? { ok: false, msg: `${name}s carry no bow to draw, so a quiver is dead weight.` }
+    : { ok: true, msg: '' };
 }
 
 /**
@@ -494,16 +512,20 @@ export function equipOnHero(heroUid, itemUid, forcedSlot = null) {
     return false;
   }
 
+  // A two-hander and the off hand displace each other, but only when the off
+  // hand is actually being held: a quiver rides on the belt, so a bow and a
+  // quiver coexist. See fillsOffHand.
   const displaced = [];
   if (hero.equipment[slot]) displaced.push(hero.equipment[slot]);
-  if (twoHanded && hero.equipment.offhand) displaced.push(hero.equipment.offhand);
-  if (slot === 'offhand' && hero.equipment.weapon) {
+  const shutsHand = twoHanded && fillsOffHand(hero.equipment.offhand);
+  if (shutsHand) displaced.push(hero.equipment.offhand);
+  if (slot === 'offhand' && fillsOffHand(item) && hero.equipment.weapon) {
     const w = BASE_BY_ID[hero.equipment.weapon.baseId];
     if (w?.hands === 2) displaced.push(hero.equipment.weapon);
   }
 
   hero.equipment[slot] = item;
-  if (twoHanded) hero.equipment.offhand = null;
+  if (shutsHand) hero.equipment.offhand = null;
   for (const old of displaced) {
     if (old === item) continue;
     if (hero.equipment.weapon === old) hero.equipment.weapon = null;

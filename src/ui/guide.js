@@ -14,7 +14,14 @@
 // Pages are plain functions returning HTML. They are called on open, so a page
 // showing live numbers (Echo Stones held, upgrades bought) is always current.
 
-import { HERO_CLASSES, HERO_RARITIES, ROLES } from '../data/heroclasses.js';
+import {
+  HERO_CLASSES, HERO_RARITIES, ROLES, offhandStyle, wieldsLabel,
+} from '../data/heroclasses.js';
+
+/** What each off-hand style is called in front of a player. */
+const OFFHAND_LABEL = {
+  shield: 'A shield', weapon: 'A second weapon', quiver: 'A quiver of arrows',
+};
 import { TRAITS } from '../data/traits.js';
 import { SKILLS, skillPoolFor, SKILL_CHOICES } from '../data/skills.js';
 import { SPECS, AXES, SPEC_LEVELS, specPoolFor } from '../data/specs.js';
@@ -24,6 +31,7 @@ import { DUNGEONS, RAIDS, DEEP_ILVL } from '../data/dungeons.js';
 import { MODIFIERS } from '../data/modifiers.js';
 import { CONTRACT_RARITIES, CONTRACT_MIN_TIER, contractChance } from '../contracts.js';
 import { SLOTS } from '../data/bases.js';
+import { UNIQUES } from '../data/uniques.js';
 import { FAMILIES, MATERIALS } from '../data/materials.js';
 import { RECIPES, FLASKS } from '../data/recipes.js';
 import { UPGRADES } from '../data/upgrades.js';
@@ -363,7 +371,7 @@ function pageItems() {
       [`<b class="${RARITY.magic.cls}">Magic</b>`, `Up to ${AFFIX_CAPS.magic * 2} bonuses.`],
       [`<b class="${RARITY.rare.cls}">Rare</b>`, `Up to ${AFFIX_CAPS.rare * 2} bonuses.`],
       [`<b class="${RARITY.unique.cls}">Unique</b>`, 'Fixed bonuses that are always the same, and '
-        + 'sometimes an effect no other item can have. There are 28 to find.'],
+        + `sometimes an effect no other item can have. There are ${UNIQUES.length} to find.`],
     ]),
     section('Where an item\'s numbers come from',
       defs([
@@ -377,8 +385,24 @@ function pageItems() {
     section('Equipment slots',
       p(`Every hero has ${SLOTS.length} slots:`),
       `<div class="g-chips">${SLOTS.map((s) => `<span class="g-chip">${esc(s.label)}</span>`).join('')}</div>`,
-      p('A <b>two-handed weapon takes up both hands</b>, so you cannot use an offhand with one.',
-        'Only Rogues can hold a weapon in each hand, and the second weapon hits for less.')),
+      p('A <b>two-handed weapon takes up both hands</b>, so you cannot use an offhand with one.')),
+    section('Weapons belong to somebody',
+      p('Anyone can pick up anything, but a class is <b>trained</b> in some weapons and not others.',
+        'An untrained weapon still swings — it just deals <b>half its damage</b>. So a Wizard',
+        'holding a greataxe is a worse Wizard rather than an illegal one, and the roster marks',
+        'the weapon so you can see why the numbers look wrong.'),
+      table(['Class', 'Trained with', 'Off hand'], HERO_CLASSES.map((c) => [
+        `<b>${esc(c.name)}</b>`, esc(wieldsLabel(c)), esc(OFFHAND_LABEL[offhandStyle(c)]),
+      ])),
+      p('The <b>off hand</b> is a harder rule, because a hand is either holding something or it',
+        'is not — there is no carrying a shield badly. Most classes carry a shield there. A',
+        '<b>Rogue</b> carries a second one-handed weapon, which hits for less than the first and',
+        'is why a Rogue can never hold a two-hander at all. An <b>Archer</b> carries arrows.'),
+      p('Weapons also split by <b>who they are for</b>. Swords, axes, maces, daggers and bows are',
+        'fighters’ weapons: they roll physical damage, and life leeched from it. Wands and',
+        'staves are casters’ weapons: they roll spell damage, energy shield, and the only',
+        '<b>increased Healing</b> in the game. Both kinds roll speed, accuracy and critical',
+        'strikes, because every hero swings on a timer and every hero can miss.')),
     section('The vault',
       p('All your gear is shared between every hero. You can filter it by slot and by type, and',
         'sort it however you like.'),

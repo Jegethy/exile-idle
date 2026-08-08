@@ -1,5 +1,7 @@
 // tooltip — The single floating tooltip, and the markup for everything shown in it.
 
+import { BASE_BY_ID } from '../data/bases.js';
+import { CLASS_BY_ID, weaponProficiency, wieldsLabel } from '../data/heroclasses.js';
 import { FAMILIES } from '../data/materials.js';
 import { UNIQUE_BY_ID } from '../data/uniques.js';
 import { heroById, heroInfo, isDeployed } from '../heroes.js';
@@ -38,7 +40,9 @@ function itemTooltipHtml(item, compare, hint) {
   parts.push('<div class="tt-sep"></div>');
 
   if (bs.dps) {
-    parts.push(line('Physical Damage', `${fmt(bs.physMin)} – ${fmt(bs.physMax)}`));
+    // One damage line, two names. Which one it carries is how a player tells a
+    // caster's weapon from a fighter's before reading a single modifier.
+    parts.push(line(bs.caster ? 'Spell Damage' : 'Physical Damage', `${fmt(bs.physMin)} – ${fmt(bs.physMax)}`));
     parts.push(line('Attacks per Second', bs.aps.toFixed(2)));
     parts.push(line('Critical Chance', `${bs.crit.toFixed(1)}%`));
     parts.push(line('Weapon DPS', `<span style="color:var(--gold)">${fmt(bs.dps)}</span>`));
@@ -108,6 +112,21 @@ function upgradeHtml(item) {
   return `<div class="tt-compare"><div class="tt-kind">An upgrade for</div>${rows}${more}</div>`;
 }
 
+/**
+ * Said out loud, because the arithmetic alone is unreadable.
+ *
+ * The comparison below already tells the truth — an untrained weapon shows a
+ * smaller DPS gain — but a number that is quietly half of what it should be is
+ * indistinguishable from a weapon that is simply worse. This names the reason.
+ */
+function trainingHtml(hero, item) {
+  const cls = CLASS_BY_ID[hero.classId];
+  if (BASE_BY_ID[item.baseId]?.slot !== 'weapon') return '';
+  if (weaponProficiency(cls, item) >= 1) return '';
+  return `<div class="tt-warn">${escapeHtml(cls.name)}s are trained with ${escapeHtml(wieldsLabel(cls))},
+    and deal half damage with anything else.</div>`;
+}
+
 function compareHtml(item) {
   const hero = heroById(ui.equipTarget);
   if (!hero) return '';
@@ -129,12 +148,13 @@ function compareHtml(item) {
     ['Healing', before.healPower, after.healPower],
   ].filter(([, a, b]) => Math.abs(b - a) > 0.5);
 
-  if (!rows.length) return `<div class="tt-compare">No change for ${escapeHtml(hero.name)}.</div>`;
+  const warn = trainingHtml(hero, item);
+  if (!rows.length) return `<div class="tt-compare">No change for ${escapeHtml(hero.name)}.</div>${warn}`;
   return `<div class="tt-compare"><div class="tt-kind">vs ${escapeHtml(hero.name)}</div>${rows.map(([label, a, b]) => {
     const diff = b - a;
     return `<div class="tt-line"><label>${label}</label>
       <span class="${diff > 0 ? 'tt-up' : 'tt-down'}">${signed(Math.round(diff))} (${fmt(b)})</span></div>`;
-  }).join('')}</div>`;
+  }).join('')}</div>${warn}`;
 }
 
 export function moveTooltip(event) {

@@ -21,8 +21,8 @@
 // up in play, and the player can always overrule it by hand.
 
 import { G, emit, log } from './state.js';
-import { EQUIP_SLOTS, BASE_BY_ID } from './data/bases.js';
-import { CLASS_BY_ID } from './data/heroclasses.js';
+import { EQUIP_SLOTS, BASE_BY_ID, fillsOffHand } from './data/bases.js';
+import { CLASS_BY_ID, fightsDualWielding, offhandStyle } from './data/heroclasses.js';
 import { heroStats, sheetScore } from './stats.js';
 import { equipOnHero, heroById, isDeployed, partyMembers, canHold } from './heroes.js';
 
@@ -50,7 +50,7 @@ function isTwoHanded(item) {
 
 /** Every concrete slot this item could legally occupy on this hero. */
 function slotsForItem(hero, item) {
-  const dual = !!CLASS_BY_ID[hero?.classId]?.dualWield;
+  const dual = fightsDualWielding(CLASS_BY_ID[hero?.classId]);
   const base = BASE_BY_ID[item?.baseId];
   if (!base) return [];
   if (base.slot === 'ring') return ['ring1', 'ring2'];
@@ -69,9 +69,10 @@ function slotsForItem(hero, item) {
 function withEquipped(hero, equipment, item, slot) {
   if (!canHold(hero, item, slot).ok) return null;
   const next = { ...equipment, [slot]: item };
-  // A two-handed weapon occupies both hands; nothing may sit beside it.
-  if (slot === 'weapon' && isTwoHanded(item)) next.offhand = null;
-  if (slot === 'offhand' && isTwoHanded(equipment.weapon)) next.weapon = null;
+  // A two-handed weapon occupies both hands, so nothing that needs a hand may
+  // sit beside it. A quiver does not need one, and so survives a bow.
+  if (slot === 'weapon' && isTwoHanded(item) && fillsOffHand(next.offhand)) next.offhand = null;
+  if (slot === 'offhand' && fillsOffHand(item) && isTwoHanded(equipment.weapon)) next.weapon = null;
   return next;
 }
 
@@ -94,7 +95,7 @@ function withEquipped(hero, equipment, item, slot) {
 function bestHands(hero, equipment, weapons, offhands, upgrades) {
   const oneHanders = weapons.filter(isOneHanded);
   const twoHanders = weapons.filter(isTwoHanded);
-  const dual = !!CLASS_BY_ID[hero?.classId]?.dualWield;
+  const dual = fightsDualWielding(CLASS_BY_ID[hero?.classId]);
 
   // Staying as you are is a candidate, so a hero already well armed is left
   // alone rather than shuffled for a rounding error.
@@ -109,8 +110,17 @@ function bestHands(hero, equipment, weapons, offhands, upgrades) {
     if (score > best.score) best = { weapon: weapon ?? null, offhand: offhand ?? null, score };
   };
 
-  // A two-hander fills both hands, so it is scored against the pair it costs.
-  if (!dual) for (const w of twoHanders) consider(w, null);
+  // A two-hander fills both hands, so it is scored against the pair it costs
+  // — except for what does not need a hand. An Archer's whole outfit is a
+  // two-handed bow and a quiver, so leaving the quiver out of this enumeration
+  // would mean the pair was never offered and the class never wore one.
+  const belt = offhands.filter((o) => !fillsOffHand(o));
+  if (!dual) {
+    for (const w of twoHanders) {
+      consider(w, null);
+      for (const o of belt) if (canHold(hero, o, 'offhand').ok) consider(w, o);
+    }
+  }
 
   // A dual wielder's off hand takes a second weapon; everyone else's takes a
   // shield or a quiver. Either way the main hand must be one-handed.
@@ -310,7 +320,8 @@ export function planParty(heroes, pool, upgrades = {}) {
   const shut = new Set();                    // heroes whose off hand is spoken for
   for (const hero of heroes) {
     kit.set(hero.uid, { ...hero.equipment });
-    if (isTwoHanded(hero.equipment.weapon)) shut.add(hero.uid);
+    if (isTwoHanded(hero.equipment.weapon)
+      && offhandStyle(CLASS_BY_ID[hero.classId]) !== 'quiver') shut.add(hero.uid);
   }
 
   // --- Main hands ------------------------------------------------------
@@ -340,8 +351,10 @@ export function planParty(heroes, pool, upgrades = {}) {
     handsLeft.delete(pick.hero.uid);
     const { hero, best } = pick;
     // A two-hander settles both hands at once; anything else leaves the off
-    // hand open to the bidding below.
-    const twoHanded = isTwoHanded(best.weapon);
+    // hand open to the bidding below. A class whose off hand takes a quiver is
+    // never shut, since a quiver needs no hand to begin with.
+    const belted = offhandStyle(CLASS_BY_ID[hero.classId]) === 'quiver';
+    const twoHanded = isTwoHanded(best.weapon) && !belted;
     kit.set(hero.uid, {
       ...kit.get(hero.uid),
       weapon: best.weapon,

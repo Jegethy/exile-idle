@@ -8,7 +8,7 @@
 // to a whole roster.
 
 import { BASE_BY_ID } from './data/bases.js';
-import { CLASS_BY_ID, RARITY_BY_ID } from './data/heroclasses.js';
+import { CLASS_BY_ID, RARITY_BY_ID, weaponProficiency } from './data/heroclasses.js';
 import { TRAIT_BY_ID } from './data/traits.js';
 import { SPEC_BY_ID } from './data/specs.js';
 import { guildEffects } from './data/upgrades.js';
@@ -148,14 +148,23 @@ export function heroStats(hero, upgrades = {}) {
   // Class damage multiplier scales the weapon itself, so a Sorcerer with a
   // staff and a Berserker with an axe both benefit from their archetype.
   const classDmg = m.damage * rMult;
+
+  // Training. A weapon outside the class's families still swings, at half its
+  // damage — which is what "anyone can hold anything, to the extent that it
+  // makes sense" comes to in arithmetic. Applied to the weapon's own numbers
+  // only, so the flat elemental damage and the resistances on the same item
+  // are unaffected: the hero is clumsy with the blade, not with the enchantment
+  // on it. Each hand is judged separately, since a Rogue holds two.
+  const prof = weaponProficiency(cls, hero.equipment?.weapon);
+  const offProf = weaponProficiency(cls, hero.equipment?.offhand);
   const incAll = bag.incDamage;
   const moreMult = 1 + bag.moreDamage / 100;
   const eleMore = 1 + bag.moreEle / 100;
 
   const dmg = {
     phys: range(
-      (w.physMin + (off ? off.physMin * OFFHAND_DAMAGE : 0) + bag.addPhysMin) * classDmg,
-      (w.physMax + (off ? off.physMax * OFFHAND_DAMAGE : 0) + bag.addPhysMax) * classDmg,
+      (w.physMin * prof + (off ? off.physMin * OFFHAND_DAMAGE * offProf : 0) + bag.addPhysMin) * classDmg,
+      (w.physMax * prof + (off ? off.physMax * OFFHAND_DAMAGE * offProf : 0) + bag.addPhysMax) * classDmg,
       incAll + bag.incPhys, moreMult),
     fire: noEle ? [0, 0] : range(bag.addFireMin * classDmg, bag.addFireMax * classDmg,
       incAll + bag.incFire + bag.incEle, moreMult * eleMore * (1 + bag.moreFire / 100)),
@@ -201,6 +210,9 @@ export function heroStats(hero, upgrades = {}) {
     reach: cls.reach ?? 'melee',
     res, dmg, hitMin: Math.round(hitMin), hitMax: Math.round(hitMax), avgHit,
     aps, critChance, critMulti, accuracy, dps, dualWielding: !!off,
+    // 1 when both hands hold something this class was trained for. Read by the
+    // roster and the tooltip so a mismatch is visible rather than merely felt.
+    proficiency: prof, offhandProficiency: offProf,
     healPower, regen, leech: bag.lifeLeech,
     threat: m.threat,
     rarity: bag.incRarity, quantity: bag.incQuant,

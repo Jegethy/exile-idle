@@ -28,10 +28,24 @@ export function slotAccepts(equipSlot, baseSlot) {
 
 const L = (ilvl, name) => ({ ilvl, name });
 
+/**
+ * Every weapon belongs to a family, and a class is trained in some of them.
+ * See `wields` in data/heroclasses.js — the family is the whole vocabulary
+ * that rule speaks, which is why a one-handed and a two-handed sword share
+ * one: a Warrior who knows a blade knows both lengths of it.
+ */
+export const WEAPON_FAMILIES = ['sword', 'axe', 'mace', 'dagger', 'bow', 'wand', 'staff'];
+
+/**
+ * `attack` and `caster` partition the weapons, and the affix pool is built on
+ * the split: a wand cannot roll "increased Physical Damage" and a sword cannot
+ * roll "increased Healing". Anything tagged plainly `weapon` is still offered
+ * to both, which is where the shared middle lives — elemental damage, crit.
+ */
 export const BASES = [
   // ---- One-handed weapons -------------------------------------------------
   {
-    id: 'sword1h', slot: 'weapon', class: 'One Handed Sword',
+    id: 'sword1h', slot: 'weapon', class: 'One Handed Sword', family: 'sword',
     tags: ['weapon', 'onehand', 'melee', 'attack', 'sword', 'str', 'dex'],
     aps: 1.55, crit: 5.0, dmg: 1.0, hands: 1,
     names: [L(1, 'Rusted Sword'), L(8, 'Copper Sword'), L(17, 'Sabre'), L(26, 'Broad Sword'),
@@ -39,7 +53,7 @@ export const BASES = [
       L(70, 'Hook Sword'), L(78, 'Midnight Blade'), L(84, 'Eternal Sword')],
   },
   {
-    id: 'axe1h', slot: 'weapon', class: 'One Handed Axe',
+    id: 'axe1h', slot: 'weapon', class: 'One Handed Axe', family: 'axe',
     tags: ['weapon', 'onehand', 'melee', 'attack', 'axe', 'str', 'dex'],
     aps: 1.40, crit: 5.0, dmg: 1.18, hands: 1,
     names: [L(1, 'Rusted Hatchet'), L(9, 'Jade Hatchet'), L(18, 'Boarding Axe'), L(28, 'Cleaver'),
@@ -47,7 +61,7 @@ export const BASES = [
       L(72, 'Runic Hatchet'), L(80, 'Void Axe'), L(85, 'Apex Cleaver')],
   },
   {
-    id: 'mace1h', slot: 'weapon', class: 'One Handed Mace',
+    id: 'mace1h', slot: 'weapon', class: 'One Handed Mace', family: 'mace',
     tags: ['weapon', 'onehand', 'melee', 'attack', 'mace', 'str'],
     aps: 1.30, crit: 5.0, dmg: 1.30, hands: 1,
     names: [L(1, 'Driftwood Club'), L(9, 'Tribal Club'), L(19, 'Spiked Club'), L(29, 'Stone Hammer'),
@@ -55,7 +69,7 @@ export const BASES = [
       L(73, 'Phantom Mace'), L(81, 'Auric Mace'), L(86, 'Behemoth Maul')],
   },
   {
-    id: 'dagger', slot: 'weapon', class: 'Dagger',
+    id: 'dagger', slot: 'weapon', class: 'Dagger', family: 'dagger',
     tags: ['weapon', 'onehand', 'melee', 'attack', 'dagger', 'dex', 'int'],
     aps: 1.70, crit: 6.5, dmg: 0.80, hands: 1,
     names: [L(1, 'Glass Shank'), L(8, 'Skinning Knife'), L(16, 'Carving Knife'), L(25, 'Boot Knife'),
@@ -63,8 +77,13 @@ export const BASES = [
       L(69, 'Fiend Dagger'), L(77, 'Sai'), L(84, 'Ambusher')],
   },
   {
-    id: 'wand', slot: 'weapon', class: 'Wand',
-    tags: ['weapon', 'onehand', 'attack', 'ranged', 'wand', 'int'],
+    // A wand is a one-handed weapon, so anybody may pick one up — but it is
+    // tagged `caster` rather than `attack`, and that is what makes it a
+    // caster's weapon rather than merely a small one. It rolls spell damage
+    // and healing where a dagger rolls attack speed and accuracy, so in a
+    // Rogue's hand it is a stick with the wrong modifiers on it.
+    id: 'wand', slot: 'weapon', class: 'Wand', family: 'wand',
+    tags: ['weapon', 'onehand', 'caster', 'ranged', 'wand', 'int'],
     aps: 1.50, crit: 7.0, dmg: 0.86, hands: 1,
     names: [L(1, 'Driftwood Wand'), L(8, "Goat's Horn"), L(18, 'Carved Wand'), L(28, 'Quartz Wand'),
       L(38, 'Spiraled Wand'), L(47, 'Sage Wand'), L(56, "Faun's Horn"), L(64, 'Engraved Wand'),
@@ -72,7 +91,7 @@ export const BASES = [
   },
   // ---- Two-handed weapons -------------------------------------------------
   {
-    id: 'sword2h', slot: 'weapon', class: 'Two Handed Sword',
+    id: 'sword2h', slot: 'weapon', class: 'Two Handed Sword', family: 'sword',
     tags: ['weapon', 'twohand', 'melee', 'attack', 'sword', 'str', 'dex'],
     aps: 1.30, crit: 5.0, dmg: 1.92, hands: 2,
     names: [L(1, 'Corroded Blade'), L(10, 'Longsword'), L(20, 'Bastard Sword'), L(30, 'Two-Handed Sword'),
@@ -80,7 +99,7 @@ export const BASES = [
       L(74, 'Butcher Sword'), L(82, 'Lion Sword'), L(86, 'Infernal Sword')],
   },
   {
-    id: 'axe2h', slot: 'weapon', class: 'Two Handed Axe',
+    id: 'axe2h', slot: 'weapon', class: 'Two Handed Axe', family: 'axe',
     tags: ['weapon', 'twohand', 'melee', 'attack', 'axe', 'str', 'dex'],
     aps: 1.25, crit: 5.0, dmg: 2.05, hands: 2,
     names: [L(1, 'Stone Axe'), L(10, 'Jade Chopper'), L(21, 'Woodsplitter'), L(31, 'Poleaxe'),
@@ -88,15 +107,15 @@ export const BASES = [
       L(75, 'Jasper Chopper'), L(82, 'Vaal Axe'), L(87, 'Fleshripper')],
   },
   {
-    id: 'staff', slot: 'weapon', class: 'Staff',
-    tags: ['weapon', 'twohand', 'melee', 'attack', 'staff', 'str', 'int'],
+    id: 'staff', slot: 'weapon', class: 'Staff', family: 'staff',
+    tags: ['weapon', 'twohand', 'caster', 'staff', 'str', 'int'],
     aps: 1.20, crit: 6.5, dmg: 1.80, hands: 2,
     names: [L(1, 'Gnarled Branch'), L(10, 'Primitive Staff'), L(20, 'Long Staff'), L(30, 'Iron Staff'),
       L(40, 'Coiled Staff'), L(50, 'Vile Staff'), L(59, 'Military Staff'), L(67, 'Serpentine Staff'),
       L(74, 'Highborn Staff'), L(82, 'Judgement Staff'), L(86, 'Eclipse Staff')],
   },
   {
-    id: 'bow', slot: 'weapon', class: 'Bow',
+    id: 'bow', slot: 'weapon', class: 'Bow', family: 'bow',
     tags: ['weapon', 'twohand', 'ranged', 'attack', 'bow', 'dex'],
     aps: 1.45, crit: 6.0, dmg: 1.65, hands: 2,
     names: [L(1, 'Crude Bow'), L(9, 'Short Bow'), L(19, 'Long Bow'), L(29, 'Composite Bow'),
@@ -261,6 +280,30 @@ export const BASE_BY_ID = Object.fromEntries(BASES.map((b) => [b.id, b]));
 /** All bases that can roll for a given equipment slot. */
 export function basesForSlot(equipSlot) {
   return BASES.filter((b) => slotAccepts(equipSlot, b.slot));
+}
+
+/** The weapon family an item belongs to, or null for anything that is not a weapon. */
+export function familyOf(item) {
+  return BASE_BY_ID[item?.baseId]?.family ?? null;
+}
+
+/** Whether a base is a caster's weapon rather than a fighter's. */
+export function isCasterWeapon(base) {
+  return !!base?.tags?.includes('caster');
+}
+
+/**
+ * Does this off-hand item need a hand to hold it?
+ *
+ * A shield and a second sword do. A quiver hangs off the belt, and that is the
+ * only reason quivers exist at all: every bow is two-handed, so a rule that
+ * emptied the off hand for any two-hander would leave the Archer — the one
+ * class whose off hand is the quiver — unable to carry one, and the whole base
+ * type would be unequippable by anybody.
+ */
+export function fillsOffHand(item) {
+  const base = BASE_BY_ID[item?.baseId];
+  return !!base && base.id !== 'quiver';
 }
 
 /** Highest name in the ladder unlocked at `ilvl`. */

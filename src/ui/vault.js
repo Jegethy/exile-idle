@@ -1,7 +1,7 @@
 // vault — The shared gear vault: browsing, equipping, locking and salvaging.
 
 import { canAfford, craft } from '../crafting.js';
-import { BASE_BY_ID } from '../data/bases.js';
+import { BASE_BY_ID, fillsOffHand } from '../data/bases.js';
 import { CLASS_BY_ID } from '../data/heroclasses.js';
 import {
   canDualWield, equipOnHero, heroById, isDeployed, unequipFromHero,
@@ -155,8 +155,10 @@ function equipFromVault(hero, itemUid) {
   if (!item) return;
   const base = BASE_BY_ID[item.baseId];
   const held = hero.equipment.weapon ? BASE_BY_ID[hero.equipment.weapon.baseId] : null;
+  // A quiver takes no hand, so putting one on never costs the bow.
   const wouldDisplace = held?.hands === 2
-    && (base?.slot === 'offhand' || (base?.slot === 'weapon' && base.hands !== 2 && canDualWield(hero)));
+    && ((base?.slot === 'offhand' && fillsOffHand(item))
+      || (base?.slot === 'weapon' && base.hands !== 2 && canDualWield(hero)));
 
   if (!wouldDisplace) { setStatus(equipMsg(hero, itemUid)); return; }
 

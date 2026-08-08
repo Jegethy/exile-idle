@@ -24,10 +24,35 @@ const ANY = ['weapon', 'armour', 'shield', 'jewellery', 'quiver'];
 const GEAR = ['armour', 'shield', 'jewellery', 'quiver'];
 const HYBRID_ATK = ['weapon', 'ring', 'amulet', 'gloves'];
 
+// ---------------------------------------------------------------------------
+// Whose weapon is it?
+//
+// `attack` and `caster` split the weapons in two (see data/bases.js), and the
+// split is what makes a wand a caster's weapon rather than merely a short one.
+// The two biggest prefixes any weapon carries — flat damage and a local
+// percentage — exist twice over, once under each tag, so a staff scales its
+// spell damage exactly as a sword scales its physical and neither can roll the
+// other's. Healing is caster-side only, and leech is attack-side only.
+//
+// The line is drawn where the fiction is real and nowhere else. Attack speed,
+// accuracy and critical strikes stay on `weapon` and are offered to both,
+// because in this engine every hero swings on a timer and rolls to hit —
+// including the Wizard. Restricting those would not be flavour, it would be a
+// quiet nerf to casters dressed up as one.
+//
+// The same reasoning kept energy shield and life regeneration off caster
+// weapons, where they were tried and removed. Both read well on a staff, and
+// both are dead weight to the Wizard and Warlock who carry one — every point
+// of weight spent on them is a roll that could have been damage, and the two
+// classes with the least life in the guild would have paid for the flavour in
+// the one currency they cannot spare. The two pools are now the same size and
+// the same shape, differing only in whose names are on the modifiers.
+// ---------------------------------------------------------------------------
+
 export const AFFIXES = [
   // =========================== PREFIXES ==================================
   {
-    id: 'flat_phys', group: 'PhysicalDamage', type: 'prefix', req: ['weapon'], weight: 100,
+    id: 'flat_phys', group: 'PhysicalDamage', type: 'prefix', req: ['attack'], weight: 100,
     text: (v) => `Adds ${v[0]} to ${v[1]} Physical Damage`,
     apply: (b, v) => { b.addPhysMin += v[0]; b.addPhysMax += v[1]; },
     tiers: T(
@@ -41,7 +66,7 @@ export const AFFIXES = [
     ),
   },
   {
-    id: 'inc_phys', group: 'LocalPhysicalDamagePercent', type: 'prefix', req: ['weapon'], weight: 100,
+    id: 'inc_phys', group: 'LocalPhysicalDamagePercent', type: 'prefix', req: ['attack'], weight: 100,
     text: (v) => `${v[0]}% increased Physical Damage`,
     apply: (b, v) => { b.localIncPhys += v[0]; },
     tiers: T(
@@ -51,6 +76,38 @@ export const AFFIXES = [
       // already reached its ceiling.
       [88, 'Remorseless', 142, 170], [99, 'Annihilating', 167, 201], [110, 'Apocalyptic', 197, 237],
       [118, 'Cataclysmic', 232, 280],
+    ),
+  },
+  // The caster half of the pair above. Same ilvl gates and the same numbers,
+  // deliberately: this restructures who may roll what, and a restructuring
+  // that also moved the numbers would be impossible to measure afterwards.
+  // Both feed the same damage line — see itemBaseStats, which labels it Spell
+  // Damage on a caster weapon and Physical Damage on a fighter's.
+  {
+    id: 'flat_spell', group: 'SpellDamageFlat', type: 'prefix', req: ['caster'], weight: 100,
+    text: (v) => `Adds ${v[0]} to ${v[1]} Spell Damage`,
+    apply: (b, v) => { b.addPhysMin += v[0]; b.addPhysMax += v[1]; },
+    tiers: T(
+      [1, 'Whispering', 1, 2, 3, 4], [11, 'Murmuring', 2, 4, 6, 8], [23, 'Chanting', 4, 7, 10, 14],
+      [35, 'Invoking', 7, 11, 16, 22], [46, 'Channelling', 11, 17, 25, 33], [58, 'Sorcerous', 16, 24, 36, 47],
+      [68, 'Runewrought', 22, 33, 49, 64], [77, 'Arcane', 30, 44, 66, 86], [84, 'Occult', 40, 58, 87, 113],
+      // Deep tiers: unlocked past Tier 20, where every other affix has
+      // already reached its ceiling.
+      [88, 'Riftborn', 52, 75, 113, 147], [99, 'Aetherborn', 68, 98, 147, 191], [110, 'Starwrought', 88, 127, 191, 248],
+      [118, 'Worldsung', 114, 165, 248, 322],
+    ),
+  },
+  {
+    id: 'inc_spell', group: 'LocalSpellDamagePercent', type: 'prefix', req: ['caster'], weight: 100,
+    text: (v) => `${v[0]}% increased Spell Damage`,
+    apply: (b, v) => { b.localIncPhys += v[0]; },
+    tiers: T(
+      [1, 'Mystic', 15, 24], [11, 'Esoteric', 25, 39], [23, 'Prophetic', 40, 54], [35, 'Visionary', 55, 69],
+      [46, 'Oracular', 70, 84], [60, 'Fell', 85, 99], [73, 'Baleful', 100, 119], [83, 'Wrathful', 120, 144],
+      // Deep tiers: unlocked past Tier 20, where every other affix has
+      // already reached its ceiling.
+      [88, 'Numinous', 142, 170], [99, 'Theurgic', 167, 201], [110, 'Demiurgic', 197, 237],
+      [118, 'Unbounded', 232, 280],
     ),
   },
   {
@@ -202,7 +259,13 @@ export const AFFIXES = [
       [118, 'Cosmic', 72, 94],),
   },
   {
-    id: 'inc_spell_dmg', group: 'SpellDamage', type: 'prefix', req: ['weapon', 'shield', 'amulet'], weight: 55,
+    // Off weapons entirely, and this is the line that keeps the two pools
+    // honest. It is a global damage percentage, so on a caster weapon it sat
+    // *on top of* the flat and local pair and gave staves a third damage
+    // prefix that swords had no answer to — a flavour split that quietly made
+    // one kind of weapon better. It keeps its home on shields and amulets,
+    // where every class can reach it equally.
+    id: 'inc_spell_dmg', group: 'SpellDamage', type: 'prefix', req: ['shield', 'amulet'], weight: 55,
     text: (v) => `${v[0]}% increased Damage`,
     apply: (b, v) => { b.incDamage += v[0]; },
     tiers: T([8, 'Apprentice’s', 8, 14], [25, 'Adept’s', 15, 22], [45, 'Master’s', 23, 31], [65, 'Archmage’s', 32, 42], [82, 'Transcendent', 43, 56],
@@ -310,7 +373,9 @@ export const AFFIXES = [
       [118, 'of Certainty', 1488, 2057],),
   },
   {
-    id: 'life_leech', group: 'LifeLeech', type: 'suffix', req: HYBRID_ATK, weight: 40, dec: 2,
+    // It says "Physical Attack Damage" on the tin, so it lives on the weapons
+    // that deal it.
+    id: 'life_leech', group: 'LifeLeech', type: 'suffix', req: ['attack', 'ring', 'amulet', 'gloves'], weight: 40, dec: 2,
     text: (v) => `${v[0]}% of Physical Attack Damage Leeched as Life`,
     apply: (b, v) => { b.lifeLeech += v[0]; },
     tiers: T([20, 'of the Leech', 0.2, 0.4], [40, 'of the Parasite', 0.41, 0.7], [60, 'of the Vampire', 0.71, 1.0], [80, 'of Sanguination', 1.01, 1.4],
@@ -329,6 +394,34 @@ export const AFFIXES = [
       // already reached its ceiling.
       [88, 'of Renewal', 57.7, 92.2], [99, 'of Restoration', 73.9, 118.0], [110, 'of the Wellspring', 94.6, 151.0],
       [118, 'of the Everspring', 121.1, 193.3],),
+  },
+  /**
+   * The healer's line, and the only affix in the pool that does nothing at all
+   * for most of the roster — healPower is zero for anyone whose class does not
+   * heal, so this is dead weight on nine classes in twelve.
+   *
+   * That is the point rather than a flaw. Every other modifier here helps
+   * whoever happens to be holding it, which means a healer's gear is a damage
+   * class's gear with the numbers pointed elsewhere, and there has never been
+   * a drop a Cleric wanted that a Wizard did not want more. sheetScore weights
+   * healing at 3.0 for a Healer and 0 for everybody else, so an item carrying
+   * this is routed to the person it is for without anybody having to notice.
+   *
+   * Deliberately small per roll. Three pieces of the maximum is around +135%
+   * healing, which is the same order as what the life prefix does across a
+   * whole suit of armour — a healer who has chased it is transformed, not
+   * doubled twice over.
+   */
+  {
+    id: 'inc_healing', group: 'IncreasedHealing', type: 'suffix', req: ['caster', 'shield', 'amulet'], weight: 60,
+    text: (v) => `${v[0]}% increased Healing`,
+    apply: (b, v) => { b.incHeal += v[0]; },
+    tiers: T([1, 'of Mending', 5, 8], [16, 'of Solace', 9, 12], [34, 'of the Balm', 13, 17],
+      [52, 'of Grace', 18, 22], [70, 'of Salvation', 23, 28],
+      // Deep tiers: unlocked past Tier 20, where every other affix has
+      // already reached its ceiling.
+      [88, 'of the Miracle', 27, 33], [99, 'of Providence', 31, 38], [110, 'of the Covenant', 36, 43],
+      [118, 'of the Font', 41, 49],),
   },
   {
     id: 'rarity', group: 'ItemFoundRarity', type: 'suffix', req: ['helmet', 'jewellery', 'quiver', 'gloves'], weight: 45,

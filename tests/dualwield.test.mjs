@@ -11,8 +11,8 @@ export default async function run(browser) {
 
   await test('only the Rogue may hold two weapons', async () => {
     const r = await page.evaluate(async () => {
-      const { HERO_CLASSES } = await import('./src/data/heroclasses.js');
-      return HERO_CLASSES.filter((c) => c.dualWield).map((c) => c.id);
+      const { HERO_CLASSES, fightsDualWielding } = await import('./src/data/heroclasses.js');
+      return HERO_CLASSES.filter(fightsDualWielding).map((c) => c.id);
     });
     eq(r.join(','), 'rogue', 'classes that dual wield');
     return 'rogue only';
