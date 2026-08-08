@@ -410,6 +410,30 @@ about eighteen hours** — a quarter of a seventy-four hour game — because
 carrying the finale to Tier 24 would have bought ten more hours of nothing
 happening.
 
+### Each chapter asks for its own work
+
+An objective is one of two kinds. A **count** is measured from where the counter
+stood when the chapter opened — two expeditions, then two *more*, not two then
+four. A bar already half full before the beat has been introduced is not an
+objective, it is a formality. A **reach** is an absolute threshold, for things
+that cannot be counted up from a baseline: *"clear a Tier 12 expedition"* is a
+place the guild has been, not work it does twelve of.
+
+When consecutive chapters watch the same counter, the next baseline is taken
+from the **goal** rather than from the clock. Those differ after any jump: an
+offline catch-up finishing ten expeditions at once would otherwise complete
+"run two" and then demand two more on top of the eight already banked, quietly
+charging the player for having idled.
+
+### The tour pays nothing towards it
+
+The demonstration expedition is scripted, dispatched under instruction and
+impossible to lose, so crediting it would award the tutorial rather than the
+player. Two mechanisms hold together: the questline stands still while the tour
+runs, and `restoreCounters` puts `stats` and `progress` back before it ends. The
+second is the load-bearing one — the first alone would only defer the credit by
+a few seconds.
+
 ### Objectives are derived, never accumulated
 
 The same rule `data/achievements.js` follows, for the same reasons. Every
@@ -434,6 +458,20 @@ unrecoverable rather than merely wrong. With it the questline can only ever
 bring a system *forward* — which is the Charter's own rule (nothing that already
 exists was moved behind a gate) honoured by the one system whose whole job is
 putting things behind gates.
+
+### Saying so on screen
+
+A chapter satisfied by playing needs no prompting — the player is already doing
+it. A chapter waiting on a **press** is where a questline stalls: the guild is
+waiting on a button the player has never seen and has no reason to go looking
+for. Those are exactly the chapters carrying a `teaches` pointer, so the Quests
+tab glows while one is outstanding, and the first time anything wears the glow
+it is explained once and never again.
+
+**Show Me** takes the player to the tab *and flashes the control*. The tab alone
+was not enough and in one case was nothing at all: "More Hands" points at the
+roster, which is the tab a new guild is already looking at, so the button
+changed nothing on screen and read as broken.
 
 Roster, Parties, Expeditions and the Vault are **never** gated. A guild that
 cannot reach them on its first second is not playable.
@@ -503,6 +541,14 @@ hours in opening the game to find the workshop behind chapter five is the worst
 thing this feature could do. `migrateStory` marks anything that has already
 played as having set the note aside, and there is a test that loads a
 mid-progress save and asserts every system survives.
+
+**A chapter opened a system and then hid the button for it.** Chapter three
+opens recruiting and tells the player to recruit — but the Hiring Hall button
+lives in the roster header, and the story emit only redrew the quest panel and
+the tab strip. The button that completes the chapter did not exist, so the
+questline stopped dead with no error to explain it. Anything gated by
+`systemUnlocked` now belongs in that emit, and there is a check that reaches the
+chapter through the sweep alone and asserts the button appears.
 
 **The tutorial and the questline collided, and every suite still passed.** Six
 tutorial steps navigated to tabs the questline had just started hiding, so the

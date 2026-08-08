@@ -37,7 +37,7 @@ import { renderContracts } from './ui/contracts.js';
 import { renderQuests, renderQuestMark } from './ui/quests.js';
 import { wireVaultActions, renderVault, renderEquipTarget } from './ui/vault.js';
 import {
-  buildMaterialGrid, renderMaterials, renderCraftPanel, selectRecipe,
+  buildMaterialGrid, renderMaterials, renderCraftPanel, renderAlchemy, selectRecipe,
 } from './ui/workshop.js';
 import { wireLogFilters, renderLog } from './ui/log.js';
 
@@ -83,9 +83,17 @@ export function initUI() {
     renderContracts();
   });
   on('contracts', () => { renderContracts(); renderDispatch(); });
-  // A chapter completing can open a tab, so the strip is refreshed with the
-  // panel rather than only on load.
-  on('story', () => { renderQuests(); renderQuestMark(); refreshTabLocks(); });
+  // A chapter opens systems, and every panel that gates on one has to be told.
+  //
+  // Redrawing only the quest panel and the tab strip was a hard lock: chapter
+  // three opens recruiting, but the Hiring Hall button lives in the roster
+  // header, which was never redrawn — so the button the chapter tells you to
+  // press did not exist, the chapter could not complete, and the questline
+  // stopped dead. Anything gated by systemUnlocked belongs in this list.
+  on('story', () => {
+    renderQuests(); renderQuestMark(); refreshTabLocks();
+    renderRoster(); renderCraftPanel(); renderAlchemy(); renderDispatch(); renderRaids();
+  });
   on('achievements', () => { renderAchievements(); });
   on('reports', () => { renderRuns(); });
   on('log', () => { renderLog(); });

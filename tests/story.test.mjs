@@ -108,6 +108,62 @@ export default async function run(browser) {
       return 'recruiting open on the chapter that needs it, the hall still shut';
     });
 
+    await test('a chapter that opens a system redraws the control it asks for', async () => {
+      // The hard lock, and the reason it deserves a check of its own: chapter
+      // three opens recruiting and then tells the player to recruit, but the
+      // Hiring Hall button lives in the roster header. Redrawing only the quest
+      // panel left the button that completes the chapter not existing, so the
+      // questline stopped dead with no way forward and no error to explain it.
+      const r = await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { checkStory, currentChapter, systemUnlocked } = await import('./src/story.js');
+        const btn = () => !!document.querySelector('#btnRecruit');
+        G.state.stats.runs = 0;
+        G.state.story = { chapter: 0, done: false, skipped: false, claimed: {} };
+        const { renderAll } = await import('./src/ui.js');
+        renderAll();
+        const before = btn();
+        // Reach the chapter the way play does, through the sweep alone.
+        G.state.stats.runs = 2; checkStory();
+        G.state.stats.runs = 4; checkStory();
+        return {
+          before,
+          chapter: currentChapter()?.id ?? null,
+          unlocked: systemUnlocked('recruit'),
+          // No renderAll here on purpose: the emit the engine fires is the only
+          // thing that may be relied on to put the button on screen.
+          after: btn(),
+        };
+      });
+      eq(r.chapter, 'more_hands', 'the guild did not reach the recruiting chapter');
+      ok(!r.before, 'the Hiring Hall was on screen before the chapter opened it');
+      ok(r.unlocked, 'the chapter did not open recruiting');
+      ok(r.after, 'recruiting opened but the Hiring Hall button was never drawn — hard lock');
+      return 'the button the chapter asks for appears when the chapter opens';
+    });
+
+    await test('Show Me reaches a real element on every chapter that offers it', async () => {
+      // "More Hands" points at the roster, which is the tab a new guild is
+      // already looking at — so switching tab changed nothing on screen and the
+      // button read as broken. The tab is only half the instruction.
+      const r = await page.evaluate(async () => {
+        const { CHAPTERS } = await import('./src/data/story.js');
+        const missing = [];
+        for (const ch of CHAPTERS) {
+          if (!ch.teaches) continue;
+          if (!ch.teaches.target) { missing.push(`${ch.id}: no target`); continue; }
+          const tab = document.querySelector(`.tab[data-tab="${ch.teaches.tab}"]`);
+          if (!tab) { missing.push(`${ch.id}: no tab ${ch.teaches.tab}`); continue; }
+          if (!document.querySelector(ch.teaches.target)) {
+            missing.push(`${ch.id}: ${ch.teaches.target}`);
+          }
+        }
+        return { missing, teaching: CHAPTERS.filter((c) => c.teaches).length };
+      });
+      eq(r.missing.join(', '), '', 'a Show Me button points at nothing');
+      return `${r.teaching} chapters offer it, every target resolves`;
+    });
+
     await test('no page errors', () => clean(errors));
     await page.close();
   }
@@ -160,6 +216,161 @@ export default async function run(browser) {
       eq(r.during, 'honest_work', 'the guild left chapter one mid-tour');
       ok(r.after > 0, 'the questline did not catch up once the tour ended');
       return `held at chapter one, then caught up ${r.after} chapters at the end`;
+    });
+
+    await test('the tour pays nothing towards the questline', async () => {
+      // The demonstration expedition is scripted, dispatched under instruction,
+      // run at triple speed and impossible to lose. Crediting it towards
+      // "complete two expeditions" would award the tutorial rather than the
+      // player, and would hand back a chapter the guild never earned.
+      //
+      // Two mechanisms have to hold together: the questline stands still while
+      // the tour runs, and the tour puts its counters back before it ends. The
+      // second is what this is really checking, because the first alone would
+      // simply defer the credit by a few seconds.
+      const r = await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { STEPS, startTutorial, stopTutorial } = await import('./src/tutorial.js');
+        const { checkStory, currentChapter, objectiveProgress } = await import('./src/story.js');
+
+        G.state.tutorial = { step: 0, done: false, skipped: false };
+        G.state.story = { chapter: 0, done: false, skipped: false, claimed: {} };
+        G.state.stats.runs = 0;
+        G.state.progress.highestTier = 0;
+        startTutorial(0);
+        // Whatever the tour gets up to, in one lump.
+        G.state.stats.runs += 3;
+        G.state.progress.highestTier = 2;
+        const during = checkStory();
+        stopTutorial(false);
+        const after = checkStory();
+        const p = objectiveProgress();
+        return {
+          steps: STEPS.length,
+          during,
+          after,
+          runs: G.state.stats.runs,
+          tier: G.state.progress.highestTier,
+          chapter: currentChapter()?.id ?? null,
+          have: p?.have ?? -1,
+        };
+      });
+      eq(r.during, 0, 'the questline advanced during the tour');
+      eq(r.after, 0, 'the tour paid for a chapter the moment it ended');
+      eq(r.runs, 0, 'the demonstration expedition was left on the counter');
+      eq(r.tier, 0, 'the tour left the guild credited with a tier it did not push');
+      eq(r.chapter, 'honest_work', 'the guild did not start the questline where it should');
+      eq(r.have, 0, 'the first chapter opened with progress already on it');
+      return 'counters back to zero, chapter one at 0/2';
+    });
+
+    await test('no page errors', () => clean(errors));
+    await page.close();
+  }
+
+  // ---- Each chapter asks for its own work --------------------------------
+
+  {
+    const { page, errors } = await guided(browser, 'StoryCounts');
+
+    await test('a chapter counts from where it opened, not from zero', async () => {
+      const r = await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { checkStory, currentChapter, objectiveProgress } = await import('./src/story.js');
+        const shot = () => {
+          const p = objectiveProgress();
+          return `${currentChapter()?.id}:${p.have}/${p.goal}`;
+        };
+        const seen = [shot()];
+        G.state.stats.runs = 1; seen.push(shot());
+        G.state.stats.runs = 2; checkStory(); seen.push(shot());
+        G.state.stats.runs = 3; seen.push(shot());
+        G.state.stats.runs = 4; checkStory(); seen.push(shot());
+        return { seen };
+      });
+      // Two expeditions, then two more. The second chapter must not open with
+      // its bar already half full from work done before the beat existed.
+      eq(r.seen.join(' '),
+        'honest_work:0/2 honest_work:1/2 wage_ledger:0/2 wage_ledger:1/2 more_hands:0/1',
+        'a chapter inherited progress from the one before it');
+      return r.seen.join(' → ');
+    });
+
+    await test('finishing several chapters at once does not charge twice', async () => {
+      // Offline catch-up lands ten expeditions in one sweep. Taking the next
+      // baseline from the clock rather than from the goal would complete "run
+      // two" and then ask for two more on top of the eight already banked,
+      // quietly charging the player for having idled.
+      const r = await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { checkStory, currentChapter } = await import('./src/story.js');
+        // Both reset together: a fresh questline on a save that already had
+        // runs banked is the resume case, not the offline case, and there the
+        // baseline is meant to be taken from now.
+        G.state.story = { chapter: 0, done: false, skipped: false, claimed: {} };
+        G.state.stats.runs = 0;
+        checkStory();
+        G.state.stats.runs = 10;                 // one sweep, ten runs banked
+        const moved = checkStory();
+        return { moved, chapter: currentChapter()?.id ?? null };
+      });
+      eq(r.moved, 2, 'ten expeditions should pay for both two-run chapters at once');
+      eq(r.chapter, 'more_hands', 'the guild should be on the recruiting chapter');
+      return 'ten runs paid for both chapters, no double charge';
+    });
+
+    await test('the tab glows only while a chapter wants a press', async () => {
+      const r = await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { checkStory, chapterNeedsAction, currentChapter } = await import('./src/story.js');
+        const { renderQuestMark } = await import('./src/ui/quests.js');
+        const lit = () => {
+          renderQuestMark();
+          return !!document.querySelector('.tab[data-tab="quests"]')?.classList.contains('quest-call');
+        };
+        G.state.story = { chapter: 0, done: false, skipped: false, claimed: { actionPrompt: true } };
+        G.state.stats.runs = 0;
+        checkStory();
+        // Chapter one is satisfied by playing, so nothing should be shouting.
+        const onRuns = { chapter: currentChapter()?.id, lit: lit(), needs: chapterNeedsAction() };
+        G.state.stats.runs = 10; checkStory();
+        // Chapter three wants the player to go and press something.
+        const onRecruit = { chapter: currentChapter()?.id, lit: lit(), needs: chapterNeedsAction() };
+        // Recruiting satisfies it, and the next chapter wants the Guild Hall —
+        // so the glow correctly stays on, following the chapter rather than
+        // switching off. What must silence it is having nothing to ask for.
+        G.state.stats.recruited += 1; checkStory();
+        const next = { chapter: currentChapter()?.id, lit: lit() };
+        const { skipStory } = await import('./src/story.js');
+        skipStory();
+        return { onRuns, onRecruit, next, shelved: lit() };
+      });
+      ok(!r.onRuns.lit, `the tab glowed on "${r.onRuns.chapter}", which is satisfied by playing`);
+      ok(r.onRecruit.lit && r.onRecruit.needs,
+        `the tab did not glow on "${r.onRecruit.chapter}", which waits on a button`);
+      ok(r.next.lit, `the glow did not follow on to "${r.next.chapter}", which also wants a press`);
+      ok(!r.shelved, 'the tab kept glowing after the questline was set aside');
+      return `quiet on ${r.onRuns.chapter}, lit on ${r.onRecruit.chapter} and ${r.next.chapter}, quiet once shelved`;
+    });
+
+    await test('the glow is explained once and then never again', async () => {
+      const r = await page.evaluate(async () => {
+        const { G } = await import('./src/state.js');
+        const { checkStory, needsActionPrompt, markActionPromptSeen } = await import('./src/story.js');
+        // Self-contained: put the guild on a chapter that wants a press, with
+        // the explanation not yet given.
+        G.state.story = { chapter: 0, done: false, skipped: false, claimed: {} };
+        G.state.stats.runs = 0;
+        checkStory();
+        G.state.stats.runs = 10;
+        checkStory();
+        const first = needsActionPrompt();
+        const marked = markActionPromptSeen();
+        return { first, marked, second: needsActionPrompt(), again: markActionPromptSeen() };
+      });
+      ok(r.first, 'the first chapter needing a press did not offer an explanation');
+      ok(r.marked && !r.second && !r.again, 'the explanation would be shown more than once');
+      return 'explained on the first chapter that wants a press, and not after';
     });
 
     await test('no page errors', () => clean(errors));
@@ -297,14 +508,31 @@ export default async function run(browser) {
         const { G } = await import('./src/state.js');
         const { checkStory, storyComplete, legendsWaiting, claimLegend, claimedLegend } = await import('./src/story.js');
         const { CHAPTERS, LEGENDS } = await import('./src/data/story.js');
-        // Satisfy every objective at once: they are derived from the save, so a
-        // guild that has done all of it is credited for all of it.
-        Object.assign(G.state.stats, {
-          runs: 500, recruited: 5, crafted: 10, flasksBrewed: 4, raidKills: 3, contractsRun: 6,
-        });
-        G.state.upgrades.partySlots = 1;
-        G.state.progress.highestTier = 30;
-        checkStory();
+        const { currentChapter, objectiveProgress } = await import('./src/story.js');
+        // Walked one chapter at a time rather than satisfied in bulk, because
+        // counting objectives are measured from where the chapter opened — so a
+        // single Object.assign proves nothing about chapters two through eight.
+        // Stepping is also the stronger claim: every chapter is individually
+        // completable, and none of them is a wall.
+        const stalled = [];
+        for (let guard = 0; guard < CHAPTERS.length * 4; guard++) {
+          const ch = currentChapter();
+          if (!ch) break;
+          const p = objectiveProgress();
+          const need = p.goal - p.have;
+          // Nudge whichever counter this chapter is watching, by exactly what
+          // it still wants. If that does not move it, the chapter is a wall.
+          const before = ch.id;
+          for (const key of ['runs', 'recruited', 'crafted', 'flasksBrewed',
+            'raidKills', 'contractsRun']) {
+            G.state.stats[key] += need;
+          }
+          G.state.upgrades.partySlots = (G.state.upgrades.partySlots ?? 0) + need;
+          G.state.progress.highestTier = Math.max(G.state.progress.highestTier, ch.objective.goal);
+          checkStory();
+          if (currentChapter()?.id === before) { stalled.push(before); break; }
+        }
+        if (stalled.length) return { stalled };
 
         const before = G.state.heroes.length;
         const waiting = legendsWaiting();
@@ -325,6 +553,7 @@ export default async function run(browser) {
           level: hero?.level ?? 0,
         };
       });
+      eq((r.stalled ?? []).join(','), '', 'a chapter could not be completed at all');
       ok(r.complete, 'the questline could not be finished');
       ok(r.waiting, 'the three were never offered');
       eq(r.legends, 3, 'one legend per role');

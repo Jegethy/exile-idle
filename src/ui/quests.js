@@ -17,6 +17,7 @@ import { CLASS_BY_ID } from '../data/heroclasses.js';
 import {
   currentChapter, objectiveProgress, completedChapters, storyComplete, storySkipped,
   skipStory, resumeStory, legendsWaiting, claimedLegend, claimLegend,
+  chapterNeedsAction, needsActionPrompt, markActionPromptSeen,
 } from '../story.js';
 import { escapeHtml, fmtInt, qs } from '../util.js';
 import { confirmAction } from './modals.js';
@@ -37,7 +38,8 @@ function doneCard(ch) {
 function activeCard(ch, p) {
   const pct = p.goal > 0 ? Math.min(100, (p.have / p.goal) * 100) : 0;
   const teach = ch.teaches
-    ? `<button class="btn tiny" data-quest-goto="${esc(ch.teaches.tab)}">Show me</button>`
+    ? `<button class="btn tiny primary" data-quest-goto="${esc(ch.teaches.tab)}"
+        data-quest-target="${esc(ch.teaches.target ?? '')}">Show Me</button>`
     : '';
   const opens = (ch.unlocks ?? []).map((id) => SYSTEM_BY_ID[id]?.name).filter(Boolean);
   return `<div class="quest active">
@@ -81,6 +83,33 @@ function legendsCard() {
     <p class="quest-opens">All three are Legendary and none is stronger than the others.
       What sets them apart is that they fight with <b>two skills at once</b>, which nobody
       else in the guild can do. Choose the job you are short of.</p>`;
+}
+
+/**
+ * Takes the player to the thing the chapter wants, and points at it.
+ *
+ * Switching tab was not enough, and in one case was nothing at all: "More
+ * Hands" points at the roster, the roster is the tab a new guild is already
+ * looking at, so the button changed nothing on screen and read as broken. The
+ * tab is only half the instruction — the other half is *which control*, and
+ * that is what the flash is for.
+ */
+function showMe(tab, target) {
+  if (tab) gotoTab(tab);
+  if (!target) return;
+  // After the tab switch has painted, or the element is measured while its
+  // panel is still hidden and the scroll goes nowhere.
+  requestAnimationFrame(() => {
+    const el = qs(target);
+    if (!el) return;
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    el.classList.remove('quest-flash');
+    // Reading offsetWidth restarts the animation; without it a second press
+    // does nothing at all, which is the bug this function exists to fix.
+    void el.offsetWidth;
+    el.classList.add('quest-flash');
+    setTimeout(() => el.classList.remove('quest-flash'), 2400);
+  });
 }
 
 export function renderQuests() {
@@ -141,7 +170,7 @@ export function renderQuests() {
   if (resume) resume.onclick = () => { resumeStory(); renderQuests(); };
 
   for (const btn of host.querySelectorAll('[data-quest-goto]')) {
-    btn.onclick = () => gotoTab(btn.dataset.questGoto);
+    btn.onclick = () => showMe(btn.dataset.questGoto, btn.dataset.questTarget);
   }
   for (const btn of host.querySelectorAll('[data-legend]')) {
     btn.onclick = () => {
@@ -157,11 +186,52 @@ export function renderQuests() {
   }
 }
 
-/** A dot on the tab when a chapter is waiting to be read. */
+/**
+ * The state of the Quests tab itself.
+ *
+ * Two different things, and they are worth telling apart. A chapter merely in
+ * progress gets a quiet dot — the player is already doing the work. A chapter
+ * waiting on a *press* gets the tab glowing, because that is where a questline
+ * stalls: the guild is waiting on a button the player has never seen and has no
+ * reason to go looking for.
+ */
 export function renderQuestMark() {
-  const mark = qs('#questTabMark');
-  if (!mark) return;
   const s = G.state;
-  const showing = !!s && !storyComplete(s) && !storySkipped(s);
-  mark.textContent = showing ? '!' : '';
+  const mark = qs('#questTabMark');
+  const tab = qs('.tab[data-tab="quests"]');
+  if (!s) return;
+  const running = !storyComplete(s) && !storySkipped(s);
+  const waiting = chapterNeedsAction(s);
+  if (mark) mark.textContent = running ? (waiting ? '!' : '·') : '';
+  if (tab) tab.classList.toggle('quest-call', waiting);
+  if (waiting) promptOnce();
 }
+
+/**
+ * Explains the glow, once, the first time anything wears it.
+ *
+ * Deferred a beat so it never lands on top of whatever the player just pressed
+ * to get here — a modal that appears in the same frame as a click reads as a
+ * consequence of the click.
+ */
+function promptOnce() {
+  const s = G.state;
+  if (!needsActionPrompt(s) || promptPending) return;
+  promptPending = true;
+  setTimeout(() => {
+    promptPending = false;
+    if (!needsActionPrompt(G.state)) return;
+    const ch = currentChapter(G.state);
+    markActionPromptSeen(G.state);
+    confirmAction(
+      'The guild is waiting on you',
+      `"${ch?.title ?? 'A chapter'}" needs something done rather than something fought. `
+      + 'While a chapter is waiting on you the Quests tab is lit — open it, read the beat, '
+      + 'and press Show Me to be taken to the screen it wants. Nothing expires, so there is '
+      + 'no hurry.',
+      () => gotoTab('quests'),
+    );
+  }, 900);
+}
+
+let promptPending = false;

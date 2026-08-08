@@ -28,16 +28,28 @@
 //   title      what the player sees.
 //   narrative  the beat. Short, concrete, dry: the world is unsettling because
 //              of what it states plainly, not because of how it is described.
-//   objective  { text, progress(state), goal } — what to go and do.
-//   unlocks    system ids revealed on completion. See story.js.
-//   teaches    optional tutorial-style pointer, for the chapters that open a
-//              system the player has never seen.
+//   objective  { text, progress(state), goal, kind } — what to go and do.
+//   unlocks    system ids revealed on arrival. See story.js.
+//   teaches    a pointer at the tab this chapter wants the player to visit.
+//              Its presence is also what marks a chapter as needing a *press*
+//              rather than merely more play, which is what the Quests tab
+//              glows for.
 //
 // Progress is *derived*, never accumulated — the same rule data/achievements.js
-// follows, and for the same reasons. A chapter is a pure function of the save,
-// so a questline that gains a chapter later credits what has already been done
-// rather than stranding an existing guild, and no counter can drift from the
-// thing it counts.
+// follows. A chapter reads the save rather than a counter ticked from an event,
+// so no number can drift from the thing it counts.
+//
+// An objective is one of two kinds:
+//
+//   count  (default) how much the guild does *during this chapter*, measured
+//          from where the counter stood when the chapter opened. Two
+//          expeditions then two more, not two then four — a bar that is already
+//          half full before the beat has been introduced is not an objective,
+//          it is a formality.
+//   reach  an absolute threshold, for things that cannot be counted upwards
+//          from a baseline. "Clear a Tier 12 expedition" is a place the guild
+//          has been, not work it does twelve of; you cannot un-clear a tier,
+//          and asking for twelve *more* would be nonsense.
 //
 // ---------------------------------------------------------------------------
 //
@@ -147,7 +159,7 @@ export const CHAPTERS = [
     narrative: 'Among the takings is a paybook. A crew of nineteen, wages settled monthly, '
       + 'the last entry made four weeks ago — in coin that stopped being minted before the '
       + 'flood. Somebody is still paying to dig.',
-    objective: { text: 'Complete four expeditions', progress: runs, goal: 4 },
+    objective: { text: 'Complete two more expeditions', progress: runs, goal: 2 },
     unlocks: [],
   },
   {
@@ -226,7 +238,7 @@ export const CHAPTERS = [
       + 'enough apart that no one thing could walk between them. Three of the four are '
       + 'bare. That is the commission the Ninth should have refused, and they are most of '
       + 'the way through it.',
-    objective: { text: 'Clear a Tier 12 expedition', progress: depth, goal: 12 },
+    objective: { text: 'Clear a Tier 12 expedition', progress: depth, goal: 12, kind: 'reach' },
     unlocks: [],
   },
 
@@ -237,7 +249,7 @@ export const CHAPTERS = [
     narrative: 'There is a woman at a door in the dark who has been standing there long '
       + 'enough for the frame to take her shape. She is not a prisoner and she does not '
       + 'want rescuing. She wants you to go back up and forget the way down.',
-    objective: { text: 'Clear a Tier 15 expedition', progress: depth, goal: 15 },
+    objective: { text: 'Clear a Tier 15 expedition', progress: depth, goal: 15, kind: 'reach' },
     unlocks: [],
   },
   {
@@ -246,7 +258,7 @@ export const CHAPTERS = [
     narrative: 'A hall beneath the hall, lit by nothing, with the whole membership of the '
       + 'Ninth still at the table. They are not surprised to see you. A motion is put, '
       + 'seconded and carried, and it concerns your guild.',
-    objective: { text: 'Clear a Tier 17 expedition', progress: depth, goal: 17 },
+    objective: { text: 'Clear a Tier 17 expedition', progress: depth, goal: 17, kind: 'reach' },
     unlocks: [],
   },
   {
@@ -255,7 +267,7 @@ export const CHAPTERS = [
     narrative: 'The door takes two to hold. Three have been holding it. They have already '
       + 'had the argument, several times, over a very long time, and they will not have it '
       + 'again — so the choosing falls to you, and whoever you name walks out.',
-    objective: { text: 'Clear a Tier 20 expedition', progress: depth, goal: 20 },
+    objective: { text: 'Clear a Tier 20 expedition', progress: depth, goal: 20, kind: 'reach' },
     unlocks: [],
     // The reward the whole line exists for. The questline's own objectives are
     // the time gate — reaching here means clearing Tier 20, about eighteen

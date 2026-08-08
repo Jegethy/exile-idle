@@ -50,6 +50,29 @@ export function currentChapter(state = G.state) {
 }
 
 /**
+ * Where the current chapter's counter stood when the chapter opened.
+ *
+ * This is what makes a chapter ask for its *own* work rather than for a running
+ * total. "Complete two expeditions" followed by "complete four expeditions" made
+ * the second chapter a single extra run, and read as a progress bar that was
+ * already most of the way full before the beat had been introduced. Each
+ * chapter now asks for what it asks for, counted from the moment it began.
+ *
+ * Only counting objectives need it. A threshold — "clear a Tier 12 expedition"
+ * — is absolute by nature: you cannot un-clear a tier, and asking for twelve
+ * *more* tiers would be nonsense.
+ */
+function markOf(state, ch) {
+  const st = store(state);
+  if (!st || ch?.objective?.kind === 'reach') return 0;
+  // Lazily taken, so a save written before marks existed, or one whose chapter
+  // was reached by some route that forgot to set it, starts counting from here
+  // rather than crediting everything that came before.
+  if (typeof st.mark !== 'number') st.mark = ch?.objective?.progress(state) ?? 0;
+  return st.mark;
+}
+
+/**
  * How far through the current chapter's objective the guild is.
  * @returns {{have: number, goal: number, done: boolean} | null}
  */
@@ -57,7 +80,8 @@ export function objectiveProgress(state = G.state) {
   const ch = currentChapter(state);
   if (!ch) return null;
   const goal = ch.objective.goal;
-  const have = Math.max(0, ch.objective.progress(state) ?? 0);
+  const raw = ch.objective.progress(state) ?? 0;
+  const have = Math.max(0, raw - markOf(state, ch));
   return { have: Math.min(have, goal), goal, done: have >= goal };
 }
 
@@ -76,6 +100,42 @@ export function storyComplete(state = G.state) {
 /** Whether the guild waved the questline away. It may still go back to it. */
 export function storySkipped(state = G.state) {
   return !!store(state)?.skipped;
+}
+
+/**
+ * Is the guild being asked to go and *press* something?
+ *
+ * The difference matters to the interface and to nothing else. Most objectives
+ * are satisfied by playing — run four expeditions, reach Tier 15 — and need no
+ * prompting, because the player is already doing them. A handful ask for a
+ * visit to a screen they have never seen and will not think to open, and those
+ * are exactly the chapters carrying a `teaches` pointer. Left unmarked they are
+ * where a questline stalls: the guild is waiting on a button the player does
+ * not know exists.
+ */
+export function chapterNeedsAction(state = G.state) {
+  const ch = currentChapter(state);
+  if (!ch || !ch.teaches || storySkipped(state)) return false;
+  return !objectiveProgress(state)?.done;
+}
+
+/**
+ * Whether the player still has to be told what the glow on the tab means.
+ *
+ * Once, on the first chapter that asks for something. A marker that is never
+ * explained is a marker that gets ignored.
+ */
+export function needsActionPrompt(state = G.state) {
+  const st = store(state);
+  return !!st && !st.claimed.actionPrompt && chapterNeedsAction(state);
+}
+
+/** Records that the explanation has been given. */
+export function markActionPromptSeen(state = G.state) {
+  const st = store(state);
+  if (!st || st.claimed.actionPrompt) return false;
+  st.claimed.actionPrompt = true;
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,9 +223,29 @@ export function checkStory(state = G.state) {
     const p = objectiveProgress(state);
     if (!p?.done) break;
 
+    // Where the next chapter starts counting from.
+    //
+    // When it watches the *same* counter, the baseline is the exact point this
+    // chapter was satisfied rather than wherever the counter happens to stand
+    // now. Those differ after any jump — an offline catch-up finishing ten
+    // expeditions at once would otherwise complete "run two" and then demand
+    // two more on top of the eight already banked, quietly charging the player
+    // for idling. Taking the baseline from the goal instead of the clock means
+    // ten runs pays for both chapters, which is what the player did.
+    //
+    // Across different counters there is nothing to carry, so it is retaken
+    // lazily against whatever the next chapter actually watches.
+    const from = markOf(state, ch);
+    const next = CHAPTERS[st.chapter + 1];
     st.chapter++;
     advanced++;
     pending.push(ch);
+    if (next && next.objective.progress === ch.objective.progress
+      && next.objective.kind !== 'reach') {
+      st.mark = from + ch.objective.goal;
+    } else {
+      delete st.mark;
+    }
     log(`<b>${ch.title}</b> — ${ch.narrative}`, 'unique');
     for (const id of ch.unlocks ?? []) {
       const sys = SYSTEM_BY_ID[id];
@@ -215,7 +295,12 @@ export function resumeStory(state = G.state) {
   const st = store(state);
   if (!st || !st.skipped) return false;
   st.skipped = false;
-  // Anything already satisfied is credited immediately rather than replayed.
+  // Counting starts again from here. A guild that ran four hundred expeditions
+  // while the paybook sat in a drawer is not owed the first four chapters —
+  // and being handed them all at once on the way back in would be a worse
+  // welcome than being asked for two more runs. Thresholds still credit
+  // instantly through checkStory, since a cleared tier stays cleared.
+  delete st.mark;
   checkStory(state);
   log('The guild takes the paybook back out of the drawer.', 'sys');
   emit('story');
