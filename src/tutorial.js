@@ -216,10 +216,10 @@ export const STEPS = [
     tab: 'quests', target: '#questPanel',
     title: 'You Are Set',
     body: 'Send parties out, gear the roster, push tiers.'
-      + '<br><br>Your party came back from the mines with something that is not a receipt. '
-      + 'The <b>Quests</b> tab is where the guild keeps it, and it will open the rest of the '
-      + 'hall — the workbench, recruiting, the Guild Hall itself — as you need them rather '
-      + 'than all at once.'
+      + '<br><br>Your party will bring things back from the mines that are not gold, and '
+      + 'the <b>Quests</b> tab is where the guild keeps them. It will open the rest of the '
+      + 'hall — the workbench, recruiting, the Guild Hall itself — as you come to need '
+      + 'them, rather than all at once.'
       + '<br><br>Good luck, guildmaster.',
     advance: 'next',
   },

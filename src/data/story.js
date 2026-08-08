@@ -2,8 +2,15 @@
 //
 // The guild has never had a reason to exist. The Charter is a capability
 // ladder with no narrative, achievements are a score that pays nothing, and
-// nothing in the game ever says *why*. This is the why: a ransom note, a
-// syndicate, and a cage full of people worth getting back.
+// nothing in the game ever says *why*. This is the why.
+//
+// The story was not invented alongside the game — it was read out of it. The
+// raid and dungeon blurbs already described one thing from seven directions: a
+// crowned corpse that never accepted the verdict of its own death, a throne
+// room whose court still sits, a titan broken into four and buried in graves
+// three of which are now empty, a crater that keeps getting deeper. Something
+// down there refuses to stay buried and something patient has been digging it
+// up. All of that was already written. Nobody had said it out loud.
 //
 // It does a second job, and that one is the reason it earns its place rather
 // than merely decorating. The tutorial teaches the workbench, alchemy, the
@@ -19,7 +26,8 @@
 //   id         stable, never reused. It is what the save stores.
 //   act        grouping for the Quests panel. Narrative only.
 //   title      what the player sees.
-//   narrative  the beat. Prose is deliberately skeletal for now.
+//   narrative  the beat. Short, concrete, dry: the world is unsettling because
+//              of what it states plainly, not because of how it is described.
 //   objective  { text, progress(state), goal } — what to go and do.
 //   unlocks    system ids revealed on completion. See story.js.
 //   teaches    optional tutorial-style pointer, for the chapters that open a
@@ -96,41 +104,57 @@ const depth = (s) => s.progress?.highestTier ?? 0;
 /**
  * Twelve chapters in four acts.
  *
- * The arc is: find the note, build up, breach the stronghold, choose. The four
- * beats that carry it are the note, the gates, the showdown and the choice —
- * everything between them exists to open a system at the moment it matters,
- * and no two chapters open the same one twice.
+ * The antagonist is a guild, which is the choice everything else falls out of.
+ * The Ninth was struck from the rolls two centuries ago over a commission it
+ * should have refused, never surrendered its charter, and never stopped
+ * working. That makes it the player's own systems turned around — a charter, a
+ * roster, outstanding contracts — and it explains the sealed writs that start
+ * dropping at Tier 8 without inventing a single mechanic.
+ *
+ * Three legends went down to end it and are still down there, holding a door.
+ * Not captives: a post. Which is what makes the ending a choice rather than a
+ * contrivance — the door takes two to hold, three are holding it, and exactly
+ * one can walk out.
  *
  * Ordering follows what the game actually gates rather than what reads well on
  * paper. Raids open at Tier 4 and contracts at Tier 8, so the raid beat comes
  * first; recruiting happens long before either, so it comes earlier still.
  *
- * PROSE IS PLACEHOLDER. The structure, objectives, ordering and unlocks are
- * the deliverable here; the writing is a separate pass.
+ * PACING. Six chapters inside the first three hours and six across the next
+ * fifteen, measured against the real curves — Tier 5 at about an hour, Tier 10
+ * at four, Tier 20 at eighteen. The front half is onboarding wearing a story
+ * and moves fast; the back half is one beat per tier band the guild was going
+ * to push anyway. It finishes at Tier 20 rather than deeper on purpose: the
+ * whole game runs about seventy-four hours, so this covers the first quarter
+ * and leaves everything past Tier 20 as clean endgame. Carrying the finale to
+ * Tier 24 would have bought ten more hours of nothing happening.
  */
 export const CHAPTERS = [
-  // --- Act I: a guild with a deed and three people ------------------------
+  // --- Act I: something is still being paid -------------------------------
   {
-    id: 'first_light', act: 'Humble Beginnings',
-    title: 'A Deed and Three Names',
-    narrative: 'The hall is yours, such as it is. Three people answered the notice. '
-      + 'Somewhere below the hills there is work that pays.',
+    id: 'honest_work', act: 'Honest Work',
+    title: 'Honest Work',
+    narrative: 'The deed is signed, the hall is standing, and three people answered the '
+      + 'notice. There is work under the hills that pays in coin rather than in promises.',
     objective: { text: 'Complete two expeditions', progress: runs, goal: 2 },
     unlocks: [],
   },
   {
-    id: 'ransom_note', act: 'Humble Beginnings',
-    title: 'The Intercepted Missive',
-    narrative: 'Among the takings is a folded paper that is not a receipt. A ransom '
-      + 'demand, unsigned, naming people whose names everyone knows.',
+    // The hook, and deliberately not a ransom demand. A demand tells the player
+    // what to think. A paybook that does not add up makes them ask.
+    id: 'wage_ledger', act: 'Honest Work',
+    title: 'The Wage Ledger',
+    narrative: 'Among the takings is a paybook. A crew of nineteen, wages settled monthly, '
+      + 'the last entry made four weeks ago — in coin that stopped being minted before the '
+      + 'flood. Somebody is still paying to dig.',
     objective: { text: 'Complete four expeditions', progress: runs, goal: 4 },
     unlocks: [],
   },
   {
-    id: 'more_hands', act: 'Humble Beginnings',
+    id: 'more_hands', act: 'Honest Work',
     title: 'More Hands',
-    narrative: 'Three is not enough for what the note describes. Word has gone out, '
-      + 'and there are people at the door.',
+    narrative: 'Nineteen names in the paybook, and three of you. The notice goes back up, '
+      + 'and this time it says what the work is.',
     // Recruiting belongs here and not in the late game: a player has the gold
     // for their second hire long before they ever see a contract.
     objective: { text: 'Recruit a hero', progress: stat('recruited'), goal: 1 },
@@ -138,40 +162,45 @@ export const CHAPTERS = [
     teaches: { tab: 'roster', target: '#rosterHeader' },
   },
 
-  // --- Act II: equipping a guild that intends to fight back ---------------
+  // --- Act II: struck from the rolls --------------------------------------
   {
-    id: 'foundations', act: 'Laying the Foundations',
-    title: 'Foundations',
-    narrative: 'A guild is a building before it is a reputation, and this one leaks.',
+    id: 'dry_archive', act: 'Struck From The Rolls',
+    title: 'A Dry Archive',
+    narrative: 'The paybook is coming apart in the damp, and it is not the only thing in '
+      + 'the hall that is. Records keep badly in a building with a bad roof.',
     objective: { text: 'Buy a Guild Hall upgrade', progress: ranksBought, goal: 1 },
     unlocks: ['hall'],
     teaches: { tab: 'hall', target: '#upgradeList' },
   },
   {
-    id: 'hammers', act: 'Laying the Foundations',
-    title: 'Hammers and Anvils',
-    narrative: 'They come home with chipped blades and bruised ribs. Everything they '
-      + 'are carrying out of the ground can be made into something better.',
+    id: 'the_ninth', act: 'Struck From The Rolls',
+    title: 'The Ninth',
+    narrative: 'The seal on the paybook is a guild mark. It sits on the ninth line of a roll '
+      + 'closed two hundred years ago — dissolved over a commission it should have refused, '
+      + 'charter never surrendered. The same mark is stamped inside half the armour coming '
+      + 'out of the ground.',
     objective: { text: 'Improve an item at the workbench', progress: stat('crafted'), goal: 1 },
     unlocks: ['crafting'],
     teaches: { tab: 'workshop', target: '#craftPanel' },
   },
   {
-    id: 'brewing', act: 'Laying the Foundations',
-    title: 'Brewing Trouble',
-    narrative: 'The passes are trapped and the blades are treated. Armour will not '
-      + 'answer poison.',
+    id: 'hollow_keeps', act: 'Struck From The Rolls',
+    title: 'What the Hollow Keeps',
+    narrative: 'The cocoons in Silkmoth Hollow are not moths, and what is wrapped in them '
+      + 'is not dead. It is fed, watered and turned. Nobody goes to that much trouble over '
+      + 'a corpse.',
     objective: { text: 'Brew a flask', progress: stat('flasksBrewed'), goal: 1 },
     unlocks: ['alchemy'],
     teaches: { tab: 'workshop', target: '#alchemyPanel' },
   },
 
-  // --- Act III: the syndicate notices ------------------------------------
+  // --- Act III: the writ --------------------------------------------------
   {
-    id: 'the_watchtower', act: 'The Syndicate',
-    title: 'Something Larger',
-    narrative: 'The camps are not camps. Something is directing them, and it has been '
-      + 'directing them for a long time.',
+    id: 'crowned_corpse', act: 'The Writ',
+    title: 'The Crowned Corpse',
+    narrative: 'The thing in the barrow wears a circlet with the Ninth’s mark cut into it. '
+      + 'Guildmasters are buried holding their seal. This one has not stopped wearing his, '
+      + 'and has not stopped giving orders.',
     // Raids open at Tier 4, so this objective carries its own pacing: the guild
     // cannot reach it early however keen it is. That is why no chapter here
     // needs an artificial delay bolted on to it.
@@ -180,49 +209,57 @@ export const CHAPTERS = [
     teaches: { tab: 'raids', target: '#raidList' },
   },
   {
-    id: 'sealed_orders', act: 'The Syndicate',
-    title: 'Sealed Orders',
-    narrative: 'Their couriers carry sealed writs. Whatever is written inside changes '
-      + 'the ground a fight is fought on.',
+    id: 'outstanding', act: 'The Writ',
+    title: 'Outstanding Commissions',
+    narrative: 'The sealed writs are contracts. The Ninth’s contracts, still open, still '
+      + 'being served by whatever is left of the people who signed them. One of them names '
+      + 'your hall, and the ink on it is not old.',
     // Contracts start dropping at Tier 8, which paces this one the same way.
     objective: { text: 'Run a sealed contract', progress: stat('contractsRun'), goal: 1 },
     unlocks: ['contracts'],
     teaches: { tab: 'contracts', target: '#contractPanel' },
   },
   {
-    id: 'proving', act: 'The Syndicate',
-    title: 'Blooded',
-    narrative: 'The guild is no longer a curiosity. People who did not know the name '
-      + 'a month ago are avoiding it.',
+    id: 'three_empty', act: 'The Writ',
+    title: 'Three Are Now Empty',
+    narrative: 'The Titan was taken apart and put in the ground in four places, set far '
+      + 'enough apart that no one thing could walk between them. Three of the four are '
+      + 'bare. That is the commission the Ninth should have refused, and they are most of '
+      + 'the way through it.',
     objective: { text: 'Clear a Tier 12 expedition', progress: depth, goal: 12 },
     unlocks: [],
   },
 
-  // --- Act IV: the stronghold --------------------------------------------
+  // --- Act IV: the Ninth --------------------------------------------------
   {
-    id: 'fortress_gates', act: 'The Rescue',
-    title: 'The Fortress Gates',
-    narrative: 'A wall, a gate, and something behind the gate too large to have been '
-      + 'brought there in one piece.',
-    objective: { text: 'Clear a Tier 16 expedition', progress: depth, goal: 16 },
+    id: 'long_watch', act: 'The Ninth',
+    title: 'The Long Watch',
+    narrative: 'There is a woman at a door in the dark who has been standing there long '
+      + 'enough for the frame to take her shape. She is not a prisoner and she does not '
+      + 'want rescuing. She wants you to go back up and forget the way down.',
+    objective: { text: 'Clear a Tier 15 expedition', progress: depth, goal: 15 },
     unlocks: [],
   },
   {
-    id: 'inner_sanctum', act: 'The Rescue',
-    title: 'The Inner Sanctum',
-    narrative: 'Past the gate the corridors narrow and the guards stop being hired.',
+    id: 'court_sits', act: 'The Ninth',
+    title: 'The Court Still Sits',
+    narrative: 'A hall beneath the hall, lit by nothing, with the whole membership of the '
+      + 'Ninth still at the table. They are not surprised to see you. A motion is put, '
+      + 'seconded and carried, and it concerns your guild.',
+    objective: { text: 'Clear a Tier 17 expedition', progress: depth, goal: 17 },
+    unlocks: [],
+  },
+  {
+    id: 'one_of_you', act: 'The Ninth',
+    title: 'One of You',
+    narrative: 'The door takes two to hold. Three have been holding it. They have already '
+      + 'had the argument, several times, over a very long time, and they will not have it '
+      + 'again — so the choosing falls to you, and whoever you name walks out.',
     objective: { text: 'Clear a Tier 20 expedition', progress: depth, goal: 20 },
     unlocks: [],
-  },
-  {
-    id: 'the_choice', act: 'The Rescue',
-    title: 'A Choice of Legends',
-    narrative: 'The cages open. Three people step out who have been in this trade far '
-      + 'longer than you have, and only one of them is going to follow you home.',
-    objective: { text: 'Clear a Tier 24 expedition', progress: depth, goal: 24 },
-    unlocks: [],
-    // The reward the whole line exists for. See story.js — the questline's own
-    // objectives are the time gate, so no artificial delay is needed on top.
+    // The reward the whole line exists for. The questline's own objectives are
+    // the time gate — reaching here means clearing Tier 20, about eighteen
+    // hours in — so nothing artificial is bolted on top of it.
     reward: 'uniqueHero',
   },
 ];
@@ -239,7 +276,18 @@ export function chapterIndex(id) {
 // ---------------------------------------------------------------------------
 
 /**
- * The three in the cages. One of them follows you home.
+ * The three at the door. One of them follows you home.
+ *
+ * Not three prisoners but three *jobs*, which is exactly the shape the choice
+ * needs: the one who holds the door, the one who keeps the other two standing,
+ * and the one who kills what comes through. Each class blurb was already the
+ * character — "copes when a single ally is being hammered" is the literal job
+ * description for keeping two people alive at a doorway for two centuries.
+ *
+ * The door takes two to hold and three are holding it, so exactly one can
+ * leave. That is what makes the choice permanent without a contrivance, and it
+ * is why the other two are gone for good: a route back later would turn the
+ * decision into a delay.
  *
  * They are `legendary` — the rarity that already exists — carrying a `unique`
  * tag. Not a new tier above Legendary, and that is the single most important
@@ -259,19 +307,22 @@ export function chapterIndex(id) {
  */
 export const LEGENDS = [
   {
-    id: 'legend_tank', classId: 'guardian', name: 'Hessa Ninefingers',
-    blurb: 'Held a bridge for two days against people who had every reason to be '
-      + 'somewhere else. Counts the fingers as a fair price.',
+    id: 'legend_tank', classId: 'guardian', name: 'Maud the Unbroken',
+    role: 'Holds the door',
+    blurb: 'She has stood in one doorway since before your hall was built. The frame '
+      + 'has worn to fit her.',
   },
   {
-    id: 'legend_healer', classId: 'druid', name: 'Oreth of the Vale',
-    blurb: 'Walked out of a burning valley with eleven people who could not walk, '
-      + 'and has never once said how.',
+    id: 'legend_healer', classId: 'cleric', name: 'Oswin the Patient',
+    role: 'Keeps the other two standing',
+    blurb: 'Has kept two people alive on nothing whatever for two hundred years, and '
+      + 'does not think it worth mentioning.',
   },
   {
-    id: 'legend_dps', classId: 'archer', name: 'Sable Coldwater',
-    blurb: 'Took the shot everyone agreed was impossible, then took it again to '
-      + 'settle the argument.',
+    id: 'legend_dps', classId: 'archer', name: 'Verity Ashfell',
+    role: 'Kills what comes through',
+    blurb: 'Whatever gets past the door meets her. She has had a great deal of '
+      + 'practice, and has not missed in a very long time.',
   },
 ];
 

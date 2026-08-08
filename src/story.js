@@ -173,7 +173,7 @@ export function checkStory(state = G.state) {
     }
     if (st.chapter >= CHAPTERS.length) {
       st.done = true;
-      log('The questline is finished. The cages are open.', 'unique');
+      log('The Ninth is finished. Two stay at the door. One walks out.', 'unique');
       break;
     }
   }
@@ -204,7 +204,7 @@ export function skipStory(state = G.state) {
   const st = store(state);
   if (!st || st.skipped || st.done) return false;
   st.skipped = true;
-  log('The guild sets the ransom note aside. Every hall and workshop is opened.', 'sys');
+  log('The guild puts the paybook in a drawer. Every hall and workshop is opened.', 'sys');
   emit('story');
   emit('roster');
   return true;
@@ -217,7 +217,7 @@ export function resumeStory(state = G.state) {
   st.skipped = false;
   // Anything already satisfied is credited immediately rather than replayed.
   checkStory(state);
-  log('The guild takes up the ransom note again.', 'sys');
+  log('The guild takes the paybook back out of the drawer.', 'sys');
   emit('story');
   return true;
 }
@@ -226,7 +226,7 @@ export function resumeStory(state = G.state) {
 // The reward
 // ---------------------------------------------------------------------------
 
-/** Whether the cages are open and nobody has been chosen yet. */
+/** Whether the three are waiting at the door and nobody has been named yet. */
 export function legendsWaiting(state = G.state) {
   const st = store(state);
   return !!st && st.done && !st.claimed.legend;
@@ -252,7 +252,7 @@ export function claimLegend(legendId, state = G.state) {
   const st = store(state);
   const def = LEGEND_BY_ID[legendId];
   if (!st || !def) return { ok: false, msg: 'No such legend.' };
-  if (!st.done) return { ok: false, msg: 'The cages are still shut.' };
+  if (!st.done) return { ok: false, msg: 'You have not reached the door yet.' };
   if (st.claimed.legend) return { ok: false, msg: 'Somebody already walked home with you.' };
 
   // Anchored to the content the guild has actually beaten as well as to its own

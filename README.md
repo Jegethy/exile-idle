@@ -365,8 +365,22 @@ export/import and `.json` download/upload.
 
 The guild had no stated purpose. The Charter is a capability ladder with no
 narrative, achievements are explicitly a score that pays nothing, and nothing in
-the game ever said *why*. The questline is the why: a ransom note, a syndicate,
-and a cage full of people worth getting back.
+the game ever said *why*. The questline is the why.
+
+It was not invented alongside the game — it was **read out of it**. The raid and
+dungeon blurbs already described one thing from seven directions: a crowned
+corpse that never accepted the verdict of its own death, a throne room whose
+court still sits, a titan broken into four and buried in graves three of which
+are *now empty*, a crater that keeps getting deeper. Something down there
+refuses to stay buried and something patient has been digging it up. All of that
+was already written. Nobody had said it out loud.
+
+So the antagonist is a **guild**. The Ninth was struck from the rolls two
+centuries ago over a commission it should have refused, never surrendered its
+charter, and never stopped working — which makes it the player's own systems
+turned around, and explains the sealed writs that start dropping at Tier 8
+without inventing a single mechanic. Three legends went down to end it and are
+still down there, holding a door.
 
 It earns its place by doing a second job. Rather than front-loading eight
 systems into the tutorial's first five minutes, each chapter **opens one system
@@ -376,6 +390,25 @@ paid for six tutorial steps being deleted rather than duplicated.
 Twelve chapters in four acts, `data/story.js`. Chapter data only; the engine in
 `story.js` knows about none of them individually, walks the list, and asks the
 current one how far along it is.
+
+| Act | Chapters | Opens | By |
+|---|---|---|---|
+| **Honest Work** | Honest Work · The Wage Ledger · More Hands | Recruiting | ~45m |
+| **Struck From The Rolls** | A Dry Archive · The Ninth · What the Hollow Keeps | Guild Hall, Workbench, Alchemy | ~3h |
+| **The Writ** | The Crowned Corpse · Outstanding Commissions · Three Are Now Empty | Raids, Contracts | ~11h |
+| **The Ninth** | The Long Watch · The Court Still Sits · One of You | the choice | ~18h |
+
+The hook is a **paybook**, not a ransom demand: a crew of nineteen, wages
+settled monthly, the last entry four weeks ago in coin that stopped being minted
+before the flood. A demand tells the player what to think; a ledger that does
+not add up makes them ask.
+
+Six chapters inside the first three hours and six across the next fifteen. The
+front half is onboarding wearing a story and moves fast; the back half is one
+beat per tier band the guild was going to push anyway. It finishes at **Tier 20,
+about eighteen hours** — a quarter of a seventy-four hour game — because
+carrying the finale to Tier 24 would have bought ten more hours of nothing
+happening.
 
 ### Objectives are derived, never accumulated
 
@@ -434,8 +467,19 @@ device would have re-forced the story on somebody who had already played it.
 
 ### The reward is lateral
 
-Three legends, one per role, and one of them follows you home. They are
-`legendary` — the rarity that already exists — carrying a `unique` tag. **Not a
+Three legends, one per role, and one of them follows you home. Not three
+prisoners but three **jobs** — the one who holds the door, the one who keeps the
+other two standing, the one who kills what comes through — which is exactly the
+shape the choice needs. The Cleric blurb was already the character: *"copes when
+a single ally is being hammered"* is the literal job description for keeping two
+people alive at a doorway for two centuries.
+
+**The door takes two to hold and three are holding it**, so exactly one can
+leave. That is what makes the choice permanent without a contrivance, and why
+the other two are gone for good — a route back later would turn the decision
+into a delay. It is meant to cost something.
+
+They are `legendary` — the rarity that already exists — carrying a `unique` tag. **Not a
 tier above Legendary**, and that is the most important decision in the feature.
 The Hiring Hall's entire purpose is chasing a Legendary at eight parts in a
 thousand; a hero strictly better than the best it can ever offer would make

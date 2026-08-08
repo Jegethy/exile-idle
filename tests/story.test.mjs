@@ -43,7 +43,7 @@ export default async function run(browser) {
           },
         };
       });
-      eq(r.chapter, 'first_light', 'a new guild should open on the first chapter');
+      eq(r.chapter, 'honest_work', 'a new guild should open on the first chapter');
       // The game must be playable on its first second.
       for (const always of ['expeditions', 'vault', 'quests', 'roster']) {
         ok(r.tabs[always], `${always} was hidden, and it is the game`);
@@ -52,6 +52,40 @@ export default async function run(browser) {
         ok(!r.tabs[shut], `${shut} was open before the questline reached it`);
       }
       return `chapter 1 of ${r.total}, four tabs open and four shut`;
+    });
+
+    await test('the line is written, ordered, and opens each system exactly once', async () => {
+      // Structural, because the prose will be edited again and the ordering is
+      // the part that quietly breaks. A depth objective that goes backwards
+      // between chapters is a questline that completes two at a time.
+      const r = await page.evaluate(async () => {
+        const { CHAPTERS, LEGENDS, SYSTEMS } = await import('./src/data/story.js');
+        const { CLASS_BY_ID } = await import('./src/data/heroclasses.js');
+        const opened = CHAPTERS.flatMap((c) => c.unlocks ?? []);
+        const tiers = CHAPTERS.filter((c) => /Tier (\d+)/.test(c.objective.text))
+          .map((c) => c.objective.goal);
+        return {
+          thin: CHAPTERS.filter((c) => !c.title || !c.act || (c.narrative ?? '').length < 80)
+            .map((c) => c.id),
+          dupIds: CHAPTERS.length - new Set(CHAPTERS.map((c) => c.id)).size,
+          opened,
+          dupOpens: opened.length - new Set(opened).size,
+          unopened: SYSTEMS.map((x) => x.id).filter((id) => !opened.includes(id)),
+          ascending: tiers.every((t, i) => i === 0 || t > tiers[i - 1]),
+          tiers,
+          rewards: CHAPTERS.filter((c) => c.reward).map((c) => c.id),
+          roles: LEGENDS.map((l) => CLASS_BY_ID[l.classId]?.role).sort(),
+        };
+      });
+      eq(r.thin.join(','), '', 'a chapter has no beat written for it');
+      eq(r.dupIds, 0, 'two chapters share an id, and the id is what the save stores');
+      eq(r.dupOpens, 0, `a system is opened by two chapters: ${r.opened.join(',')}`);
+      eq(r.unopened.join(','), '', 'a gated system is never opened by any chapter');
+      ok(r.ascending, `tier objectives do not ascend: ${r.tiers.join(', ')}`);
+      eq(r.rewards.join(','), 'one_of_you', 'the reward should hang off the last chapter alone');
+      // One per role is the whole shape of the choice.
+      eq(r.roles.join(','), 'DPS,Healer,Tank', 'the three at the door should be one per role');
+      return `12 chapters, ${r.opened.length} systems opened once each, tiers ${r.tiers.join('/')}`;
     });
 
     await test('a chapter opens its system on arrival, not on completion', async () => {
@@ -123,7 +157,7 @@ export default async function run(browser) {
         return { moved, during, after, then: currentChapter()?.id ?? null };
       });
       eq(r.moved, 0, 'the questline advanced during the tutorial');
-      eq(r.during, 'first_light', 'the guild left chapter one mid-tour');
+      eq(r.during, 'honest_work', 'the guild left chapter one mid-tour');
       ok(r.after > 0, 'the questline did not catch up once the tour ended');
       return `held at chapter one, then caught up ${r.after} chapters at the end`;
     });
@@ -164,7 +198,7 @@ export default async function run(browser) {
       ok(!r.before, 'crafting was already open');
       ok(r.afterCraft, 'depth did not open the workbench');
       ok(r.raids && r.contracts, 'depth did not open raids and contracts');
-      eq(r.chapter, 'first_light', 'a natural unlock should not advance the questline');
+      eq(r.chapter, 'honest_work', 'a natural unlock should not advance the questline');
       return 'workbench, raids and contracts opened without the story moving';
     });
 
@@ -194,7 +228,7 @@ export default async function run(browser) {
       eq(r.hidden.join(','), '', 'a tab stayed hidden after skipping');
       ok(r.skipped, 'the skip was not recorded');
       ok(r.resumed, 'the questline could not be taken up again');
-      eq(r.chapter, 'first_light', 'resuming lost the guild its place');
+      eq(r.chapter, 'honest_work', 'resuming lost the guild its place');
       return 'everything opened, and the line was still there afterwards';
     });
 
@@ -245,7 +279,7 @@ export default async function run(browser) {
         return { skipped: storySkipped(loaded), chapter: currentChapter(loaded)?.id ?? null };
       });
       ok(!r.skipped, 'a guild that has never played was treated as an old save');
-      eq(r.chapter, 'first_light', 'a genuinely new guild should start on chapter one');
+      eq(r.chapter, 'honest_work', 'a genuinely new guild should start on chapter one');
       return 'starts on chapter one';
     });
 
@@ -292,7 +326,7 @@ export default async function run(browser) {
         };
       });
       ok(r.complete, 'the questline could not be finished');
-      ok(r.waiting, 'the cages never opened');
+      ok(r.waiting, 'the three were never offered');
       eq(r.legends, 3, 'one legend per role');
       ok(r.took, 'the legend could not be claimed');
       ok(r.secondRefused, 'a second legend was handed over — there is no second visit');

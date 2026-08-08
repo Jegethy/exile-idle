@@ -57,23 +57,23 @@ function activeCard(ch, p) {
 }
 
 /**
- * The three in the cages.
+ * The three at the door.
  *
- * Presented as a choice between *roles* rather than between power levels: all
- * three are Legendary and none is stronger than the others, so the only
- * question is what the guild is short of. The confirmation is worded to say so
- * plainly, because a permanent choice the player thought was about strength is
- * a permanent choice made for the wrong reason.
+ * Presented as a choice between *jobs* rather than between power levels: all
+ * three are Legendary and none is stronger than the others, so the only real
+ * question is what the guild is short of. Said plainly on the screen, because a
+ * permanent choice the player thought was about strength is a permanent choice
+ * made for the wrong reason.
  */
 function legendsCard() {
-  return `<p class="quest-text">The cages open. Three people step out who have been in this
-      trade far longer than you have, and only one of them is going to follow you home.</p>
+  return `<p class="quest-text">The door takes two to hold, and three have been holding it.
+      Two of them stay. One walks out with you, and nobody is coming back for the others.</p>
     <div class="legend-grid">${LEGENDS.map((l) => {
     const cls = CLASS_BY_ID[l.classId];
     return `<div class="quest legend">
         <div class="quest-head"><b>${esc(l.name)}</b>
           <span class="unique-chip">Unique</span></div>
-        <div class="quest-act">${esc(cls?.name ?? '')} · ${esc(cls?.role ?? '')}</div>
+        <div class="quest-act">${esc(l.role ?? '')} · ${esc(cls?.name ?? '')}</div>
         <p class="quest-text">${esc(l.blurb)}</p>
         <button class="btn primary" data-legend="${esc(l.id)}">Take ${esc(l.name.split(' ')[0])}</button>
       </div>`;
@@ -95,7 +95,7 @@ export function renderQuests() {
   const skipped = storySkipped(s);
   const complete = storyComplete(s);
 
-  const head = `<div class="section-head"><span>The Ransom Note</span>
+  const head = `<div class="section-head"><span>The Ninth</span>
     <div class="head-actions">
       <span class="hint">${done.length} of ${CHAPTERS.length}</span>
       ${complete ? '' : (skipped
@@ -108,15 +108,15 @@ export function renderQuests() {
     body = legendsCard();
   } else if (complete) {
     const took = LEGEND_BY_ID[claimedLegend(s)];
-    body = `<p class="hint">The line is finished.${took
-      ? ` ${esc(took.name)} walked home with you.` : ''}</p>`;
+    body = `<p class="hint">The Ninth is finished, and the door is held.${took
+      ? ` ${esc(took.name)} walked out with you; the other two stayed.` : ''}</p>`;
   } else if (skipped) {
     // The point of the wording: nothing was spent and nothing was lost. A guild
-    // that set the note aside can pick it up whenever, and the chapters it has
+    // that shelved the paybook can pick it up whenever, and the chapters it has
     // already satisfied are credited the moment it does.
-    body = '<p class="hint">The guild set the note aside. Every hall and workshop is open. '
+    body = '<p class="hint">The paybook is in a drawer. Every hall and workshop is open. '
       + 'The line is still here, and whatever you have already done counts towards it — '
-      + 'take it up again whenever you like.</p>';
+      + 'take it back out whenever you like.</p>';
   } else if (ch && p) {
     body = activeCard(ch, p);
   } else {
@@ -130,10 +130,10 @@ export function renderQuests() {
   const skip = qs('#btnStorySkip');
   if (skip) {
     skip.onclick = () => confirmAction(
-      'Set the ransom note aside?',
+      'Put the paybook in a drawer?',
       'Every hall and workshop opens straight away, and the guild stops being prompted. '
-      + 'Nothing is lost: the questline stays here, whatever you have already done still '
-      + 'counts towards it, and the legends at the end of it are still yours to win.',
+      + 'Nothing is lost: the line stays here, whatever you have already done still counts '
+      + 'towards it, and the three at the end of it are still yours to reach.',
       () => { skipStory(); renderQuests(); },
     );
   }
@@ -149,8 +149,8 @@ export function renderQuests() {
       if (!def) return;
       confirmAction(
         `${def.name} joins the guild?`,
-        'The other two go their own way, and there is no second visit. All three are '
-        + 'equally capable — this is a choice about which job your guild is short of.',
+        'The other two stay at the door, and nobody is coming back for them. All three '
+        + 'are equally capable — this is a choice about which job your guild is short of.',
         () => { claimLegend(def.id); renderQuests(); },
       );
     };
