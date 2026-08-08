@@ -298,9 +298,60 @@ export function nominalKills(tier) {
  * next to your own is nothing.
  */
 export function xpPerKill(tier) {
-  const LEVEL_SHARE = 1 / 4;             // of a level, per clear, per hero
   const PARTY_REF = 5;                   // the party size the share assumes
-  return (LEVEL_SHARE * xpToNext(tierToLevel(tier)) * PARTY_REF) / nominalKills(tier);
+  return (xpToNext(tierToLevel(tier)) * PARTY_REF)
+    / (clearsPerLevel(tier) * nominalKills(tier));
+}
+
+/**
+ * How many clears one level costs, at a tier fought at its own level.
+ *
+ * This used to be four, flat, at every depth — and four clears a level is the
+ * whole reason a save left running overnight came back with level 131 heroes
+ * standing in Tier 20 content built for level 69. At the observed fifty-odd
+ * expeditions an hour, a flat four is fourteen levels an hour and the game's
+ * entire ninety-level range is about six hours of wall clock.
+ *
+ * Four is right at Tier 1, where a level should arrive while you are still
+ * learning what the buttons do. It is absurd at Tier 30. So the cost climbs
+ * with depth: roughly five clears a level in the opening tiers, twenty in the
+ * middle, fifty at the bottom of the game. The early hours feel exactly as
+ * they did; the deep ones become the marathon they are supposed to be.
+ */
+export function clearsPerLevel(tier) {
+  return 3 + tier * 1.8;
+}
+
+/**
+ * How far above a tier's own level a hero can still learn anything from it.
+ *
+ * Beyond this, a kill teaches nothing at all. The comment that used to sit on
+ * xpPerKill claimed over-levelling was "self-limiting, with no rule needed for
+ * it" — and it was, in the sense that it merely got slow rather than stopping.
+ * At level 131 a Tier 20 clear was still worth a two-hundredth of a level, and
+ * a night of idling is a great many two-hundredths.
+ *
+ * Twelve is chosen against the two numbers either side of it. The level cliff
+ * (see expedition/balance.js) walls a party ten levels *under* content, and a
+ * tier is worth about 3.6 levels — so a hero parked at the ceiling of one tier
+ * is still eight levels short of the ceiling of the next, and can always climb
+ * out by pushing deeper. There is no way to grind yourself into a dead end,
+ * only a way to stop being paid for standing still.
+ */
+export const XP_GREY = 12;
+
+/**
+ * The share of an enemy's experience a hero of this level still earns from it.
+ *
+ * Squared rather than linear so the first few levels of over-levelling barely
+ * register — outgrowing content slightly should not feel like a punishment —
+ * and the last few fall away sharply.
+ */
+export function xpGapMult(heroLevel, contentLevel) {
+  const over = (heroLevel ?? contentLevel) - contentLevel;
+  if (over <= 0) return 1;
+  if (over >= XP_GREY) return 0;
+  return 1 - (over / XP_GREY) ** 2;
 }
 
 /**

@@ -663,17 +663,62 @@ export default async function run() {
     // level behind per tier: farming Tier 9 left them level 21 against level 30
     // enemies, and by Tier 12 they were seventeen under. That is what made the
     // cliff above impossible to add without this.
-    const { xpPerKill, nominalKills, tierToLevel } = await import('../src/data/dungeons.js');
+    //
+    // The anchor used to be a flat quarter of a level per clear at every
+    // depth, and that is no longer the claim. Four clears a level is right at
+    // Tier 1 and absurd at Tier 30: at the fifty-odd expeditions an hour a
+    // real save actually manages, it is fourteen levels an hour and the whole
+    // ninety-level range is about six hours of wall clock. What still has to
+    // hold is that a clear is always worth *something* — a tier that cannot
+    // level you into the next one is a wall — and that the cost climbs.
+    const { xpPerKill, nominalKills, tierToLevel, clearsPerLevel } = await import('../src/data/dungeons.js');
     const { xpToNext } = await import('../src/state.js');
-    const rows = [4, 9, 16, 24, 32].map((tier) => ({
+    const rows = [1, 4, 9, 16, 24, 32].map((tier) => ({
       tier,
       share: (xpPerKill(tier) * nominalKills(tier)) / 5 / xpToNext(tierToLevel(tier)),
+      cost: clearsPerLevel(tier),
     }));
     for (const x of rows) {
-      ok(x.share > 0.15 && x.share < 0.4,
-        `a Tier ${x.tier} clear is worth ${(x.share * 100).toFixed(0)}% of a level, not a quarter`);
+      // Never nothing, or the tier cannot carry you to the next one.
+      ok(x.share > 0.01,
+        `a Tier ${x.tier} clear is worth ${(x.share * 100).toFixed(1)}% of a level — that is a wall`);
+      // Crossing a tier is 2-4 levels; more than a couple of hundred clears
+      // for one of them is a grind rather than a marathon.
+      ok(x.cost < 70, `a level at Tier ${x.tier} costs ${x.cost.toFixed(0)} clears`);
     }
-    return `a clear is worth about ${(rows[0].share * 100).toFixed(0)}% of a level at every depth`;
+    // The opening has to stay quick. A first level that takes twenty clears is
+    // a tutorial nobody finishes.
+    ok(rows[0].cost <= 6, `the first level costs ${rows[0].cost.toFixed(1)} clears`);
+    const deep = rows[rows.length - 1];
+    ok(deep.cost > rows[0].cost * 5,
+      `a level costs ${deep.cost.toFixed(0)} clears at Tier ${deep.tier} against `
+      + `${rows[0].cost.toFixed(0)} at Tier 1 — the deep game is not a marathon`);
+    return `a level costs ${rows[0].cost.toFixed(0)} clears at Tier 1 and `
+      + `${deep.cost.toFixed(0)} at Tier ${deep.tier}`;
+  });
+
+  await test('you cannot level on content you have outgrown', async () => {
+    // The failure this guards: a save left running overnight came back with
+    // level 131 heroes standing in Tier 20 content built for level 69. The old
+    // comment on xpPerKill claimed over-levelling was "self-limiting, with no
+    // rule needed for it" — and it was, in the sense that a clear was still
+    // worth a two-hundredth of a level. A night is a great many two-hundredths.
+    const { xpGapMult, XP_GREY, tierToLevel } = await import('../src/data/dungeons.js');
+    const content = tierToLevel(20);
+    const at = (over) => xpGapMult(content + over, content);
+    ok(at(0) === 1, 'a level-matched hero does not earn full experience');
+    ok(at(-5) === 1, 'an under-levelled hero is penalised for it');
+    // Slightly ahead should barely register; far ahead should be nothing.
+    ok(at(2) > 0.9, `two levels over already costs ${((1 - at(2)) * 100).toFixed(0)}%`);
+    ok(at(XP_GREY - 1) < 0.2, 'the falloff never really bites');
+    eq(at(XP_GREY), 0, 'content far below a hero still teaches them something');
+    eq(at(62), 0, 'a level 131 hero still learns from level 69 enemies');
+    // ...and the ceiling has to sit above the next tier's floor, or a hero can
+    // grind themselves into a corner they cannot climb out of.
+    const step = tierToLevel(21) - tierToLevel(20);
+    ok(XP_GREY > step + 4,
+      `the grey ceiling is ${XP_GREY} and a tier is ${step} levels — too tight to climb out of`);
+    return `full to +0, ${(at(6) * 100).toFixed(0)}% at +6, nothing at +${XP_GREY}`;
   });
 
   await test('guild experience is the same wherever it is earned', async () => {

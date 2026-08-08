@@ -73,24 +73,39 @@ export default async function run(browser) {
     // Eight attempts rather than four. At four this failed about once in
     // twenty runs, which is often enough to be noise in a full-suite run and
     // rare enough to look like a real regression when it lands.
-    let healed = 0;
+    // Every attempt is run and the columns totalled, rather than breaking out
+    // at the first one that healed and then asserting against whatever run
+    // that happened to be. "A Tank is the one who gets hit" is a property of
+    // how threat behaves over a fight, not a guarantee about any single
+    // expedition: a tank that goes down early leaves the back row to be
+    // chewed on, and one run in eight can legitimately end with a damage
+    // class top of the column. Reading a per-run outcome as if it were the
+    // rule is the same mistake this test's own healing check already fixed.
+    const total = { Tank: { taken: 0, dealt: 0 }, DPS: { taken: 0, dealt: 0 }, Healer: { healed: 0 } };
     let last = null;
     for (let attempt = 0; attempt < 8; attempt++) {
       last = await runOnce(page);
-      const heal = last.heroes.find((h) => h.role === 'Healer');
-      if ((heal?.healingDone ?? 0) > 0) { healed = heal.healingDone; break; }
+      for (const h of last.heroes) {
+        if (total[h.role]) {
+          total[h.role].taken = (total[h.role].taken ?? 0) + (h.damageTaken ?? 0);
+          total[h.role].dealt = (total[h.role].dealt ?? 0) + (h.damageDealt ?? 0);
+        }
+        if (h.role === 'Healer') total.Healer.healed += h.healingDone ?? 0;
+      }
     }
-    const byRole = Object.fromEntries(last.heroes.map((h) => [h.role, h]));
-    ok(byRole.DPS.damageDealt > 0, 'the damage class dealt nothing');
-    ok(healed > 0, 'the healer healed nothing across four expeditions');
-    // A Tank exists to be hit. If it is not top of the damage-taken column,
-    // either threat is broken or the summary is reading the wrong field.
-    const mostHit = last.heroes.slice().sort((a, b) => b.damageTaken - a.damageTaken)[0];
-    eq(mostHit.role, 'Tank', `${mostHit.role} took the most damage, not the Tank`);
-    ok(byRole.DPS.damageDealt > byRole.Tank.damageDealt,
+    const healed = total.Healer.healed;
+    ok(total.DPS.dealt > 0, 'the damage class dealt nothing');
+    ok(healed > 0, 'the healer healed nothing across eight expeditions');
+    // A Tank exists to be hit. If it is not top of the damage-taken column
+    // across eight runs, either threat is broken or the summary is reading
+    // the wrong field.
+    ok(total.Tank.taken > total.DPS.taken,
+      `over eight runs the damage class soaked more than the Tank `
+      + `(${Math.round(total.DPS.taken)} vs ${Math.round(total.Tank.taken)})`);
+    ok(total.DPS.dealt > total.Tank.dealt,
       'the Tank out-damaged the damage class');
-    return `Tank soaked ${Math.round(byRole.Tank.damageTaken)}, `
-      + `DPS dealt ${Math.round(byRole.DPS.damageDealt)}, `
+    return `over 8 runs: Tank soaked ${Math.round(total.Tank.taken)}, `
+      + `DPS dealt ${Math.round(total.DPS.dealt)}, `
       + `Healer restored ${Math.round(healed)}`;
   });
 

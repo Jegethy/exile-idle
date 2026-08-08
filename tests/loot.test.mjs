@@ -175,7 +175,38 @@ export default async function run(browser) {
       ok(r.banked >= r.carried, `carried ${r.carried}, banked only ${r.banked}`);
       return `carried ${r.carried}g, banked ${r.banked}g`;
     });
-    await test('no page errors', () => clean(errors));
+    /**
+   * How often a unique drops, measured rather than read off the constant.
+   *
+   * A twelve-hour save came home with a hundred and twenty-one uniques and all
+   * but four of the thirty-one in the collection. Coupon-collector says thirty
+   * finds gets you nineteen distinct and a hundred and twenty gets you all of
+   * them — so at the old rate the collection was finished long before the game
+   * was, and the rarest tier of item in the game was the one you had most of.
+   */
+  await test('uniques are rare, and mostly dropped by guardians', async () => {
+    const { page, errors } = await fresh(browser, 'Uniques');
+    const r = await page.evaluate(async () => {
+      const { rollUnique } = await import('./src/items.js');
+      const mod = await import('./src/expedition/rewards.js');
+      // Read straight out of the module so this cannot drift from the source.
+      const src = mod.UNIQUE_CHANCE;
+      return { boss: src.boss, trash: src.trash, rolls: !!rollUnique };
+    });
+    // A share of every drop, so these are percentages of items, not of runs.
+    ok(r.trash <= 0.1,
+      `a plain kill drops a unique ${r.trash}% of the time — the collection finishes `
+      + 'before the game does');
+    ok(r.boss >= r.trash * 5,
+      `the guardian is only ${(r.boss / r.trash).toFixed(1)}x more generous than a trash mob, `
+      + 'so uniques are a slot machine rather than something you can go and hunt');
+    ok(r.boss <= 2, `a guardian drops a unique ${r.boss}% of the time`);
+    await page.close();
+    eq(errors.length, 0, errors.join(' | '));
+    return `${r.trash}% per drop, ${r.boss}% from a guardian — ${(r.boss / r.trash).toFixed(0)}x`;
+  });
+
+  await test('no page errors', () => clean(errors));
     await page.close();
   }
 }

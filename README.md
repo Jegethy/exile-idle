@@ -1122,6 +1122,89 @@ and the highlighted card agree without anyone having clicked a party; and a
 party in the field offers neither control, because editing a party that is
 currently underground is not a thing that can be made to mean anything.
 
+## An idle game measured in hours is not an idle game
+
+A save left running overnight came back with **level 131 heroes farming Tier 20
+content built for level 69**, 707 expeditions cleared at a 100% clear rate, and
+all but four of the thirty-one uniques collected — in twelve and a half hours.
+
+Three separate faults, and the first one is the reason the other two were
+invisible.
+
+### You could level for ever on content you had outgrown
+
+`xpPerKill` is anchored to the level of the *content*, and the comment on it
+claimed this made over-levelling "self-limiting, with no rule needed for it".
+It was self-limiting in the sense that it got slow: at level 131 a Tier 20 clear
+was still worth a two-hundredth of a level. A night of idling is a great many
+two-hundredths.
+
+There is now a hard falloff. `xpGapMult` pays full experience at or below the
+content's level, decays quadratically above it — two levels over barely
+registers — and pays **nothing** at twelve levels over.
+
+Twelve is chosen against the two numbers either side of it. The level cliff
+walls a party ten levels *under* content, and a tier is worth about 3.6 levels,
+so a hero parked at one tier's ceiling is still eight levels short of the next
+tier's ceiling and can always climb out by pushing deeper. There is no way to
+grind yourself into a dead end, only a way to stop being paid for standing
+still. It is applied per hero rather than per kill, because a party is rarely
+all one level.
+
+### Four clears a level, at every depth
+
+That was the anchor, flat, from Tier 1 to Tier 30. Four is right at Tier 1,
+where a level should arrive while you are still learning what the buttons do.
+At the fifty-odd expeditions an hour a real save manages, it is **fourteen
+levels an hour**, and the game's whole ninety-level range is about six hours.
+
+`clearsPerLevel` now climbs with depth — about five clears a level in the
+opening tiers, twenty in the middle, sixty at the bottom of the game.
+
+### What that adds up to
+
+`tests/pacing.mjs` walks the real curves rather than combat: it awards
+experience exactly as `rewards.js` does, levels with `xpToNext`, and pushes a
+tier when a party could actually clear it. Validated against the observed rate
+of 56 clears an hour:
+
+| | Clears | Hours | Ends at |
+|---|---|---|---|
+| Before | 399 | 7.1 | hero 103 |
+| After | **4,130** | **74** | hero 103, guild 26 |
+
+**Ten times longer** — 18 days at four hours a day, and that is a floor, because
+a party pinned near content level clears roughly half its runs rather than all
+of them. The shape matters as much as the total: Tier 5 inside an hour, Tier 10
+at four hours, Tier 20 at eighteen. The Charter now spreads its privileges
+across the whole game — guild level 5 by Tier 5, 12 by Tier 10, 19 by Tier 20 —
+instead of being spent before lunch.
+
+Guild experience is deliberately *not* gap-gated. Guild level is the guild's
+standing rather than a hero's learning, and it leaves a player who has reached
+the content ceiling something still accruing.
+
+### Gold was never the problem
+
+Worth recording because it was the obvious suspect and it was innocent. Every
+gold upgrade in the Guild Hall costs **258 million** in total. The overnight
+save had 2.27M, which is 0.9% of it — about 1,400 hours of sink at the rate it
+was earning. Gold was untouched.
+
+### Uniques finished before the game did
+
+121 found and all but four of the collection, because every drop had a 0.45%
+chance and a clear produces about thirteen drops. Coupon-collector arithmetic:
+thirty finds gets you nineteen of the thirty-one distinct, and a hundred and
+twenty gets you all of them.
+
+Cut to **0.05% from an ordinary kill and 0.9% from a guardian** — and the
+re-weighting is the part that is not just arithmetic. A flat cut makes uniques a
+slower slot machine on every drop; putting them eighteen-to-one behind the
+guardian gives them a source you can go and hunt, and pays the run that
+*finishes* rather than the run that farms, which is the same thing the loot
+escrow already says.
+
 ## A tier is a tier, whichever dungeon you take it in
 
 This README has always said the following, and it was not true:
@@ -1491,6 +1574,7 @@ tests/              headless browser suites (npm test)
   sim.mjs           the real engine, driven headlessly for balance figures
   specbalance.mjs   what each specialisation is worth (run by hand, not in CI)
   dungeonbalance.mjs  is a tier a tier, whichever dungeon (run by hand)
+  pacing.mjs        how long the whole game is, walked over the real curves
 ```
 
 A panel never imports another panel to redraw it — it emits, and `ui.js` decides

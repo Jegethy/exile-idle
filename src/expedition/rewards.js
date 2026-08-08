@@ -4,7 +4,7 @@
 // only becomes the guild's when somebody walks out with it.
 
 import {
-  DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl, DEEP_ILVL, BLANK_ILVL, xpPerKill, guildXpFor,
+  DUNGEON_BY_ID, RAID_BY_ID, tierToIlvl, DEEP_ILVL, BLANK_ILVL, xpPerKill, xpGapMult, guildXpFor,
 } from '../data/dungeons.js';
 import { gradeForIlvl, materialOf } from '../data/materials.js';
 import { guildEffects } from '../data/upgrades.js';
@@ -46,13 +46,26 @@ export function onEnemyKilled(run, enemy) {
   run.rewards.gold += gold;
 
   // --- Experience, split across the party ---
+  //
+  // Scaled per hero rather than per kill, because the gap is a property of the
+  // hero and a party is rarely all one level. A hero far above what they are
+  // fighting learns nothing from it — see xpGapMult. Without that, a night of
+  // idling in Tier 20 produced level 131 heroes standing in content built for
+  // level 69, and there was no reason left to push anywhere.
   const xpTotal = xpPerKill(run.tier) * enemy.xpMult * focus.xp;
   const survivors = run.combatants.filter((c) => !c.down);
+  const share = xpTotal / Math.max(1, survivors.length);
+  let awarded = 0;
   for (const c of survivors) {
-    const share = xpTotal / Math.max(1, survivors.length);
-    run.haul.heroXp[c.uid] = (run.haul.heroXp[c.uid] ?? 0) + share;
+    const earned = share * xpGapMult(c.level ?? run.level, run.level);
+    if (earned <= 0) continue;
+    run.haul.heroXp[c.uid] = (run.haul.heroXp[c.uid] ?? 0) + earned;
+    awarded += earned;
   }
-  run.rewards.xp += xpTotal;
+  // The reported figure is what the party actually learned, not what the
+  // enemy was theoretically worth — a summary claiming experience nobody
+  // received is how this went unnoticed for as long as it did.
+  run.rewards.xp += awarded;
 
   // --- Gear ---
   // A guild equips a whole roster, not one character: five heroes across nine
@@ -96,9 +109,29 @@ function dropMaterial(run) {
   if (grade >= 3 && rng.chance(0.3)) log(`${mat.name} recovered from ${run.name}.`, 'unique');
 }
 
+/**
+ * Chance a single drop is unique, before rarity bonuses.
+ *
+ * Cut hard, and deliberately re-weighted toward the guardian rather than
+ * lowered evenly. A twelve-hour save found a hundred and twenty-one uniques and
+ * had all but four of the thirty-one in the collection — at 0.45% of every drop
+ * across roughly thirteen items a clear, the collection was finished before the
+ * game was. Coupon-collector says thirty finds gets you nineteen of thirty-one
+ * and a hundred and twenty gets you all of them, so a full playthrough should
+ * produce something like the latter, not five times it.
+ *
+ * Weighting them onto the boss is the part that is not just arithmetic. A flat
+ * cut makes uniques a slower slot machine on every drop; putting them behind
+ * the guardian gives them a source you can aim at, and it pays the run that
+ * finishes rather than the run that farms — which is the same thing the loot
+ * escrow already says.
+ */
+export const UNIQUE_CHANCE = { boss: 0.9, trash: 0.05 };
+
 function dropGear(run, rarityBonus, fromBoss) {
   const roll = rng.float() * 100;
-  const uniqueCut = (fromBoss ? 2.2 : 0.45) * (1 + rarityBonus / 250)
+  const uniqueCut = (fromBoss ? UNIQUE_CHANCE.boss : UNIQUE_CHANCE.trash)
+    * (1 + rarityBonus / 250)
     * (1 + (run.find?.unique ?? 0) / 100);
   const rareCut = uniqueCut + 8 * (1 + rarityBonus / 100);
   const magicCut = rareCut + 32 * (1 + rarityBonus / 200);
