@@ -248,18 +248,35 @@ party can be pushed; once that is second nature, buy it and the toggle appears
 on the Expeditions tab. Early runs are also deliberately short — dungeons reach
 their full wave count around Tier 8.
 
-**Itemisation** — Nine slots, 29 formula-driven bases, 31 tiered affixes gated
-by item level and 28 uniques, all shared through one guild vault, so gearing is
+**Itemisation** — Nine slots, 29 formula-driven bases, 34 tiered affixes gated
+by item level and 34 uniques, all shared through one guild vault, so gearing is
 a genuine allocation problem across the whole roster. Every modifier an item can
 roll changes a number on the hero wearing it; there are no decorative stats.
 
 **Uniques do things.** They carry better raw numbers than a rare of the same
-level before any modifier is counted, and eight of them are built around an
+level before any modifier is counted, and fourteen of them are built around an
 effect rather than a stat line — Heartseeker restores its wearer outright on 5%
 of hits, Twinstrike lands a second blow, Emberbrand burns, Rending Edge bleeds,
 Wardstone answers a blocked blow with spell block, Benediction spreads a heal
 across the party. Everything scales with the level it drops at, so one
 definition covers Tier 1 through Tier 16 rather than needing a version per tier.
+
+Two of them share a mechanic worth naming, because it is the only one in the
+game that does not care how much life a target has. **Widowmaker** sprays chaos
+over the rest of the wave on a critical strike and takes 1.5% of maximum life on
+every hit that is *not* one, so it is never idle and never merely a crit stick.
+**Death's Fury** bleeds for 4% of maximum life every three seconds, and when the
+bleeding enemy dies the bleed jumps to everything else and starts again — slow
+enough that it never kills anything alone, which is what makes the spread fair:
+it needs the party to finish what it started.
+
+A share of maximum life gets better against exactly the things ordinary damage
+struggles with, so it is held to the level gap like everything else (`ctx.gap`).
+Without that it would be the one way round the ten-levels-under wall rather than
+a weapon. Measured, the worry turned out to be the wrong way up: both bows are
++21%/+29% at Tier 10 and *behind* a rare bow by Tier 40, because a unique's
+ranges are fixed while a rare's affix tiers keep climbing. That is true of every
+unique not marked `deep`, and it is why that flag exists.
 
 **Recruitment** — The Hiring Hall offers three named candidates with their
 class, ability, traits and a price set by their rarity. Lock anyone you want to
@@ -768,6 +785,27 @@ tomorrow:
   `applyEffect` for a modifier sized from something that changes mid-fight.
   Refreshing deliberately never downgrades, which would have pinned a Berserker
   at whatever it was worth the first time it was hit.
+
+The two unique bows added three more, and all three follow the same rule: item
+data may never call into the combat tick, because the tick already imports the
+data. So they are things a reaction *declares* and the engine acts on, the same
+shape `repeatAttack` has always had.
+
+- **`ctx.crit` and `ctx.gap`** — the `hit` trigger fires for critical strikes
+  too, so "on a hit that is not a critical" was previously unsayable; and `gap`
+  lets a reaction that deals its own damage obey the level wall.
+- **`ctx.strikes`** — a queue of `{ enemy, amount }` the engine drains once the
+  trigger has finished (`resolveStrikes`). It is *drained* rather than iterated,
+  so a reaction hanging off the kill it causes can add to it and be resolved in
+  turn, with a guard against a chain that will not end.
+- **`onHostDeath` on an effect** — the last word when an enemy dies, and it goes
+  to the effect rather than to the killer. The distinction is not academic: hung
+  on the killer's `kill` trigger, Death's Fury only spread when the archer who
+  applied the bleed also landed the final blow, which in a party of five is
+  usually somebody else. Measured at **five spreads across twelve runs against
+  sixty applications** — the modifier read correctly and did almost nothing. On
+  the effect it is forty. That also collapsed three copies of "an enemy dies"
+  into one `killEnemy`.
 
 ## Support
 

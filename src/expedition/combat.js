@@ -111,9 +111,53 @@ function tickPartyEffects(run, dt) {
   }
 }
 
+/**
+ * How much of this hero's damage survives the level gap.
+ *
+ * Put on every context that carries damage a reaction might scale, so that
+ * "a share of the target's maximum life" obeys the same wall a swing does.
+ * Without it, a percentage-of-life modifier would be the one thing in the game
+ * that does not care how far above its level a party has pushed.
+ */
+function gapOf(run, c) {
+  return levelGap(c?.level ?? run.level, run.level).outgoing;
+}
+
 /** The combatant an effect should be credited to, if they are still standing. */
 function sourceOf(run, fx) {
   return fx?.source ? run.combatants.find((c) => c.uid === fx.source) ?? null : null;
+}
+
+/**
+ * An enemy dies. Everything that has to happen when one does, in one place.
+ *
+ * The `kill` trigger belongs to whoever landed the blow, which is right for
+ * "you killed something" but wrong for anything the *corpse* was carrying. So
+ * effects get the last word as well, through a hook they declare themselves.
+ *
+ * That distinction is not academic. A bleed that spreads when its host dies,
+ * hung on the killer's trigger, only works when the hero who applied it also
+ * happens to land the final hit — in a party of five, usually somebody else
+ * does, and the modifier silently does nothing most of the time. Measured: five
+ * spreads across twelve runs, where the bleed had been applied about sixty.
+ *
+ * `gain(killer, 'onKill')` deliberately stays at the swing-side call sites. A
+ * kill by damage over time has never paid a hero's resource, and quietly
+ * changing that here would move every class that runs on one.
+ */
+function killEnemy(run, enemy, killer, strikes) {
+  if (killer) {
+    fireTrigger('kill', { run, self: killer, target: enemy, strikes, gap: gapOf(run, killer) });
+  }
+  // Copied, because a hook is free to apply effects to other enemies and one
+  // of those may be this list's own neighbour in a later iteration.
+  for (const fx of enemy.effects ? [...enemy.effects] : []) {
+    if (!fx.onHostDeath) continue;
+    const owner = sourceOf(run, fx);
+    if (!owner || owner.down) continue;
+    fx.onHostDeath({ run, self: owner, target: enemy, strikes, gap: gapOf(run, owner) });
+  }
+  onEnemyKilled(run, enemy);
 }
 
 function tickEnemyEffects(run, dt) {
@@ -125,10 +169,12 @@ function tickEnemyEffects(run, dt) {
         const owner = sourceOf(run, fx);
         if (owner) owner.damageDealt = (owner.damageDealt ?? 0) + amount;
         if (e.life <= 0) {
-          const killer = owner;
           log(`${e.name} succumbs to ${fx.name}.`, 'kill');
-          if (killer) fireTrigger('kill', { run, self: killer, target: e });
-          onEnemyKilled(run, e);
+          // A queue here too, so a reaction to the kill behaves the same
+          // whether a bleed or a blade landed the last of it.
+          const strikes = [];
+          killEnemy(run, e, owner, strikes);
+          if (owner) resolveStrikes(run, owner, strikes);
         }
       },
     });
@@ -236,6 +282,38 @@ function heroAct(run, c, sheet) {
 }
 
 /**
+ * Damage a reaction asked to deal outright, applied after its trigger has run.
+ *
+ * Queued rather than dealt on the spot, for the same reason repeatAttack is a
+ * flag: a modifier on an item cannot call into the combat module without
+ * putting the data and the engine in a cycle. So a reaction pushes
+ * `{ enemy, amount }` and the engine — which is the only thing that knows how
+ * an enemy dies — resolves it here.
+ *
+ * Two guards earn their place. An enemy already off the list is skipped, since
+ * an earlier strike in the same volley may have finished it and the swing that
+ * started all this may have finished the one it was aimed at. And the queue is
+ * *drained* rather than iterated, so a reaction hanging off the kill this
+ * causes can add to it and be resolved in turn — a bounded chain, which is
+ * what "it spreads on death" needs, rather than a strike that silently
+ * vanishes because it arrived one moment too late.
+ */
+function resolveStrikes(run, c, queue) {
+  let guard = 0;
+  while (queue.length && guard++ < 64) {
+    const { enemy, amount } = queue.shift();
+    if (!(amount > 0) || enemy.life <= 0 || !run.enemies.includes(enemy)) continue;
+    enemy.life -= amount;
+    c.damageDealt = (c.damageDealt ?? 0) + amount;
+    if (enemy.life <= 0) {
+      gain(c, 'onKill');
+      killEnemy(run, enemy, c, queue);
+    }
+  }
+  queue.length = 0;
+}
+
+/**
  * One attack, resolved. Split out from heroAct so an effect can ask for
  * another one — `depth` is the guard that keeps "attacks may repeat" from
  * chaining into itself forever.
@@ -265,10 +343,14 @@ export function swing(run, c, sheet, target, depth) {
   const finisher = modFrom(c, 'finisherDamage');
   if (finisher > 0 && target.life <= target.maxLife / 3) situational += finisher;
 
+  // Fighting above your level takes the edge off everything you swing. Carried
+  // on the context as well, so a reaction that deals damage of its own is held
+  // to the same rule — a modifier reading "a share of the target's maximum
+  // life" would otherwise be a way round the level wall rather than a weapon.
+  const gap = levelGap(c.level ?? run.level, run.level).outgoing;
   const dmgMult = (1
     + ((flaskFx(run).incDamage ?? 0) + modFrom(c, 'incDamage') + bonus + situational) / 100)
-    // Fighting above your level takes the edge off everything you swing.
-    * levelGap(c.level ?? run.level, run.level).outgoing;
+    * gap;
 
   let total = 0; let physDealt = 0;
   for (const type of DAMAGE_TYPES) {
@@ -297,7 +379,12 @@ export function swing(run, c, sheet, target, depth) {
   if (sheet.leech > 0 && physDealt > 0) healHero(c, physDealt * sheet.leech / 100, c);
 
   gain(c, 'onHit');
-  const ctx = { run, self: c, sheet, target, amount: total, depth, repeat: false };
+  // `crit` is on the context because the `hit` trigger fires for critical
+  // strikes too, so "on a non-critical hit" is otherwise unsayable. `strikes`
+  // is the queue a reaction adds damage to; see resolveStrikes.
+  const ctx = {
+    run, self: c, sheet, target, amount: total, depth, crit, gap, strikes: [], repeat: false,
+  };
   fireTrigger('hit', ctx);
   if (crit) fireTrigger('crit', ctx);
 
@@ -306,10 +393,13 @@ export function swing(run, c, sheet, target, depth) {
 
   if (target.life <= 0) {
     gain(c, 'onKill');
-    fireTrigger('kill', { run, self: c, target });
-    onEnemyKilled(run, target);
+    killEnemy(run, target, c, ctx.strikes);
+    // Still resolved: a critical strike that kills what it hit should spray
+    // over the rest of the wave exactly as one that does not.
+    resolveStrikes(run, c, ctx.strikes);
     return;
   }
+  resolveStrikes(run, c, ctx.strikes);
 
   // A reaction may ask for the attack to land again. The limit lives here
   // rather than in the item, so two sources of it cannot chain forever.

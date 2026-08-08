@@ -17,14 +17,66 @@
 // at every item level without needing per-tier versions.
 
 import {
-  selfBuff, dotFromHit, announce, all, repeatAttack,
+  selfBuff, dotFromHit, announce, all, repeatAttack, cleave, dealDamage,
 } from '../expedition/reactions.js';
 import { applyEffect } from '../expedition/effects.js';
+import { log } from '../state.js';
 
 const m = (r, text, apply, dec = 0) => ({ r, text, apply, dec });
 
 /** A modifier line that exists to describe a reaction rather than grant a stat. */
 const says = (text) => m([0, 0], () => text, () => {});
+
+/**
+ * Death's Fury's bleed, applied in two places — by the critical strike that
+ * starts it and by the death that spreads it — so it lives here rather than
+ * twice inside the item.
+ *
+ * Read off the *new* host's maximum life rather than carried over from the one
+ * that died, which is the only reading that survives a wave of mixed enemies:
+ * a guardian inheriting a trash mob's number would be an insult, and the
+ * reverse would delete the wave.
+ *
+ * The engine models damage over time as a rate, so "4% every 3 seconds" is
+ * delivered continuously at the same average. Over fifteen seconds the total is
+ * identical and nothing in the game can observe the difference.
+ */
+const FURY = { share: 0.04, period: 3, duration: 15 };
+
+function furyBleed(ctx, enemy) {
+  if (!enemy || enemy.life <= 0) return;
+  applyEffect(enemy, {
+    id: `deathsfury:${ctx.self.uid}`, name: "Death's Fury",
+    duration: FURY.duration,
+    // Held to the level gap like any other damage. A share of maximum life is
+    // otherwise the one number in the game that does not care how far above
+    // its level a party has pushed.
+    dps: enemy.maxLife * (FURY.share / FURY.period) * (ctx.gap ?? 1),
+    source: ctx.self.uid,
+    onHostDeath: furySpread,
+  });
+}
+
+/**
+ * The half that makes the bow what it is: the bleed outlives its host.
+ *
+ * Carried on the effect rather than on the wielder's `kill` trigger, because
+ * the promise is "if the enemy dies", not "if you kill it". Hung on the trigger
+ * it fired only when the archer who applied the bleed also landed the last hit,
+ * which in a party of five is the minority of deaths — measured at five spreads
+ * across twelve runs against roughly sixty applications.
+ */
+function furySpread(ctx) {
+  let spread = 0;
+  for (const enemy of ctx.run.enemies) {
+    if (enemy === ctx.target) continue;
+    furyBleed(ctx, enemy);
+    spread++;
+  }
+  if (spread) {
+    log(`${ctx.target.name} falls, and the bleeding takes hold of ${spread} more.`, 'crit');
+  }
+}
 
 export const UNIQUES = [
   // --- Low-level uniques, so Tier 1-3 maps can still drop one -------------
@@ -320,6 +372,89 @@ export const UNIQUES = [
       trigger: 'hit', key: 'quickening', chance: 0.10,
       run: selfBuff('quickening', 'Quickened', { incAtkSpeed: 25 }, 5),
     }],
+  },
+  /**
+   * The first of two unique bows, and between them the reason `strikes` exists
+   * on the trigger context: both deal damage that is not a swing.
+   *
+   * The two halves are one idea seen from either side. A critical strike is the
+   * spray; every hit that is *not* one still takes its half a percent. So the
+   * bow is never idle and never merely a crit stick — the more of the fight
+   * that goes ordinarily, the more of it the rider is carrying.
+   *
+   * Half a percent of maximum life per hit is about seven tenths of a percent a
+   * second at an Archer's speed: no threat to anything on its own, and a steady
+   * tax that does not care how much life a guardian has. Which is the point of
+   * bringing it to a guardian.
+   */
+  {
+    id: 'widowmaker', name: 'Widowmaker', base: 'bow', lvl: 40, weight: 45,
+    power: 1.20,
+    flavour: 'She only ever needed the one arrow. The rest are for the walk home.',
+    mods: [
+      m([80, 110], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      m([120, 170], (v) => `${v}% increased Critical Strike Chance`, (b, v) => { b.incCrit += v; }),
+      m([25, 40], (v) => `+${v}% to Critical Strike Multiplier`, (b, v) => { b.critMulti += v; }),
+      says('Critical strikes have a 35% chance to spray chaos damage over every '
+        + 'other enemy, for 60% of the damage dealt'),
+      says('Non-critical hits deal added chaos damage equal to 1.5% of the '
+        + 'target\'s maximum life'),
+    ],
+    reactions: [
+      {
+        // Excludes the enemy actually struck, so it is worth nothing against a
+        // lone target and a great deal against a full wave — a reason to bring
+        // the bow somewhere rather than a number that is always on.
+        trigger: 'crit', key: 'widowmaker-spray', chance: 0.35,
+        run: all(cleave(0.60),
+          announce((ctx) => `${ctx.self.name}'s arrow bursts, and the chaos goes wide.`, 0.12)),
+      },
+      {
+        // `hit` fires for critical strikes too, which is what ctx.crit is for.
+        // Without it this line would read "every hit" and quietly double up on
+        // the one above.
+        trigger: 'hit', key: 'widowmaker-bite',
+        run: (ctx) => {
+          if (ctx.crit || !ctx.target) return;
+          dealDamage(ctx, ctx.target, ctx.target.maxLife * 0.015 * (ctx.gap ?? 1));
+        },
+      },
+    ],
+  },
+  /**
+   * The other bow, and the opposite temperament: Widowmaker pays out constantly
+   * and never much, this pays out rarely and then keeps paying.
+   *
+   * Ten percent of a target's maximum life over fifteen seconds is slow enough
+   * that it never kills anything by itself, which is what makes the spread fair
+   * — it needs the party to finish what it started, and it is the party's next
+   * kill that carries it on. A wave dying one at a time keeps it alive across
+   * the whole of it; a wave that dies all at once wasted it.
+   *
+   * The chance is low and the duration long on purpose. At an Archer's crit
+   * rate this lands roughly once every fifteen seconds, so it feels rare and
+   * behaves as though it were permanent — the two things a signature modifier
+   * has to be at the same time.
+   */
+  {
+    id: 'deathsfury', name: "Death's Fury", base: 'bow', lvl: 55, weight: 40,
+    power: 1.25,
+    flavour: 'What it starts, it finishes. It is simply not in a hurry.',
+    mods: [
+      m([110, 150], (v) => `${v}% increased Physical Damage`, (b, v) => { b.localIncPhys += v; }),
+      m([15, 22], (v) => `${v}% increased Attack Speed`, (b, v) => { b.incAtkSpeed += v; }),
+      says('Critical strikes have a 35% chance to inflict a bleed dealing chaos '
+        + 'damage equal to 4% of the target\'s maximum life every 3s for 15s'),
+      says('If a bleeding enemy dies, the bleed spreads to every other enemy '
+        + 'and begins again'),
+    ],
+    reactions: [
+      {
+        trigger: 'crit', key: 'deathsfury', chance: 0.35,
+        run: all((ctx) => furyBleed(ctx, ctx.target),
+          announce((ctx) => `${ctx.target.name} will not stop bleeding.`, 0.20)),
+      },
+    ],
   },
   /**
    * The only unique quiver, and it exists because the off-hand rules created

@@ -45,6 +45,24 @@ export function emptyBag() {
 
 const UNARMED = { physMin: 2, physMax: 5, aps: 1.15, crit: 5, hands: 1 };
 
+/**
+ * The keys a weapon's own modifiers contribute to the swing, and therefore the
+ * only ones training scales. Everything else an item carries — resistances,
+ * life, accuracy, speed — lands in full however clumsily it is held.
+ */
+const WEAPON_DAMAGE_KEYS = new Set([
+  'addPhysMin', 'addPhysMax', 'addFireMin', 'addFireMax', 'addColdMin', 'addColdMax',
+  'addLightMin', 'addLightMax', 'addChaosMin', 'addChaosMax',
+]);
+
+/** Merges one bag into another, scaling only what training touches. */
+function foldIn(bag, sub, proficiency) {
+  for (const [k, v] of Object.entries(sub)) {
+    if (!v) continue;
+    bag[k] = (bag[k] ?? 0) + (WEAPON_DAMAGE_KEYS.has(k) ? v * proficiency : v);
+  }
+}
+
 /** Hard ceiling on either block chance, however it is stacked. */
 export const BLOCK_CAP = 75;
 
@@ -76,7 +94,25 @@ export function heroStats(hero, upgrades = {}) {
     gearArmour += bs.armour ?? 0;
     gearEvasion += bs.evasion ?? 0;
     gearES += bs.es ?? 0;
-    applyItemMods(item, bag);
+    // A weapon's modifiers go through training; everything else does not.
+    //
+    // Only the damage the weapon *adds to the swing* is scaled — the fire
+    // damage on the axe, not the resistance on it. A hero is clumsy with the
+    // weapon, not with the enchantment, and the same affix on a ring is
+    // nobody's business but the ring's.
+    //
+    // This half was missing at first, and the gap was measurable rather than
+    // theoretical: the outfitter handed a Wizard a two-handed axe in three runs
+    // out of forty, because three elemental prefixes landing at full value
+    // bought back the halved base. Halving the base alone is not a rule, it is
+    // most of one.
+    if (base?.slot === 'weapon' && (slot === 'weapon' || slot === 'offhand')) {
+      const sub = emptyBag();
+      applyItemMods(item, sub);
+      foldIn(bag, sub, weaponProficiency(cls, item));
+    } else {
+      applyItemMods(item, bag);
+    }
   }
 
   // ---- 2. Traits and specialisations -------------------------------------

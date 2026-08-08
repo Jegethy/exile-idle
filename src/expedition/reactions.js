@@ -113,6 +113,41 @@ export function partyHot(id, name, totalPerAlly, duration, extra = {}) {
 }
 
 /**
+ * Queues damage dealt straight to an enemy, outside the swing that caused it.
+ *
+ * Declarative, like repeatAttack and for the same reason: dealing it here would
+ * mean knowing how an enemy dies, which lives in the combat tick, which already
+ * imports this. The engine drains the queue once the trigger has finished — see
+ * resolveStrikes.
+ *
+ * Only `hit`, `crit` and `kill` carry a queue, those being the moments a strike
+ * makes sense. Called from anywhere else it does nothing, deliberately: the
+ * alternative is a reaction that appears to work and silently never lands.
+ */
+export function dealDamage(ctx, enemy, amount) {
+  if (!ctx?.strikes || !enemy || enemy.life <= 0 || !(amount > 0)) return;
+  ctx.strikes.push({ enemy, amount });
+}
+
+/**
+ * Sprays a share of the hit over every *other* enemy.
+ *
+ * The struck target is excluded on purpose, which is what makes this a cleave
+ * rather than simply more damage: it is worth nothing against a lone enemy and
+ * a great deal against a full wave, so it is a reason to bring something rather
+ * than a number that is always on.
+ */
+export function cleave(shareOfHit) {
+  return (ctx) => {
+    if (!ctx.amount) return;
+    for (const enemy of ctx.run.enemies) {
+      if (enemy === ctx.target) continue;
+      dealDamage(ctx, enemy, ctx.amount * shareOfHit);
+    }
+  };
+}
+
+/**
  * Asks for the attack to be resolved a second time.
  *
  * Declarative on purpose: a reaction that called back into the combat module
