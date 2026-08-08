@@ -1922,3 +1922,43 @@ body.splash-open { overflow:hidden; }
   border:1px solid var(--line-2); color:var(--ink-dim); background:var(--bg-2);
   white-space:nowrap;
 }
+
+/* ==========================================================================
+   Quests — the questline panel
+   ========================================================================== */
+.quest {
+  padding:9px 11px; margin-bottom:7px;
+  border:1px solid var(--line); border-left-width:3px; border-radius:4px;
+  background:var(--bg-2);
+}
+.quest.active { border-left-color:var(--gold); background:rgba(200,170,110,.055); }
+.quest.done { opacity:.62; border-left-color:var(--good); }
+.quest-head { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.quest-act {
+  font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--ink-faint);
+}
+.quest-tick { margin-left:auto; font-size:10px; text-transform:uppercase; color:var(--good); }
+.quest-text { margin:5px 0 0; font-size:12px; line-height:1.5; color:var(--ink-dim); }
+.quest-obj { margin-top:8px; }
+.quest-obj-row {
+  display:flex; justify-content:space-between; gap:10px; font-size:12px; margin-bottom:3px;
+}
+.quest-obj .bar > i { background:linear-gradient(90deg,#6a5520,var(--gold)); }
+.quest-opens { margin:7px 0 0; font-size:11px; color:var(--ink-faint); }
+.tab[hidden] { display:none; }
+
+/* A Unique hero. Legendary's numbers, with a capability no one else has — so
+   the marker has to read as "different", not as "one rarity higher". */
+.h-unique { --rarity:var(--h-legendary); }
+.hero-card.h-unique, .recruit-card.h-unique, .hm-head.h-unique {
+  border-left-color:transparent;
+  border-image:linear-gradient(160deg,#e0a03a,#f4e0a0,#8fd6ff,#e0a03a) 1;
+  background:linear-gradient(100deg,rgba(224,160,58,.10),rgba(143,214,255,.07));
+}
+.unique-chip {
+  font-size:9px; letter-spacing:1px; text-transform:uppercase; font-weight:700;
+  padding:1px 5px; border-radius:2px; color:#12100c;
+  background:linear-gradient(100deg,#f4e0a0,#8fd6ff);
+}
+.legend-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:7px; }
+.quest.legend { border-left-color:var(--h-legendary); }

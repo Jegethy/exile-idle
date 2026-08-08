@@ -28,8 +28,12 @@ export function reactionsFor(hero, sheet) {
     if (spec?.reactions) out.push(...spec.reactions);
   }
 
-  const skill = hero.skill ? SKILL_BY_ID[hero.skill] : null;
-  if (skill?.reactions) out.push(...skill.reactions);
+  // Plural, because a Unique hero runs two at once. Everyone else has one slot
+  // and this loop turns exactly once — see skillSlots in heroes.js.
+  for (const key of ['skill', 'skill2']) {
+    const skill = hero[key] ? SKILL_BY_ID[hero[key]] : null;
+    if (skill?.reactions) out.push(...skill.reactions);
+  }
 
   for (const slot of Object.keys(hero.equipment ?? {})) {
     const item = hero.equipment[slot];

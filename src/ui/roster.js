@@ -6,7 +6,7 @@ import {
   BASE_STAMINA, assignToParty, boardCosts, dismiss, heroById, heroInfo, isDeployed,
   partyById, recruit, recruitBoard, rerollCost, rerollRecruits, removeFromParty,
   toggleRecruitLock, unequipFromHero, equipSkill, rerollSkills, rerollCostFor,
-  canRerollSkills, restSeconds,
+  canRerollSkills, restSeconds, skillSlots, skillEquipped,
 } from '../heroes.js';
 import { itemBaseStats } from '../items.js';
 import { G, emit, on } from '../state.js';
@@ -22,6 +22,7 @@ import {
   heroesAwaitingChoice, levelFor, nagging, optionsFor, pendingTier, specsOf,
 } from '../specs.js';
 import { openSpecModal } from './specs.js';
+import { systemUnlocked } from '../story.js';
 
 // ===========================================================================
 // Roster
@@ -40,9 +41,9 @@ function renderRosterHeader() {
       <span class="hint">${s.heroes.length} hero${s.heroes.length === 1 ? '' : 'es'}</span>
       ${owed.length ? `<button class="btn tiny spec-call" id="btnSpecNext">
         ${owed.length} specialisation${owed.length === 1 ? '' : 's'} waiting</button>` : ''}
-      <button class="btn tiny ${afford ? 'primary' : ''}" id="btnRecruit">
+      ${systemUnlocked('recruit') ? `<button class="btn tiny ${afford ? 'primary' : ''}" id="btnRecruit">
         Hiring Hall${afford ? '' : ` — from ${fmtInt(cheapest)}g`}
-      </button>
+      </button>` : ''}
     </div>
     <div class="sort-bar" id="rosterSorts">
       <span class="hint">Order</span>
@@ -51,7 +52,8 @@ function renderRosterHeader() {
       <span class="hint">${ui.rosterSort === 'custom'
     ? 'Drag a hero to reorder.' : 'Sorting never changes your own order.'}</span>
     </div>`;
-  qs('#btnRecruit').onclick = () => { renderRecruitBoard(); openModal('modalRecruit'); };
+  const recruitBtn = qs('#btnRecruit');
+  if (recruitBtn) recruitBtn.onclick = () => { renderRecruitBoard(); openModal('modalRecruit'); };
   const specBtn = qs('#btnSpecNext');
   if (specBtn) specBtn.onclick = () => openSpecModal(owed[0].uid);
   qs('#rosterSorts').onclick = (e) => {
@@ -249,7 +251,7 @@ export function renderRoster() {
     const out = isDeployed(h);
     const party = h.partyId ? partyById(h.partyId) : null;
     const stam = clamp((h.stamina / BASE_STAMINA) * 100, 0, 100);
-    return `<div class="hero-card ${info.rarity.cls} ${out ? 'deployed' : ''}"
+    return `<div class="hero-card ${info.rarity.cls} ${h.unique ? 'h-unique' : ''} ${out ? 'deployed' : ''}"
       data-hero="${h.uid}" ${dragging ? 'draggable="true"' : ''}>
       <div class="hero-top">
         <span class="hero-name">${escapeHtml(h.name)}</span>
@@ -366,10 +368,10 @@ export function openHeroModal(heroUid) {
 
   qs('#heroModalTitle').textContent = hero.name;
   qs('#heroModalBody').innerHTML = `
-    <div class="hm-head ${info.rarity.cls}">
+    <div class="hm-head ${info.rarity.cls} ${hero.unique ? 'h-unique' : ''}">
       <div>
         <div class="hm-name">${escapeHtml(hero.name)}</div>
-        <div class="hm-sub"><span class="rarity-word">${info.rarity.name}</span> ${escapeHtml(info.cls.name)} ·
+        <div class="hm-sub">${hero.unique ? '<span class="unique-chip">Unique</span> ' : ''}<span class="rarity-word">${info.rarity.name}</span> ${escapeHtml(info.cls.name)} ·
           <span class="role role-${info.cls.role.toLowerCase()}">${info.cls.role}</span> · Level ${hero.level}</div>
       </div>
       <div class="hm-stats">
@@ -393,16 +395,17 @@ export function openHeroModal(heroUid) {
     ? info.traits.map((t) => `<div class="trait t${t.tier}"><b>${escapeHtml(t.name)}</b>${escapeHtml(t.desc)}</div>`).join('')
     : '<span class="hint">No traits.</span>'}</div>
 
-    <div class="section-head"><span>Skill</span>
+    <div class="section-head"><span>${skillSlots(hero) > 1 ? 'Skills' : 'Skill'}</span>
       <div class="head-actions">
-        <span class="hint">One of three</span>
+        <span class="hint">${skillSlots(hero) > 1
+    ? 'Two of three — turn one off to swap it' : 'One of three'}</span>
         <button class="btn tiny" id="btnRerollSkills" ${canRerollSkills(hero) ? '' : 'disabled'}
           title="Redraw all three from this class's pool">Reroll
           <b class="c-echo">${rerollCostFor(hero)}</b></button>
       </div>
     </div>
     <div class="skill-list" id="skillList">${info.skills.length
-    ? info.skills.map((s) => `<button class="skill ${hero.skill === s.id ? 'active' : ''}" data-skill="${s.id}">
+    ? info.skills.map((s) => `<button class="skill ${skillEquipped(hero, s.id) ? 'active' : ''}" data-skill="${s.id}">
         <b>${escapeHtml(s.name)}</b><span>${escapeHtml(s.desc)}</span></button>`).join('')
     : '<span class="hint">No skills.</span>'}</div>
 

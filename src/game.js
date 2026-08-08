@@ -10,6 +10,7 @@ import { refreshSheets } from './sheets.js';
 import { tickReports, partyIsReading, clearReports } from './reports.js';
 import { tickAchievements, backfill } from './achievements.js';
 import { tickCharter, backfillCharter, offlineHours } from './charter.js';
+import { tickStory, checkStory } from './story.js';
 import { autoUpgradePass, reservesPass, redeployOrders } from './orders.js';
 import { tickAlchemy, resetAlchemyTimer } from './alchemy.js';
 
@@ -102,6 +103,10 @@ export function enterGuild(slot) {
   // already did, silently, rather than greeted by twenty pop-ups.
   backfill();
   backfillCharter();
+  // Same idea for the questline: objectives are derived, so a guild that
+  // already satisfied a chapter is credited for it on arrival rather than
+  // being made to wait for the next sweep.
+  checkStory();
   log(`Welcome back to ${G.state.name}.`, 'sys');
   last = performance.now();
   runOfflineProgress();
@@ -210,6 +215,7 @@ function simulate(dt, quiet = false) {
   tickReports(dt);
   tickAchievements(dt);
   tickCharter(dt);
+  tickStory(dt);
   handleRedeploy(dt);
   autoUpgradePass(dt);
   tickAlchemy(dt);

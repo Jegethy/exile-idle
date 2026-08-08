@@ -70,10 +70,16 @@ comes back here, so you can run several guilds without reloading the page.
 
 ## Tutorial
 
-A new guild opens into a twenty-two step guided tour. It darkens the screen except
+A new guild opens into a sixteen step guided tour. It darkens the screen except
 for the element being explained, and the cut-out stays genuinely interactive —
 when it asks you to send your first expedition, you press the real button and it
 runs a real expedition.
+
+It used to be twenty-two, and the six that went are the ones that taught the
+workbench, alchemy, materials, recruiting, the Guild Hall and the Charter —
+inside the first five minutes, to a player holding no materials and with no
+reason to care about any of it. The questline teaches each of those at the
+moment it opens the system. See [The Questline](#the-questline).
 
 Steps advance on your input, never on a timer, and **nothing on screen changes
 between one press and the next** — each step has exactly one presentation, so
@@ -354,6 +360,114 @@ nobody telling it what to do next has nothing to get on with.
 
 **Saving** — Three localStorage slots, auto-save every 30 seconds, plus base64
 export/import and `.json` download/upload.
+
+## The Questline
+
+The guild had no stated purpose. The Charter is a capability ladder with no
+narrative, achievements are explicitly a score that pays nothing, and nothing in
+the game ever said *why*. The questline is the why: a ransom note, a syndicate,
+and a cage full of people worth getting back.
+
+It earns its place by doing a second job. Rather than front-loading eight
+systems into the tutorial's first five minutes, each chapter **opens one system
+at the moment the player needs it** and asks them to use it once. That is what
+paid for six tutorial steps being deleted rather than duplicated.
+
+Twelve chapters in four acts, `data/story.js`. Chapter data only; the engine in
+`story.js` knows about none of them individually, walks the list, and asks the
+current one how far along it is.
+
+### Objectives are derived, never accumulated
+
+The same rule `data/achievements.js` follows, for the same reasons. Every
+objective is a pure function of the save, so a guild that predates a chapter is
+credited for what it has already done and no counter can drift from the thing it
+counts. It also meant a whole questline needed **almost no new state** — the
+counters were already there for achievements.
+
+Objectives are written **relative, never absolute**. The levelling and XP curves
+have moved twice; a hard-coded `Tier 8` in quest data does not fail loudly when
+they move, it silently becomes impossible or free.
+
+### The unlock rule
+
+> A system opens on the **earlier** of the story reaching its chapter, and the
+> thing that would have revealed it anyway happening.
+
+The second half is the load-bearing half. Without it, a player who stops
+following the questline is locked out of crafting for the life of that guild,
+one bad chapter pointer bricks a save, and a bug in an objective becomes
+unrecoverable rather than merely wrong. With it the questline can only ever
+bring a system *forward* — which is the Charter's own rule (nothing that already
+exists was moved behind a gate) honoured by the one system whose whole job is
+putting things behind gates.
+
+Roster, Parties, Expeditions and the Vault are **never** gated. A guild that
+cannot reach them on its first second is not playable.
+
+Every natural trigger reads something that only ever goes **up** — expeditions
+run, guild level, deepest tier cleared. A trigger that can fall is a system that
+can close again, and watching the workbench disappear because you spent your
+last ingot is a bug report. That also ruled out the obvious first attempt: "any
+material at all opens the workbench" was true on the first frame, because a new
+guild is handed eight copper ore at the door. The handout is not a discovery.
+
+### Unlocks apply on arrival, not on completion
+
+Not an off-by-one. A chapter opens a system and *then* asks the guild to use it,
+which is the whole point of teaching a thing when it matters. Granting on
+completion deadlocks outright: "recruit a hero" cannot be the objective of the
+chapter that unlocks recruiting.
+
+### Skipping defers, it never forfeits
+
+Setting the note aside opens every system at once and stops the prompts — and
+leaves the questline exactly where it was, resumable, with everything already
+done still counting towards it. A skip that forfeited the reward would be an
+irreversible choice made in the first minute by somebody who has not yet seen
+what they are giving up, and there is no version of that which is a choice
+rather than a trap.
+
+That also removes the need to detect a player's first save, which was never
+going to be reliable: save slots are browser-local, so cleared data or a second
+device would have re-forced the story on somebody who had already played it.
+
+### The reward is lateral
+
+Three legends, one per role, and one of them follows you home. They are
+`legendary` — the rarity that already exists — carrying a `unique` tag. **Not a
+tier above Legendary**, and that is the most important decision in the feature.
+The Hiring Hall's entire purpose is chasing a Legendary at eight parts in a
+thousand; a hero strictly better than the best it can ever offer would make
+every Legendary rolled afterwards a disappointment, and the questline would have
+paid for itself by breaking a system that runs for the rest of the game.
+
+So Legendary's numbers exactly, and one thing nobody else can do: **two skills
+at once**. Bounded, because skills come from a fixed pool. Different rather than
+larger, so a Legendary with the right traits still competes. Three of them
+across a twenty-hero, four-party roster is about 5%, and stamina means one hero
+cannot be everywhere.
+
+The questline's own objectives are the time gate — reaching the last chapter
+means clearing Tier 24 — so no artificial delay is bolted on top. The legend
+arrives at the level of the content the guild has beaten, not at level one.
+
+### Two collisions worth recording
+
+**An existing save must never lose a tab it can already see.** A guild forty
+hours in opening the game to find the workshop behind chapter five is the worst
+thing this feature could do. `migrateStory` marks anything that has already
+played as having set the note aside, and there is a test that loads a
+mid-progress save and asserts every system survives.
+
+**The tutorial and the questline collided, and every suite still passed.** Six
+tutorial steps navigated to tabs the questline had just started hiding, so the
+tour walked into a wall — invisible because the shared harness skips both. The
+fix was cutting those six steps (they were the front-loaded ones anyway) and
+adding a check that runs with *both* systems live and asserts every tutorial
+step points at something a new guild can actually see. The questline also stands
+still while the tour runs, since the tutorial's own rule is that nothing changes
+between one press and the next.
 
 ## The Charter
 
@@ -1645,15 +1759,17 @@ src/
     hall.js         Guild Hall upgrades and the unique collection
     vault.js        shared gear vault
     workshop.js     materials, bench recipes, alchemy
+    quests.js       the questline, its objective, and the three legends
     log.js          guild log and its filters
   data/             bases, affixes, uniques, materials, recipes, monsters,
                     heroclasses, traits, skills, specs, resources, modifiers,
-                    dungeons, upgrades
+                    dungeons, upgrades, story
 tests/              headless browser suites (npm test)
   sim.mjs           the real engine, driven headlessly for balance figures
   specbalance.mjs   what each specialisation is worth (run by hand, not in CI)
   dungeonbalance.mjs  is a tier a tier, whichever dungeon (run by hand)
   pacing.mjs        how long the whole game is, walked over the real curves
+  bows.mjs          what the two unique bows are worth (run by hand)
 ```
 
 A panel never imports another panel to redraw it — it emits, and `ui.js` decides

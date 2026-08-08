@@ -18,6 +18,7 @@ import { tutorialTick } from './tutorial.js';
 import { ui } from './ui/state.js';
 import {
   wireTabs, wireTopBar, renderGuildBar, renderQuickStats, renderStatus, setStatus,
+  refreshTabLocks,
 } from './ui/shell.js';
 import { openGuide } from './ui/guide.js';
 import { openAchievements, renderAchievements, pumpAchievementToasts } from './ui/achievements.js';
@@ -33,6 +34,7 @@ import {
 import { renderRaids } from './ui/raids.js';
 import { renderHall, renderCollection } from './ui/hall.js';
 import { renderContracts } from './ui/contracts.js';
+import { renderQuests, renderQuestMark } from './ui/quests.js';
 import { wireVaultActions, renderVault, renderEquipTarget } from './ui/vault.js';
 import {
   buildMaterialGrid, renderMaterials, renderCraftPanel, selectRecipe,
@@ -81,6 +83,9 @@ export function initUI() {
     renderContracts();
   });
   on('contracts', () => { renderContracts(); renderDispatch(); });
+  // A chapter completing can open a tab, so the strip is refreshed with the
+  // panel rather than only on load.
+  on('story', () => { renderQuests(); renderQuestMark(); refreshTabLocks(); });
   on('achievements', () => { renderAchievements(); });
   on('reports', () => { renderRuns(); });
   on('log', () => { renderLog(); });
@@ -95,6 +100,7 @@ export function initUI() {
       renderCharter(); renderHall(); renderCollection();
     }
     if (tabId === 'contracts') renderContracts();
+    if (tabId === 'quests') renderQuests();
     if (tabId === 'workshop') { renderMaterials(); renderCraftPanel(); }
     if (tabId === 'parties') renderParties();
   });
@@ -114,6 +120,9 @@ export function renderAll() {
   renderHall();
   renderCollection();
   renderContracts();
+  renderQuests();
+  renderQuestMark();
+  refreshTabLocks();
   renderEquipTarget();
   renderVault();
   renderMaterials();

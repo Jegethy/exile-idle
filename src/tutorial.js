@@ -177,75 +177,15 @@ export const STEPS = [
       + 'a robe gives cloth, a bow gives wood.',
     advance: 'next',
   },
-  {
-    id: 'materials',
-    tab: 'workshop', target: '#materialGrid',
-    title: 'Materials',
-    body: 'Eight kinds of material, in three grades each. Better grades only come from harder '
-      + 'content.'
-      + '<br><br>You get them two ways: from expeditions, and by breaking down gear you do not '
-      + 'want. <b>Where you send a party decides what you bring back</b> — the Dark Forest gives '
-      + 'wood and herbs, the Arcane Vault gives essence.'
-      + '<br><br>What you get from breaking down an item depends on what it was. A plate helmet '
-      + 'gives metal, a robe gives cloth.',
-    advance: 'next',
-  },
-  {
-    id: 'workbench',
-    tab: 'workshop', target: '#craftPanel',
-    title: 'The Workbench',
-    body: 'This is where you improve gear you already own. Pick an option here, then click an '
-      + 'item in your vault.'
-      + '<br><br><b>Reforge</b> rerolls all of an item\'s bonuses. <b>Augment</b> adds one more. '
-      + '<b>Temper</b> improves the item itself rather than its bonuses.'
-      + '<br><br>Costs go up with the item level, so reworking your best gear is expensive. Some '
-      + 'options are risky and can leave an item worse than it was — those are marked.',
-    advance: 'next',
-  },
-  {
-    id: 'alchemy',
-    tab: 'workshop', target: '#alchemyPanel',
-    title: 'Alchemy',
-    body: 'Flasks are brewed from herbs, a few at a time, and they are the one thing you can do '
-      + 'to help a party <i>before</i> they leave.'
-      + '<br><br>Give a flask to a party on the Parties tab. They drink it on the way out and the '
-      + 'effect lasts the whole expedition, for everyone. One flask, one run — it is used up '
-      + 'whether they clear it or not.'
-      + '<br><br>Each does something different: extra armour and health, faster attacks, better '
-      + 'loot. When a run looks close, the right flask is often what decides it.',
-    advance: 'next',
-  },
-  {
-    id: 'recruit',
-    tab: 'roster', target: '#rosterHeader',
-    title: 'Recruiting',
-    body: 'Gold buys heroes. Every candidate is random, and every hire makes the next one cost '
-      + 'more.'
-      + '<br><br>Depth matters: heroes on an expedition cannot go on another, and tired heroes '
-      + 'cannot go at all. A bigger roster keeps more parties in the field.',
-    advance: 'next',
-  },
-  {
-    id: 'hall',
-    tab: 'hall', subTab: 'hallUpgrades', target: '#upgradeList',
-    title: 'The Guild Hall',
-    body: 'Permanent upgrades, bought with gold. Most raise your returns.'
-      + '<br><br><b>Expedition Charters</b> are the one to aim for — each lets another party run '
-      + 'at the same time, which changes how the game plays more than any stat.',
-    advance: 'next',
-  },
-  {
-    id: 'charter',
-    tab: 'hall', subTab: 'hallCharter', target: '#charterPanel',
-    title: 'The Guild Charter',
-    body: 'The other half of the guild, and it costs nothing.'
-      + '<br><br>The bar at the very top of the screen is your <b>Guild Level</b>. It fills as '
-      + 'your parties come home, and at certain levels the charter grants a <b>privilege</b>.'
-      + '<br><br>None of them make your heroes stronger. What they do is save you work — filling '
-      + 'equipment slots, sending a party out again, buying the next upgrade. The list here shows '
-      + 'every one, including the ones you have not reached yet.',
-    advance: 'next',
-  },
+  // Materials, the workbench, alchemy, recruiting, the Guild Hall and the
+  // Charter used to be taught here, in the first five minutes, to a player with
+  // no materials and no reason to care about any of it. The questline teaches
+  // each of them at the moment it opens the system — see data/story.js.
+  //
+  // Cutting them was not optional once the questline began hiding tabs: every
+  // one of those six steps navigated to a tab a new guild can no longer see, so
+  // the tour walked into a wall. Only these six went. The vault, standing
+  // orders and the guide are not gated by anything, so they stay here.
   {
     id: 'standingOrders',
     tab: 'expeditions', target: '#autoDispatchBox',
@@ -269,9 +209,17 @@ export const STEPS = [
   },
   {
     id: 'done',
+    // Hands over rather than signing off. The rest of the guild — the
+    // workbench, the Guild Hall, recruiting — is taught by the questline at
+    // the point each one opens, which is the whole reason it was taken out of
+    // this tour.
+    tab: 'quests', target: '#questPanel',
     title: 'You Are Set',
-    body: 'Send parties out, gear the roster, buy charters, push tiers. Raid Seals start dropping '
-      + 'at Tier 4 and open the milestone bosses.'
+    body: 'Send parties out, gear the roster, push tiers.'
+      + '<br><br>Your party came back from the mines with something that is not a receipt. '
+      + 'The <b>Quests</b> tab is where the guild keeps it, and it will open the rest of the '
+      + 'hall — the workbench, recruiting, the Guild Hall itself — as you need them rather '
+      + 'than all at once.'
       + '<br><br>Good luck, guildmaster.',
     advance: 'next',
   },

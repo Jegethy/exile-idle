@@ -71,6 +71,7 @@
     <section class="panel" id="centerPanel">
       <nav class="tabs" data-group="center">
         <button class="tab active" data-tab="expeditions">Expeditions</button>
+        <button class="tab" data-tab="quests">Quests <b id="questTabMark" class="tab-n"></b></button>
         <button class="tab" data-tab="contracts">Contracts <b id="contractTabCount" class="tab-n"></b></button>
         <button class="tab" data-tab="raids">Raids</button>
         <button class="tab" data-tab="hall">Guild Hall</button>
@@ -87,6 +88,10 @@
           <div class="log-filters" id="logFilters"></div>
         </div>
         <div id="guildLog" class="log"></div>
+      </div>
+
+      <div class="tab-body" id="tab-quests">
+        <div id="questPanel"></div>
       </div>
 
       <div class="tab-body" id="tab-contracts">

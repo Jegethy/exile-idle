@@ -637,19 +637,82 @@ export function skillsOf(hero) {
   return (hero?.skills ?? []).map((id) => SKILL_BY_ID[id]).filter(Boolean);
 }
 
-/** The one in use, or null. */
+/**
+ * Where equipped skills are stored.
+ *
+ * Two named keys rather than an array, so an existing save needs no migration
+ * at all: `skill` is exactly what it always was, and `skill2` only ever exists
+ * on the one hero in the guild that can hold a second.
+ */
+const SKILL_SLOTS = ['skill', 'skill2'];
+
+/**
+ * How many skills this hero may have running at once.
+ *
+ * One, for everybody in the game except a legend rescued from the syndicate.
+ * That second slot is the whole of what makes a Unique hero unique — the
+ * numbers are Legendary's and no better, deliberately, because a hero who is
+ * simply stronger than the best the Hiring Hall can offer would turn every
+ * Legendary found afterwards into a disappointment and quietly kill the
+ * recruitment loop. A second skill is different rather than bigger.
+ */
+export function skillSlots(hero) {
+  return hero?.unique ? 2 : 1;
+}
+
+/** The one in use, or null. The primary slot, for everything that wants one. */
 export function equippedSkill(hero) {
   return hero?.skill ? SKILL_BY_ID[hero.skill] ?? null : null;
+}
+
+/** Every skill this hero is running, in slot order. */
+export function equippedSkills(hero) {
+  return SKILL_SLOTS.slice(0, skillSlots(hero))
+    .map((key) => SKILL_BY_ID[hero?.[key]])
+    .filter(Boolean);
+}
+
+/** Whether a given skill is currently running on this hero. */
+export function skillEquipped(hero, skillId) {
+  return SKILL_SLOTS.slice(0, skillSlots(hero)).some((key) => hero?.[key] === skillId);
 }
 
 /**
  * Swaps which of a hero's three is active. Free and instant: a skill is a
  * choice about how to play a hero, not a resource to be hoarded, and charging
  * for it would only mean players never experiment.
+ *
+ * Toggling exists only where it has to. With one slot a press *sets* the skill,
+ * exactly as it always did — pressing the one already running would otherwise
+ * turn it off and leave the hero fighting with nothing, which nobody has ever
+ * wanted and which is a strictly worse hero. With two slots there has to be a
+ * way to free one, so a press on a running skill stops it.
+ *
+ * When both slots are full a press is refused rather than silently evicting
+ * something. A second skill that vanished because you pressed a third would be
+ * a mystery; "turn one off first" is a rule you learn once.
  */
 export function equipSkill(hero, skillId) {
   if (skillId !== null && !hero.skills?.includes(skillId)) return false;
-  hero.skill = skillId;
+  const slots = SKILL_SLOTS.slice(0, skillSlots(hero));
+
+  if (skillId === null) {
+    for (const key of slots) hero[key] = null;
+  } else if (slots.length === 1) {
+    hero[slots[0]] = skillId;
+  } else {
+    const held = slots.find((key) => hero[key] === skillId);
+    if (held) {
+      hero[held] = null;
+    } else {
+      const free = slots.find((key) => !hero[key]);
+      if (!free) return false;
+      hero[free] = skillId;
+    }
+  }
+  // Anything beyond this hero's slots is cleared, so a legend who somehow lost
+  // the tag cannot keep running a skill nobody else may have.
+  for (const key of SKILL_SLOTS.slice(slots.length)) hero[key] = null;
   refreshSheets();
   emit('roster');
   return true;

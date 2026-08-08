@@ -6,6 +6,7 @@ import { flaskStatus, standingOrders } from '../alchemy.js';
 import { FAMILIES, MATERIAL_BY_ID, familyMaterials } from '../data/materials.js';
 import { FLASKS, RECIPES, flaskCost } from '../data/recipes.js';
 import { findItem, hasMaterials } from '../inventory.js';
+import { systemUnlocked } from '../story.js';
 import { G, emit, on } from '../state.js';
 import { el, escapeHtml, fmtInt, qs } from '../util.js';
 import { gotoTab, setStatus } from './shell.js';
@@ -146,6 +147,14 @@ function standingOrdersPanel() {
 export function renderAlchemy() {
   const host = qs('#alchemyPanel');
   if (!host || !G.state) return;
+  // Alchemy shares the Workshop tab with the workbench, so it cannot be hidden
+  // by hiding a tab. Gated inside the panel instead, and only ever until the
+  // first herb comes home — see the natural triggers in data/story.js.
+  if (!systemUnlocked('alchemy')) {
+    host.innerHTML = '<p class="hint">The guild has no alchemist and nothing to give one. '
+      + 'Bring back herbs from the Dark Forest or Silkmoth Hollow and that will change.</p>';
+    return;
+  }
   host.innerHTML = `
     <p class="hint">Flasks are brewed a few at a time from herbs. Give one to a party on the
       Parties tab and they drink it as they leave, buffing everyone for the whole expedition.

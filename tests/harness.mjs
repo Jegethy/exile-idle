@@ -1,8 +1,14 @@
 // harness.mjs — shared bootstrap for the browser test suites.
 //
 // Every suite needs the same three things: a static server, a browser page with
-// console errors captured, and a guild that has skipped the tutorial. Doing it
-// once here keeps the suites themselves about behaviour.
+// console errors captured, and a guild that has skipped the tutorial and the
+// questline. Doing it once here keeps the suites themselves about behaviour.
+//
+// The questline hides tabs until it opens them, so a guild that has not set it
+// aside cannot reach Raids or the Guild Hall — which is the feature working,
+// and would otherwise make three hundred tests about something they are not
+// about. `story: true` opts back in, and tests/story.test.mjs is the suite that
+// does.
 
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -33,7 +39,9 @@ export async function startServer() {
  * @returns {{page: object, errors: string[]}} errors accumulates page and
  *   console errors so a suite can assert the run was clean.
  */
-export async function openGame(browser, { name = 'Testing', viewport, tutorial = false } = {}) {
+export async function openGame(browser, {
+  name = 'Testing', viewport, tutorial = false, story = false,
+} = {}) {
   const errors = [];
   const page = await browser.newPage({ viewport: viewport ?? { width: 1600, height: 1000 } });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -52,6 +60,10 @@ export async function openGame(browser, { name = 'Testing', viewport, tutorial =
   if (!tutorial) {
     await page.evaluate(async () => { (await import('./src/tutorial.js')).stopTutorial(true); });
     await page.waitForTimeout(300);
+  }
+  if (!story) {
+    await page.evaluate(async () => { (await import('./src/story.js')).skipStory(); });
+    await page.waitForTimeout(200);
   }
   return { page, errors };
 }

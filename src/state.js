@@ -96,6 +96,12 @@ export function createState(name = 'The Wayfarers') {
     // Guided first session; see tutorial.js. `skipped` is permanent.
     tutorial: { step: 0, done: false, skipped: false },
 
+    // The questline; see story.js. `chapter` is an index into CHAPTERS, and
+    // `skipped` unlocks every system at once without ending the line — a guild
+    // that skipped may still go back and play it, which is the whole reason
+    // skipping is safe to offer in the first place.
+    story: { chapter: 0, done: false, skipped: false, claimed: {} },
+
     progress: {
       highestTier: 0,        // highest tier cleared
       cleared: {},           // `${dungeonId}:${tier}` -> completions

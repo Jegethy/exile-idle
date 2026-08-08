@@ -2,6 +2,8 @@
 
 import { G, emit, guildXpToNext, on, partySlots } from '../state.js';
 import { upcoming } from '../charter.js';
+import { GATED_TABS, SYSTEMS } from '../data/story.js';
+import { systemUnlocked } from '../story.js';
 import { clamp, fmt, fmtInt, fmtTime, qs, qsa } from '../util.js';
 
 // ===========================================================================
@@ -36,6 +38,32 @@ export function selectTab(nav, tabId) {
 export function gotoTab(tabId) {
   const btn = qs(`.tab[data-tab="${tabId}"]`);
   if (btn) selectTab(btn.parentElement, tabId);
+}
+
+/**
+ * Hides the tabs the questline has not opened yet.
+ *
+ * One place, because the tab strip is static markup in index.html rather than
+ * rendered per panel — so gating is a sweep over a handful of buttons and not a
+ * change threaded through every panel that might draw one.
+ *
+ * A hidden tab that happens to be the active one hands the panel back to its
+ * first tab, or a player who is looking at the Guild Hall when a save loads
+ * ends up staring at an empty column.
+ */
+export function refreshTabLocks() {
+  for (const tabId of GATED_TABS) {
+    const btn = qs(`.tab[data-tab="${tabId}"]`);
+    if (!btn) continue;
+    const sys = SYSTEMS.find((x) => x.tab === tabId);
+    const open = !sys || systemUnlocked(sys.id);
+    btn.hidden = !open;
+    if (!open && btn.classList.contains('active')) {
+      const nav = btn.parentElement;
+      const first = qsa('.tab', nav).find((b) => b.parentElement === nav && !b.hidden);
+      if (first) selectTab(nav, first.dataset.tab);
+    }
+  }
 }
 
 /**

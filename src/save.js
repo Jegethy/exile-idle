@@ -6,6 +6,7 @@ import { uidCounter, setUidFloor, defaults } from './util.js';
 import { CLASS_BY_ID, RETIRED_CLASSES } from './data/heroclasses.js';
 import { grantMissingSkills, canHold } from './heroes.js';
 import { migrateSpecs, nagging } from './specs.js';
+import { migrateStory } from './story.js';
 
 export const SLOT_COUNT = 3;
 const KEY = (slot) => `idleGuild.slot${slot}`;
@@ -141,6 +142,17 @@ function migrate(state) {
   }
   for (const [from, n] of Object.entries(reclassed)) {
     notes.push(`${n} ${from}${n === 1 ? '' : 's'} became ${RETIRED_CLASSES[from]}s in the class rework.`);
+  }
+
+  // The questline arrived after these guilds did, and it hides tabs. A guild
+  // that has been playing for forty hours must never open the game to find the
+  // workshop behind chapter five, so anything that has already played is
+  // treated as having set the note aside: everything open, the line still there
+  // to be taken up deliberately. Only a guild that has done nothing at all
+  // starts at the beginning.
+  if (migrateStory(state)) {
+    notes.push('A questline has been added. This guild keeps everything it had unlocked — '
+      + 'the story is waiting on the Quests tab whenever you want it.');
   }
 
   if (state.guild && state.guild.echoes === undefined) state.guild.echoes = 0;
